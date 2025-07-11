@@ -24,43 +24,43 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef G2O_TUTORIAL_EDGE_SE2_POINT_XY_H
-#define G2O_TUTORIAL_EDGE_SE2_POINT_XY_H
-
-#include "g2o/core/base_binary_edge.h"
-#include "g2o_tutorial_slam2d_api.h"
 #include "parameter_se2_offset.h"
-#include "vertex_point_xy.h"
+
 #include "vertex_se2.h"
 
-#include "g2o/core/factory.h"
-
 namespace g2o {
-
 namespace tutorial {
 
-class ParameterSE2Offset;
-class CacheSE2Offset;
+ParameterSE2Offset::ParameterSE2Offset() {}
 
-class G2O_TUTORIAL_SLAM2D_API EdgeSE2PointXY
-    : public BaseBinaryEdge<2, Eigen::Vector2d, VertexSE2, VertexPointXY> {
- public:
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
-  EdgeSE2PointXY();
+void ParameterSE2Offset::setOffset(const SE2& offset) {
+  _offset = offset;
+  _inverseOffset = offset.inverse();
+}
 
-  void computeError();
+bool ParameterSE2Offset::read(std::istream& is) {
+  double x, y, th;
+  is >> x >> y >> th;
+  setOffset(SE2(x, y, th));
+  return true;
+}
 
-  virtual bool read(std::istream& is);
-  virtual bool write(std::ostream& os) const;
+bool ParameterSE2Offset::write(std::ostream& os) const {
+  os << _offset.translation().x() << " " << _offset.translation().y() << " "
+     << _offset.rotation().angle();
+  return os.good();
+}
 
- protected:
-  ParameterSE2Offset* _sensorOffset;
-  CacheSE2Offset* _sensorCache;
+void CacheSE2Offset::updateImpl() {
+  const VertexSE2* v = static_cast<const VertexSE2*>(vertex());
+  _n2w = v->estimate() * _offsetParam->offset();
+  _w2n = _n2w.inverse();
+}
 
-  virtual bool resolveCaches();
-};
+bool CacheSE2Offset::resolveDependencies() {
+  _offsetParam = dynamic_cast<ParameterSE2Offset*>(_parameters[0]);
+  return _offsetParam != 0;
+}
 
-}  // namespace tutorial
+}  // end namespace tutorial
 }  // namespace g2o
-
-#endif

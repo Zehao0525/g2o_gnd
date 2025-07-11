@@ -24,43 +24,34 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef G2O_TUTORIAL_EDGE_SE2_POINT_XY_H
-#define G2O_TUTORIAL_EDGE_SE2_POINT_XY_H
+#include "types_tutorial_slam2d.h"
+#include "edge_se2_pointxy.h"
 
-#include "g2o/core/base_binary_edge.h"
-#include "g2o_tutorial_slam2d_api.h"
-#include "parameter_se2_offset.h"
-#include "vertex_point_xy.h"
-#include "vertex_se2.h"
+#include <iostream>
 
 #include "g2o/core/factory.h"
+#include "g2o/stuff/macros.h"
+
 
 namespace g2o {
-
 namespace tutorial {
 
-class ParameterSE2Offset;
-class CacheSE2Offset;
+// -> Statically compiled might be the trick (dynamic building might be the cause. To check)
+// Object construction
+void forceLinkTypesTutorialSlam2d() {
+    std::cerr << "✅ Registering CacheSE2Offset...\n";
+}
 
-class G2O_TUTORIAL_SLAM2D_API EdgeSE2PointXY
-    : public BaseBinaryEdge<2, Eigen::Vector2d, VertexSE2, VertexPointXY> {
- public:
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
-  EdgeSE2PointXY();
+G2O_REGISTER_TYPE_GROUP(tutorial_slam2d);
 
-  void computeError();
+G2O_REGISTER_TYPE_NAME("TUTORIAL_VERTEX_SE2", VertexSE2);
+G2O_REGISTER_TYPE_NAME("TUTORIAL_VERTEX_POINT_XY", VertexPointXY);
 
-  virtual bool read(std::istream& is);
-  virtual bool write(std::ostream& os) const;
+G2O_REGISTER_TYPE_NAME("TUTORIAL_PARAMS_SE2_OFFSET", ParameterSE2Offset);
 
- protected:
-  ParameterSE2Offset* _sensorOffset;
-  CacheSE2Offset* _sensorCache;
+G2O_REGISTER_TYPE_NAME("TUTORIAL_CACHE_SE2_OFFSET", CacheSE2Offset);
 
-  virtual bool resolveCaches();
-};
-
+G2O_REGISTER_TYPE_NAME("TUTORIAL_EDGE_SE2", EdgeSE2);
+G2O_REGISTER_TYPE_NAME("TUTORIAL_EDGE_SE2_POINT_XY", EdgeSE2PointXY);
 }  // namespace tutorial
 }  // namespace g2o
-
-#endif

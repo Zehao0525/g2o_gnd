@@ -32,7 +32,6 @@
 #include "g2o/core/block_solver.h"
 #include "g2o/core/factory.h"
 #include "g2o/core/optimization_algorithm_factory.h"
-#include "g2o/core/optimization_algorithm_levenberg.h"
 #include "g2o/core/optimization_algorithm_gauss_newton.h"
 #include "g2o/core/sparse_optimizer.h"
 #include "g2o/solvers/eigen/linear_solver_eigen.h"
@@ -69,9 +68,6 @@ int main() {
   SparseOptimizer optimizer;
   auto linearSolver = std::make_unique<SlamLinearSolver>();
   linearSolver->setBlockOrdering(false);
-  // OptimizationAlgorithmLevenberg* solver =
-  //     new OptimizationAlgorithmLevenberg(
-  //         std::make_unique<SlamBlockSolver>(std::move(linearSolver)));
   OptimizationAlgorithmGaussNewton* solver =
       new OptimizationAlgorithmGaussNewton(
           std::make_unique<SlamBlockSolver>(std::move(linearSolver)));
@@ -146,18 +142,17 @@ int main() {
   // prepare and run the optimization
   // fix the first robot pose to account for gauge freedom
   VertexSE2* firstRobotPose = dynamic_cast<VertexSE2*>(optimizer.vertex(0));
-
-
   firstRobotPose->setFixed(true);
   optimizer.setVerbose(true);
 
   cerr << "Optimizing" << endl;
   optimizer.initializeOptimization();
-  cerr << "initializeOptimization() complete" << endl;
   optimizer.optimize(10);
   cerr << "done." << endl;
 
   optimizer.save("tutorial_after.g2o");
+
+  simulator.saveGroundTruth("tutorial_gt.g2o");
 
   // freeing the graph memory
   optimizer.clear();

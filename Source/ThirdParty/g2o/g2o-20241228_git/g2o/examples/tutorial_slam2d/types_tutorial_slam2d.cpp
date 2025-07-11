@@ -34,6 +34,12 @@
 namespace g2o {
 namespace tutorial {
 
+//NOTE
+void forceLinkTypesTutorialSlam2d() {
+    std::cerr << "✅ Registering CacheSE2Offset...\n";
+  }
+  
+
 G2O_REGISTER_TYPE_GROUP(tutorial_slam2d);
 
 G2O_REGISTER_TYPE_NAME("TUTORIAL_VERTEX_SE2", VertexSE2);

@@ -51,6 +51,9 @@ bool ParameterSE2Offset::write(std::ostream& os) const {
   return os.good();
 }
 
+
+CacheSE2Offset::CacheSE2Offset() : Cache(), _offsetParam(0) {}
+
 void CacheSE2Offset::updateImpl() {
   const VertexSE2* v = static_cast<const VertexSE2*>(vertex());
   _n2w = v->estimate() * _offsetParam->offset();
@@ -59,6 +62,7 @@ void CacheSE2Offset::updateImpl() {
 
 bool CacheSE2Offset::resolveDependencies() {
   _offsetParam = dynamic_cast<ParameterSE2Offset*>(_parameters[0]);
+  std::cerr << "🧪 resolveDependencies() -> _offsetParam: " << _offsetParam << std::endl;
   return _offsetParam != 0;
 }
 

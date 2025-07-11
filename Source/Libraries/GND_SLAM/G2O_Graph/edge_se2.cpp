@@ -24,43 +24,35 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef G2O_TUTORIAL_EDGE_SE2_POINT_XY_H
-#define G2O_TUTORIAL_EDGE_SE2_POINT_XY_H
+#include "edge_se2.h"
 
-#include "g2o/core/base_binary_edge.h"
-#include "g2o_tutorial_slam2d_api.h"
-#include "parameter_se2_offset.h"
-#include "vertex_point_xy.h"
-#include "vertex_se2.h"
-
-#include "g2o/core/factory.h"
+using namespace Eigen;
 
 namespace g2o {
-
 namespace tutorial {
 
-class ParameterSE2Offset;
-class CacheSE2Offset;
+EdgeSE2::EdgeSE2() : BaseBinaryEdge<3, SE2, VertexSE2, VertexSE2>() {}
 
-class G2O_TUTORIAL_SLAM2D_API EdgeSE2PointXY
-    : public BaseBinaryEdge<2, Eigen::Vector2d, VertexSE2, VertexPointXY> {
- public:
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
-  EdgeSE2PointXY();
+bool EdgeSE2::read(std::istream& is) {
+  Vector3d p;
+  is >> p[0] >> p[1] >> p[2];
+  _measurement.fromVector(p);
+  _inverseMeasurement = measurement().inverse();
+  for (int i = 0; i < 3; ++i)
+    for (int j = i; j < 3; ++j) {
+      is >> information()(i, j);
+      if (i != j) information()(j, i) = information()(i, j);
+    }
+  return true;
+}
 
-  void computeError();
-
-  virtual bool read(std::istream& is);
-  virtual bool write(std::ostream& os) const;
-
- protected:
-  ParameterSE2Offset* _sensorOffset;
-  CacheSE2Offset* _sensorCache;
-
-  virtual bool resolveCaches();
-};
+bool EdgeSE2::write(std::ostream& os) const {
+  Vector3d p = measurement().toVector();
+  os << p.x() << " " << p.y() << " " << p.z();
+  for (int i = 0; i < 3; ++i)
+    for (int j = i; j < 3; ++j) os << " " << information()(i, j);
+  return os.good();
+}
 
 }  // namespace tutorial
 }  // namespace g2o
-
-#endif

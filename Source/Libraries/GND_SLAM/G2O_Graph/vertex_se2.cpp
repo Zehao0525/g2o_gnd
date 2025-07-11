@@ -24,43 +24,25 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef G2O_TUTORIAL_EDGE_SE2_POINT_XY_H
-#define G2O_TUTORIAL_EDGE_SE2_POINT_XY_H
-
-#include "g2o/core/base_binary_edge.h"
-#include "g2o_tutorial_slam2d_api.h"
-#include "parameter_se2_offset.h"
-#include "vertex_point_xy.h"
 #include "vertex_se2.h"
 
-#include "g2o/core/factory.h"
-
 namespace g2o {
-
 namespace tutorial {
 
-class ParameterSE2Offset;
-class CacheSE2Offset;
+VertexSE2::VertexSE2() : BaseVertex<3, SE2>() {}
 
-class G2O_TUTORIAL_SLAM2D_API EdgeSE2PointXY
-    : public BaseBinaryEdge<2, Eigen::Vector2d, VertexSE2, VertexPointXY> {
- public:
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
-  EdgeSE2PointXY();
+bool VertexSE2::read(std::istream& is) {
+  Eigen::Vector3d p;
+  is >> p[0] >> p[1] >> p[2];
+  _estimate.fromVector(p);
+  return true;
+}
 
-  void computeError();
-
-  virtual bool read(std::istream& is);
-  virtual bool write(std::ostream& os) const;
-
- protected:
-  ParameterSE2Offset* _sensorOffset;
-  CacheSE2Offset* _sensorCache;
-
-  virtual bool resolveCaches();
-};
+bool VertexSE2::write(std::ostream& os) const {
+  Eigen::Vector3d p = estimate().toVector();
+  os << p[0] << " " << p[1] << " " << p[2];
+  return os.good();
+}
 
 }  // namespace tutorial
 }  // namespace g2o
-
-#endif

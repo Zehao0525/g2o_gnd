@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(ORB_SLAM2)
+project(GND_SLAM)
 
 message("Build type: " ${CMAKE_BUILD_TYPE})
 
@@ -65,6 +65,10 @@ message(STATUS "OPENCV VERSION:" ${OpenCV_VERSION})
 # Find the other necessary packages
 find_package(Eigen3 REQUIRED)
 
+message(STATUS "Eigen3_FOUND: ${Eigen3_FOUND}")
+get_target_property(eigen_includes Eigen3::Eigen INTERFACE_INCLUDE_DIRECTORIES)
+message(STATUS "Eigen3::Eigen include dirs: ${eigen_includes}")
+
 # Suppress warning. From:
 # https://stackoverflow.com/questions/79146083/finding-boost-without-cmake-find-module-cmp0167
 if(POLICY CMP0167)
@@ -79,6 +83,8 @@ find_package(Pangolin REQUIRED HINTS "${THIRD_PARTY_BUILT_LIBRARY_PREFIX}" NO_DE
 find_package(DBoW2 REQUIRED)
 find_package(DLib REQUIRED)
 find_package(g2o REQUIRED HINTS "${THIRD_PARTY_BUILT_LIBRARY_PREFIX}" NO_DEFAULT_PATH)
+
+
 
 # Add the libraries and examples
 add_subdirectory(Libraries)

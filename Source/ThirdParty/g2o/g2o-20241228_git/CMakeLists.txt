@@ -275,6 +275,8 @@ CMAKE_DEPENDENT_OPTION(G2O_BUILD_LINKED_APPS "Build apps linked with the librari
 option(G2O_BUILD_EXAMPLES "Build g2o examples" ON)
 if(G2O_BUILD_EXAMPLES)
   message(STATUS "Compiling g2o examples")
+else()
+  message(STATUS "Skipping g2o examples")
 endif(G2O_BUILD_EXAMPLES)
 
 option(G2O_FAST_MATH "Enable fast math operations" OFF)
@@ -542,3 +544,5 @@ if(G2O_BUILD_BENCHMARKS)
     message(WARNING "G2O_BUILD_BENCHMARKS was set to true, but the benchmark library cannot be found")
   endif()
 endif()
+
+

@@ -44,7 +44,7 @@ class G2O_TUTORIAL_SLAM2D_API EdgeSE2
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
   EdgeSE2();
 
-  void computeError() {
+  void computeError() { 
     const VertexSE2* v1 = static_cast<const VertexSE2*>(_vertices[0]);
     const VertexSE2* v2 = static_cast<const VertexSE2*>(_vertices[1]);
     SE2 delta =

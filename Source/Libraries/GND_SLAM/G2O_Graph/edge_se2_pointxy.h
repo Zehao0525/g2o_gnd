@@ -33,8 +33,6 @@
 #include "vertex_point_xy.h"
 #include "vertex_se2.h"
 
-#include "g2o/core/factory.h"
-
 namespace g2o {
 
 namespace tutorial {

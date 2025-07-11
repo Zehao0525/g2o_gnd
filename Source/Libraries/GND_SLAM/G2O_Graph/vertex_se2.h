@@ -24,40 +24,34 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef G2O_TUTORIAL_EDGE_SE2_POINT_XY_H
-#define G2O_TUTORIAL_EDGE_SE2_POINT_XY_H
+#ifndef G2O_TUTORIAL_VERTEX_SE2_H
+#define G2O_TUTORIAL_VERTEX_SE2_H
 
-#include "g2o/core/base_binary_edge.h"
+#include "g2o/core/base_vertex.h"
+#include "g2o/core/hyper_graph_action.h"
 #include "g2o_tutorial_slam2d_api.h"
-#include "parameter_se2_offset.h"
-#include "vertex_point_xy.h"
-#include "vertex_se2.h"
-
-#include "g2o/core/factory.h"
+#include "se2.h"
 
 namespace g2o {
-
 namespace tutorial {
 
-class ParameterSE2Offset;
-class CacheSE2Offset;
-
-class G2O_TUTORIAL_SLAM2D_API EdgeSE2PointXY
-    : public BaseBinaryEdge<2, Eigen::Vector2d, VertexSE2, VertexPointXY> {
+/**
+ * \brief 2D pose Vertex, (x,y,theta)
+ */
+class G2O_TUTORIAL_SLAM2D_API VertexSE2 : public BaseVertex<3, SE2> {
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
-  EdgeSE2PointXY();
+  VertexSE2();
 
-  void computeError();
+  virtual void setToOriginImpl() { _estimate = SE2(); }
+
+  virtual void oplusImpl(const double* update) {
+    SE2 up(update[0], update[1], update[2]);
+    _estimate *= up;
+  }
 
   virtual bool read(std::istream& is);
   virtual bool write(std::ostream& os) const;
-
- protected:
-  ParameterSE2Offset* _sensorOffset;
-  CacheSE2Offset* _sensorCache;
-
-  virtual bool resolveCaches();
 };
 
 }  // namespace tutorial

@@ -1,5 +1,5 @@
 // g2o - General Graph Optimization
-// Copyright (C) 2011 R. Kuemmerle, G. Grisetti, W. Burgard
+// Copyright (C) 2011 R. Kuemmerle, G. Grisetti, H. Strasdat, W. Burgard
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -24,43 +24,35 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef G2O_TUTORIAL_EDGE_SE2_POINT_XY_H
-#define G2O_TUTORIAL_EDGE_SE2_POINT_XY_H
+/***************************************************************************
+ *  Description: import/export macros for creating DLLS with Microsoft
+ *	compiler. Any exported function needs to be declared with the
+ *  appropriate G2O_XXXX_API macro. Also, there must be separate macros
+ *  for each DLL (arrrrrgh!!!)
+ *
+ *  17 Jan 2012
+ *  Email: pupilli@cs.bris.ac.uk
+ ****************************************************************************/
+#ifndef G2O_TUTORIAL_SLAM2D_API_H
+#define G2O_TUTORIAL_SLAM2D_API_H
 
-#include "g2o/core/base_binary_edge.h"
-#include "g2o_tutorial_slam2d_api.h"
-#include "parameter_se2_offset.h"
-#include "vertex_point_xy.h"
-#include "vertex_se2.h"
+#include "g2o/config.h"
 
-#include "g2o/core/factory.h"
+#ifdef _MSC_VER
+// We are using a Microsoft compiler:
+#ifdef G2O_SHARED_LIBS
+#ifdef tutorial_slam2d_library_EXPORTS
+#define G2O_TUTORIAL_SLAM2D_API __declspec(dllexport)
+#else
+#define G2O_TUTORIAL_SLAM2D_API __declspec(dllimport)
+#endif
+#else
+#define G2O_TUTORIAL_SLAM2D_API
+#endif
 
-namespace g2o {
-
-namespace tutorial {
-
-class ParameterSE2Offset;
-class CacheSE2Offset;
-
-class G2O_TUTORIAL_SLAM2D_API EdgeSE2PointXY
-    : public BaseBinaryEdge<2, Eigen::Vector2d, VertexSE2, VertexPointXY> {
- public:
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
-  EdgeSE2PointXY();
-
-  void computeError();
-
-  virtual bool read(std::istream& is);
-  virtual bool write(std::ostream& os) const;
-
- protected:
-  ParameterSE2Offset* _sensorOffset;
-  CacheSE2Offset* _sensorCache;
-
-  virtual bool resolveCaches();
-};
-
-}  // namespace tutorial
-}  // namespace g2o
+#else
+// Not Microsoft compiler so set empty definition:
+#define G2O_TUTORIAL_SLAM2D_API
+#endif
 
 #endif
