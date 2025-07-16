@@ -4,6 +4,7 @@
 #include <map>
 #include <vector>
 #include <memory>
+#include <set>
 
 #include "g2o_tutorial_slam2d_api.h"
 #include "se2.h"
@@ -23,13 +24,14 @@ namespace tutorial {
             Initialization
         };
 
+        Event(double t) : time(t) {};
         virtual ~Event() = default;
         virtual EventType type() const = 0;
         
     };
 
     struct G2O_TUTORIAL_SLAM2D_API HeartBeat : public Event{
-        HeartBeat(const double timestamp)time(timestamp) { };
+        HeartBeat(const double timestamp): Event(timestamp) { };
         EventType type() const override{return EventType::HeartBeat;};
     };
 
@@ -42,10 +44,10 @@ namespace tutorial {
         LandmarkObservationEvent(const double timestamp,
                                 const Eigen::Vector2d& obs,
                                 const Eigen::Matrix2d& cov,
-                                int id): value(obs), covariance(cov), time(timestamp), landmark_id(id) { };
+                                int id): Event(timestamp), value(obs), covariance(cov), landmark_id(id) { };
 
         EventType type() const override{return EventType::LandmarkObservation;};
-    };s
+    };
 
     struct G2O_TUTORIAL_SLAM2D_API LandmarkObservationsEvent : public Event {
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
@@ -53,7 +55,7 @@ namespace tutorial {
         LandmarkObservationVector landmarkObservations;
 
         LandmarkObservationsEvent(double timestamp, LandmarkObservationVector obsertations)
-            : landmarkObservations(obsertations), time(timestamp) {}
+            : Event(timestamp), landmarkObservations(obsertations) {}
 
         EventType type() const override {
             return EventType::LandmarkObservations;
@@ -67,18 +69,22 @@ namespace tutorial {
         Eigen::Matrix3d covariance;
         OdometryEvent(  const double timestamp,
                         const SE2& velosity,
-                        const Eigen::Matrix3d& cov): time(timestamp), value(velosity), covariance(cov) { };
+                        const Eigen::Matrix3d& cov): Event(timestamp), value(velosity), covariance(cov) { };
         EventType type() const override{return EventType::Odometry;};
     };
 
 
     struct G2O_TUTORIAL_SLAM2D_API InitializationEvent : public Event {
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
-        SE2 value;
+        SE2 pose;
+        SE2 velocity;
         Eigen::Matrix3d covariance;
+        Eigen::Matrix3d sigmaU;
         InitializationEvent(const double timestamp,
-                        const SE2& pose,
-                        const Eigen::Matrix3d& cov): time(timestamp), value(pose), covariance(cov) {  };
+                        const SE2& pos,
+                        const SE2& vel,
+                        const Eigen::Matrix3d& posCov,
+                        const Eigen::Matrix3d& sigmau): Event(timestamp), pose(pos), velocity(vel), covariance(posCov), sigmaU(sigmau) {  };
         EventType type() const override{return EventType::Initialization;};
     };
 
@@ -97,3 +103,5 @@ namespace tutorial {
     using EventSet = std::multiset<EventPtr, EventCompare>;
 }
 }
+
+#endif

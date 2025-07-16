@@ -40,18 +40,26 @@ namespace tutorial {
 
 using namespace Eigen;
 
-SE2 IncrementalSimulator::xTrue(){
+thread_local std::unique_ptr<GaussianSampler<Vector3d, Matrix3d>> IncrementalSimulator::odomSampler_;
+
+IncrementalSimulator::IncrementalSimulator() = default;
+
+IncrementalSimulator::~IncrementalSimulator() = default;
+
+
+SE2 IncrementalSimulator::xTrue() const{
   return x_;
 }
 
-void IncrementalSimulator::history(std::vector<double> &timeHistory, std::vector<SE2> & xTrueHistory){
+void IncrementalSimulator::history(std::vector<double> &timeHistory, std::vector<SE2> & xTrueHistory) const{
   timeHistory = timeStore_;
   xTrueHistory = xTrueStore_;
 }
 
 void IncrementalSimulator::start(){
-  start@ebe.core.EventBasedSimulator(obj);
-
+  //start@ebe.core.EventBasedSimulator(obj);
+  if(verbose_){std::cout << " - Starting IncrementalSimulator ... " << std::endl;}
+  if(verbose_){std::cout << " - Creating parameters ... " << std::endl;}
   //obj.platformController.start();
   currentTime_ = 0;
   stepNumber_ = 0;
@@ -69,13 +77,21 @@ void IncrementalSimulator::start(){
   //obj.timeStore.resize(4000);
   //obj.xTrueStore.resize(4000);
 
-  // HARDCODE
+  // HARDCODE TODO
+  maximumStepNumber_ = 4000;
+  if(verbose_){std::cout << "   - Creating sigmaUSqrtm_ ... " << std::endl;}
   sigmaUSqrtm_.fill(0.);
   sigmaUSqrtm_(0, 0) = 0.2;
   sigmaUSqrtm_(1, 1) = 0.1;
   sigmaUSqrtm_(2, 2) = deg2rad(1);
+  if(verbose_){std::cout << "   - Creating sigmaU_ ... " << std::endl;}
   sigmaU_ = sigmaUSqrtm_ * sigmaUSqrtm_;
-  odomSamper_.setDistribution(sigmaU_);
+  if(verbose_){std::cout << "   - Setting odomSampler_ ... " << std::endl;}
+  if (!odomSampler_) {
+    if(verbose_){std::cout << "   - odomSampler_ not initialised, initialising ... " << std::endl;}
+    odomSampler_ = std::make_unique<GaussianSampler<Vector3d, Matrix3d>>();
+  }
+  odomSampler_->setDistribution(sigmaU_);
 
 
   //obj.eventGeneratorQueue.insert(0, @obj.initialize);
@@ -94,6 +110,7 @@ void IncrementalSimulator::start(){
 
   //[[15,15],[35,35],[15,35],[35,15]]
 
+  if(verbose_){std::cout << " - Creating landmarks ... " << std::endl;}
   // Generate LMs like this as of now
   // HARDCODE
   std::vector<Eigen::Vector2d> lm_locs = {
@@ -113,17 +130,22 @@ void IncrementalSimulator::start(){
   }
 
 
-  // HARDCODE
+  // HARDCODE TODO
   Matrix2d lmrbObsSigma;
   lmrbObsSigma.fill(0);
   lmrbObsSigma(0,0) = 1;
   lmrbObsSigma(1,1) = 0.1;
 
 
+  if(verbose_){std::cout << " - Creating event queue ... " << std::endl;}
+
   eventQueue_ = OrderedEventQueue();
-  systemModel_ = SystemModel(true, lmrbObsSigma, Matrix2d());
+
+  if(verbose_){std::cout << " - Creating system model ... " << std::endl;}
+  systemModel_ = std::make_unique<SystemModel>(true, lmrbObsSigma, 25, Matrix2d());
 
 
+  if(verbose_){std::cout << " - Creating platform comtroller ... " << std::endl;}
   // HARDCODE
   platformController_ = PlatformController();
   platformController_.setControllerParams(1,10,0.5,20,20,0.2,0.25,false);
@@ -138,50 +160,73 @@ void IncrementalSimulator::start(){
   // NOTE for syncronouse Simulator only
   odomPeriod_ = 1;
   slamObsPeriod_ = 5;
+
+  if(verbose_){std::cout << " - Trigger initialization event ... " << std::endl;}
+  initialize();
+
+
+  if(verbose_){std::cout << " - IncrementalSimulator start() complete ... " << std::endl;}
 }
+
+
+std::vector<EventPtr> IncrementalSimulator::aquireEvents(){
+    std::vector<EventPtr> events = eventQueue_.orderedEvents();
+    eventQueue_.clear();
+    return events;
+  }
+
+
 
 //Scenario IncrementalSimulator::getScenario() const;
 
-bool IncrementalSimulator::keepRunning(){
+bool IncrementalSimulator::keepRunning() const{
   return ((carryOnRunning_) && (stepNumber_ <= maximumStepNumber_));
 }
 
 void IncrementalSimulator::step(){
   // increment step
+  if(verbose_){std::cout << " - SlamSystem step() ..."<< std::endl;}
   stepNumber_ += 1;
   currentTime_ += dT_;
 
+  if(verbose_){std::cout << " - Predicting forward ..."<< std::endl;}
   handlePredictForwards(dT_);
 
   if(stepNumber_ % odomPeriod_ == 0){
+    if(verbose_){std::cout << " - Updating Odom ..."<< std::endl;}
     updateOdometry();
   }
   if(stepNumber_ % odomPeriod_ == 0){
+    if(verbose_){std::cout << " - Predicting SLAM Obs ..."<< std::endl;}
     predictSLAMObservations();
   }
 
   // We need to have an outgoing events queue, where the estimator can aquire events from there.
+  std::cout << "- Storing Step Result ..."<< std::endl;
   storeStepResults();
+  std::cout << "- SSLAMSystem step() complete" << std::endl;
   
 }
 
-protected:
 void IncrementalSimulator::handlePredictForwards(double dT){
-  x_ = systemModel_.predictState(x_, u_, dT);
+  x_ = systemModel_->predictState(x_, u_, dT);
 }
 
 void IncrementalSimulator::initialize(){
   // Initialize the ground truth state
   // Here we manually set x0 and P0 to 0s
+  if(verbose_){std::cout << "   - initialize() start ... " << std::endl;}
   Matrix3d P0;
   P0.fill(0);
 
   SE2 x0 = SE2(0,0,0);
   x_ = x0;
   initialized_ = true;
-
-  InitializationEvent initEvent = InitializationEvent(currentTime_, x0, P0);
+  if(verbose_){std::cout << "   - Creating initialization event ... " << std::endl;}
+  InitializationEvent initEvent = InitializationEvent(currentTime_, x0, SE2(0,0,0), P0, Matrix3d::Zero());
+  if(verbose_){std::cout << "   - Push event to queue ... " << std::endl;}
   eventQueue_.push(std::make_shared<InitializationEvent>(initEvent));
+  if(verbose_){std::cout << "   - initialize() complete " << std::endl;}
 }
 // We consult the system model and we give an event.
 
@@ -196,16 +241,18 @@ void IncrementalSimulator::updateOdometry(){
 
   if (platformController_.off()){
       carryOnRunning_ = false;
-      return
+      return;
   }
 
-  u_ = platformController_.computeControlInputs(obj.x);
+  u_ = platformController_.computeControlInputs(x_);
 
-  SE2 u = u_ + noiseScale_ * odomSamper_.generateSample();      
+  SE2 u = u_ + (noiseScale_ * (odomSampler_->generateSample()));      
 
   OdometryEvent odomEvent = OdometryEvent(currentTime_, u_, sigmaU_);
   eventQueue_.push(std::make_shared<OdometryEvent>(odomEvent));
 }
+
+
 
 
 //void predictGPSObservation();
@@ -214,9 +261,13 @@ void IncrementalSimulator::updateOdometry(){
 void IncrementalSimulator::predictSLAMObservations() {
 
   // Create and push event
-  LandmarkObservationVector lmObsVec = systemModel_.predictSLAMObservations(x_, landmarks_);
+  if(verbose_){std::cout << "   - predictSLAMObservations() start ..."<< std::endl;}
+  if(verbose_){std::cout << "   - querying system model for lm observation vector ..."<< std::endl;}
+  LandmarkObservationVector lmObsVec = systemModel_->predictSLAMObservations(x_, landmarks_);
+  if(verbose_){std::cout << "   - creating lmObsEvent ..."<< std::endl;}
   auto lmObsEvent = std::make_shared<LandmarkObservationsEvent>(currentTime_, lmObsVec);
   eventQueue_.push(lmObsEvent);
+  if(verbose_){std::cout << "   - predictSLAMObservations() complete"<< std::endl;}
 }
 
 //void generateHeartbeat();

@@ -1,20 +1,28 @@
-add_library(Oneshot_Simulator ${LIB_TYPE}
-  events.h incremental_simulator.cpp system_model.cpp ordered_event_queue.hpp
+add_library(Incremental_Simulator ${LIB_TYPE}
+  events.h 
+  incremental_simulator.h
+  incremental_simulator.cpp 
+  system_model.h
+  system_model.cpp 
+  ordered_event_queue.hpp 
+  platform_controller.h
+  platform_controller.cpp 
+  slam_system.h
+  slam_system.cpp 
 )
 
-target_link_libraries(Oneshot_Simulator PRIVATE G2O_Graph)
-#target_include_directories(Oneshot_Simulator PUBLIC ${CMAKE_CURRENT_DIRECTORY})
-target_include_directories(Oneshot_Simulator PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(Incremental_Simulator PRIVATE G2O_Graph)
+target_include_directories(Incremental_Simulator PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 
-target_link_libraries(Oneshot_Simulator PUBLIC
+target_link_libraries(Incremental_Simulator PUBLIC
   Eigen3::Eigen
   g2o::core
   g2o::stuff
   g2o::solver_eigen
 )
 
-target_include_directories(Oneshot_Simulator PUBLIC
+target_include_directories(Incremental_Simulator PUBLIC
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
 )

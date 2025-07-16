@@ -1,10 +1,12 @@
-#include "waypoint_controller.h"
+#include "platform_controller.h"
 #include "g2o/stuff/misc.h"  // for normalize_theta
 
 namespace g2o {
 namespace tutorial {
 
-PlatformController::PlatformController() {}
+PlatformController::PlatformController() {
+  off_ = false;
+}
 
 void PlatformController::setWaypoints(const std::vector<Eigen::Vector2d>& waypoints) {
   waypoints_ = waypoints;
@@ -30,8 +32,10 @@ void PlatformController::start() {
 }
 
 SE2 PlatformController::computeControlInputs(const SE2& x) {
-  if (waypointIndex_ >= numWaypoints_)
+  if (waypointIndex_ >= numWaypoints_){
+    off_ = true;
     return SE2();
+  }
 
   Eigen::Vector2d dx = waypoints_[waypointIndex_] - x.translation();
   double d = dx.norm();

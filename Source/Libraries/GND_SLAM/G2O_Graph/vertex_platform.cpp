@@ -44,10 +44,10 @@ bool VertexSE2::write(std::ostream& os) const {
   return os.good();
 }
 
-double VertexSE2::time(){
+double time(){
   return _time;
 }
-void VertexSE2::setTime(double time){
+void setTime(double time){
   _time = time;
 }
 

@@ -35,8 +35,6 @@
 #include "events.h"
 #include "sensor_data.h"
 
-#include "edge_se2.h"
-#include "edge_se2_pointxy.h"
 #include "g2o/core/block_solver.h"
 #include "g2o/core/factory.h"
 #include "g2o/core/optimization_algorithm_factory.h"
@@ -44,15 +42,26 @@
 #include "g2o/core/optimization_algorithm_gauss_newton.h"
 #include "g2o/core/sparse_optimizer.h"
 #include "g2o/solvers/eigen/linear_solver_eigen.h"
-#include "simulator.h"
+// #include "simulator.h"
+
 #include "types_tutorial_slam2d.h"
 #include "vertex_point_xy.h"
 #include "vertex_se2.h"
+#include "edge_se2.h"
+#include "edge_se2_pointxy.h"
+
 
 namespace g2o {
 namespace tutorial {
 
-//
+
+using VertexContainer = g2o::OptimizableGraph::VertexContainer;
+
+
+typedef BlockSolver<BlockSolverTraits<-1, -1> > SlamBlockSolver;
+typedef LinearSolverEigen<SlamBlockSolver::PoseMatrixType> SlamLinearSolver;
+
+
 class G2O_TUTORIAL_SLAM2D_API SlamSystem {
 
  public:
@@ -72,12 +81,12 @@ class G2O_TUTORIAL_SLAM2D_API SlamSystem {
   /**
    * @brief optmize graph and store optimsation result
    */
-  void optimize();
+  int optimize(int maximumNumberOfOptimizationSteps);
 
   /**
    * @brief optmize graph and store optimsation result
    */
-  SparseOptimizer optimizer();
+  SparseOptimizer& optimizer();
   // probably not 
   // setValidateGraph()
   // validateGraph()
@@ -100,15 +109,15 @@ class G2O_TUTORIAL_SLAM2D_API SlamSystem {
    * @param x platform pose estimate
    * @param P platform pose estimate covariance
    */
-  void platformEstimate(SE2& x, Matrix2d& P);
+  void platformEstimate(SE2& x, Eigen::Matrix2d& P);
 
     /**
    * @brief return the platform estimates
-   * @param m list of landmark pose estimates (outputs)
-   * @param Pmm list of landmark covariances (outputs)
-   * @param landmarkIds list of landmark ids (outputs)
+   * @param m list of landmark pose estimates (outputs, empty)
+   * @param Pmm list of landmark covariances (outputs, empty) 
+   * @param landmarkIds list of landmark ids (outputs, empty)
    */
-  void landmarkEstimates(std::vector<Vector2d>& m, std::vector<Matrix2d>& Pmm, std::vector<int>& landmarkIds);
+  void landmarkEstimates(std::vector<Eigen::Vector2d>& m, std::vector<Eigen::Matrix2d>& Pmm, std::vector<int>& landmarkIds);
 
   //function [samples, chi2s] = landmarkSamples(obj, Ns, width)
   //function trajectory = getTrajectory(obj, vxtid)
@@ -117,14 +126,20 @@ class G2O_TUTORIAL_SLAM2D_API SlamSystem {
    * @brief process an event vector
    * @param events Input the events into the slam_system
    */
-  void processEvents(EventPtrVector events) const;
+  void processEvents(EventPtrVector& events);
+
+  /**
+   * @brief set verbose
+   * @param verbose verbose
+   */
+  void setVerbose(bool verbose);
 
 protected:
   /**
    * @brief process a event
    * @param events event to process
    */
-  void processEvent(Event event);
+  void processEvent(Event& event);
 
   /**
    * @brief process a event
@@ -173,7 +188,7 @@ protected:
    * @brief given landmark id, retrieve landmark. Create landmark if landmark not already there
    * @param event
    */
-  Landmark createOrGetLandmark(int id);
+  bool createOrGetLandmark(int id, VertexPointXY*& lmVertex);
   // handlenoUpdate()
   // handleInitializationEvent(event)
   
@@ -184,9 +199,33 @@ protected:
 
 
 private:
-  LandmarkPtrVector landmarks_;
-  SparseOptimizer optimizer_;
+  bool verbose_;
+
+  int stepNumber_;
+  double currentTime_;
+  bool initialized_;
+  bool componentsReady_;
+
+
+  static thread_local std::unique_ptr<SparseOptimizer> optimizer_;
+
+  std::vector<VertexSE2*> platformVertices_;
+  int platformVertexId_;
+
+  std::vector<EdgeSE2*> processModelEdges_;
+  int numProcessModelEdges_;
+  int unfixedTimeWindow_;
+
+  VertexSE2* currentPlatformVertex_;
+
+  // Landmark related
+  VertexContainer landmarkVertices_;
   std::map<int, int> landmarkIdMap_;
+  int maxObservationsPerLandmark_;
+
+  SE2 x_;
+  SE2 u_;
+  Eigen::Matrix3d sigmaU_;
 };
 
 }  // namespace tutorial

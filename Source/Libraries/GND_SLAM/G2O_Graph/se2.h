@@ -73,13 +73,33 @@ class G2O_TUTORIAL_SLAM2D_API SE2 {
     return _t + _R * v;
   }
 
-  SE2 scalerMul(const double d) const {
+  // My additionn
+  // This is such that I can linearly multiply this "vector" thing by a scaler.
+  SE2 operator*(const double d) const {
     SE2 ret;
     ret._R = Eigen::Rotation2Dd(_R.angle() * d);
     ret._R.angle() = normalize_theta(ret._R.angle());
     ret._t = _t * d;
     return ret;
   }
+
+  // This is such that i can linearly add to the SE2's elements
+  SE2 operator+(const Eigen::Vector3d& v) const {
+    SE2 ret;
+    ret._t = _t + v.head<2>();
+    ret._R = Eigen::Rotation2Dd(_R.angle() + v[2]);
+    ret._R.angle() = normalize_theta(ret._R.angle());
+    return ret;
+  }
+
+  SE2& operator+=(const Eigen::Vector3d& v) {
+    _t += v.head<2>();
+    _R.angle() += v[2];
+    _R.angle() = normalize_theta(_R.angle());
+    return *this;
+  }
+
+  
 
   SE2 inverse() const {
     SE2 ret;

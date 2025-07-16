@@ -18,7 +18,9 @@ public:
                             double B, bool repeat);
   void start();
 
-  Eigen::Vector3d computeControlInputs(const SE2& x);
+  bool off() const{return off_;}
+
+  SE2 computeControlInputs(const SE2& x);
 
 private:
   std::vector<Eigen::Vector2d> waypoints_;
@@ -28,6 +30,8 @@ private:
 
   double maxAcceptableDistanceFromWaypoint_ = 1.0;
   Eigen::Vector2d u_ = Eigen::Vector2d::Zero(); // [speed, steering angle]
+
+  bool off_;
 
   // Config
   double B_ = 1.0;

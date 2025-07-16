@@ -33,6 +33,7 @@
 #include "g2o_tutorial_slam2d_api.h"
 #include "se2.h"
 #include "system_model.h"
+#include "platform_controller.h"
 #include "ordered_event_queue.hpp"
 #include "sensor_data.h"
 
@@ -55,7 +56,7 @@ class G2O_TUTORIAL_SLAM2D_API IncrementalSimulator {
   /**
    * @brief returns the pose of the simulated viechle
    */
-  const SE2& xTrue() const;
+  SE2 xTrue() const;
 
   /**
    * @brief returns the trajectory of the simulated viechle
@@ -83,6 +84,9 @@ class G2O_TUTORIAL_SLAM2D_API IncrementalSimulator {
    * @brief return if the simulator should be stepped agian
    */
   bool keepRunning() const;
+
+
+  std::vector<EventPtr> aquireEvents();
 
 
 
@@ -140,17 +144,31 @@ protected:
 
   // isWithinGPSOccluder, isDetectedByBearingSensors
 
-private:
+public:
+  // % Flag; if set to false the simulator will terminate at the next
+  // % time step
+  bool carryOnRunning_;
+
+  // % Flag to show if debugging is enabled.
+  // debug;
+        
+  // % Flag to show if the system has been initialized or not
+  bool initialized_;
+
+protected:
+  // Platform State
   SE2 x_;
   SE2 u_;
   Eigen::Matrix3d sigmaU_;
   Eigen::Matrix3d sigmaUSqrtm_;
-  g2o::GaussianSampler<Eigen::Vector2d, Eigen::Matrix2d> odomSamper_;
+  static thread_local std::unique_ptr<GaussianSampler<Eigen::Vector3d, Eigen::Matrix3d>> odomSampler_;
 
+  // Scene info
   //Scenario scenario_;
   LandmarkPtrVector landmarks_;
 
-  SystemModel systemModel_;
+  // System Handles
+  std::unique_ptr<SystemModel> systemModel_;
   OrderedEventQueue eventQueue_;
   PlatformController platformController_;
   // WaypointController controller_;
@@ -180,16 +198,6 @@ private:
   // % Scale which can be applied to noise. Set to 0
   // % (no noise) or 1 (noise)
   double noiseScale_;
-
-  // % Flag; if set to false the simulator will terminate at the next
-  // % time step
-  bool carryOnRunning_;
-
-  // % Flag to show if debugging is enabled.
-  // debug;
-        
-  // % Flag to show if the system has been initialized or not
-  bool initialized_;
   
   // Event generator queue & Outgoing event Queue functionalities
   // We assume that the system is always in sync.
@@ -201,6 +209,9 @@ private:
   // TODO: Set up MainLoop.
   // TODO: Set up Events.
   // TODO: set up a SLAMSystem that takes events.
+
+  // Debug
+  const bool verbose_ = true;
 };
 
 }  // namespace tutorial

@@ -3,6 +3,9 @@
 
 #include <map>
 #include <vector>
+#include <optional>
+
+#include <Eigen/Core>
 
 #include "g2o_tutorial_slam2d_api.h"
 #include "se2.h"
@@ -21,9 +24,10 @@ public:
     static constexpr int NP = 3; // Platform dimension
     static constexpr int NL = 2; // Landmark dimension
 
-    SystemModel(bool perturbWithNoise = false,
-                 SE2& SLAM_sigmaR = std::nullopt,
-                 SE2& GPS_sigmaR = std::nullopt);
+    SystemModel(bool perturbWithNoise,
+                const Eigen::Matrix2d& SLAMsigmaRSqrt,
+                double SLAM_Range,
+                const Eigen::Matrix2d& GPSsigmaRSqrt);
 
                  
     void setPlatformPose(const SE2& x);
@@ -33,30 +37,34 @@ public:
                     const SE2& u,
                     double dT) const;
 
-    LandmarkObservation predictSLAMObservation(const Landmark& l);
+    LandmarkObservationVector predictSLAMObservations(const SE2& xTrue, const LandmarkPtrVector& ls);
 
     //Eigen::VectorXd predictGPSObservation();
 
 protected:
     void setupModels();
 
-    Config config_;
     bool perturbWithNoise_;
     double noiseScale_;
 
     // What should This be?
-    Matrix2d RGPS_;
-    Matrix2d RGPSSqrtm_;
+    Eigen::Matrix2d RGPS_;
+    Eigen::Matrix2d RGPSSqrtm_;
 
-    Matrix2d RSLAM_;
-    g2o::GaussianSampler<Eigen::Vector2d, Eigen::Matrix2d> SLAMSamper_;
-    Matrix2d RSLAMSqrt_;
+    Eigen::Matrix2d RSLAM_;
+    static thread_local std::unique_ptr<g2o::GaussianSampler<Eigen::Vector2d, Eigen::Matrix2d>> slamSampler_;
+    Eigen::Matrix2d RSLAMSqrt_;
     double SlamRange_;
 
     SE2 trueInv_;
     SE2 truePose_;
 
     std::default_random_engine rng_;
+
+
+    const bool verbose_ = true;
 };
 }
 }
+
+#endif
