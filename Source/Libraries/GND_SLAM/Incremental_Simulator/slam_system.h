@@ -40,6 +40,7 @@
 #include "g2o/core/optimization_algorithm_factory.h"
 // TODO Change to Levenburg
 #include "g2o/core/optimization_algorithm_gauss_newton.h"
+#include "g2o/core/optimization_algorithm_levenberg.h"
 #include "g2o/core/sparse_optimizer.h"
 #include "g2o/solvers/eigen/linear_solver_eigen.h"
 // #include "simulator.h"
@@ -72,6 +73,9 @@ class G2O_TUTORIAL_SLAM2D_API SlamSystem {
    * @brief Initialie and start the SLAM system.
    */
   void start();
+
+
+  void checkTypeRegistration();
 
   /**
    * @brief stop the SLAM system and finallise result accumulation
@@ -204,13 +208,18 @@ private:
   int stepNumber_;
   double currentTime_;
   bool initialized_;
-  bool componentsReady_;
+  bool componentsReady_ = false;
 
 
-  static thread_local std::unique_ptr<SparseOptimizer> optimizer_;
+  //static thread_local std::unique_ptr<SparseOptimizer> optimizer_;
+  static std::unique_ptr<SparseOptimizer> optimizer_;
+
+  ParameterSE2Offset* sensorOffset_;
 
   std::vector<VertexSE2*> platformVertices_;
-  int platformVertexId_;
+
+  // This id has been abandoned.
+  int vertexId_;
 
   std::vector<EdgeSE2*> processModelEdges_;
   int numProcessModelEdges_;

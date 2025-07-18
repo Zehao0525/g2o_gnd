@@ -1,3 +1,5 @@
+#include <iostream>
+
 #include "platform_controller.h"
 #include "g2o/stuff/misc.h"  // for normalize_theta
 
@@ -66,6 +68,7 @@ SE2 PlatformController::computeControlInputs(const SE2& x) {
   u_[1] = std::clamp(u_[1] + diffDelta, -maxDelta_, maxDelta_);
 
   double psiDot = u_[0] * std::sin(u_[1]) / B_;
+  if(verbose_){std::cout << " = Controller output: "<< u_[0] << "," << psiDot << std::endl;}
   return SE2(u_[0], 0.0, psiDot);
 }
 

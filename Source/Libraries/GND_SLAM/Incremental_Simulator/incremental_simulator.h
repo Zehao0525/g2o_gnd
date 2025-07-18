@@ -170,7 +170,7 @@ protected:
   // System Handles
   std::unique_ptr<SystemModel> systemModel_;
   OrderedEventQueue eventQueue_;
-  PlatformController platformController_;
+  std::unique_ptr<PlatformController> platformController_;
   // WaypointController controller_;
 
   std::vector<double> timeStore_;
@@ -211,7 +211,7 @@ protected:
   // TODO: set up a SLAMSystem that takes events.
 
   // Debug
-  const bool verbose_ = true;
+  const bool verbose_ = false;
 };
 
 }  // namespace tutorial

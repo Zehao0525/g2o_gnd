@@ -49,9 +49,33 @@ using namespace g2o::tutorial;
 
 namespace g2o::tutorial {
   void forceLinkTypesTutorialSlam2d();  // Forward declaration
+
+  void checkTypeRegistration() {
+      auto* factory = g2o::Factory::instance();
+
+      std::vector<std::string> tags = {
+          "TUTORIAL_VERTEX_SE2",
+          "TUTORIAL_VERTEX_POINT_XY",
+          "TUTORIAL_PARAMS_SE2_OFFSET",
+          "TUTORIAL_CACHE_SE2_OFFSET",
+          "TUTORIAL_EDGE_SE2",
+          "TUTORIAL_EDGE_SE2_POINT_XY"
+      };
+
+      for (const auto& tag : tags) {
+          if (factory->knowsTag(tag)) {
+              std::cout << "✅ Factory knows type: " << tag << std::endl;
+          } else {
+              std::cout << "❌ Factory DOES NOT know type: " << tag << std::endl;
+          }
+      }
+  }
 }
 
+
 int main() {
+  forceLinkTypesTutorialSlam2d();
+  checkTypeRegistration();
   IncrementalSimulator incsim = IncrementalSimulator();
   SlamSystem slamSystem = SlamSystem();
 
@@ -63,7 +87,7 @@ int main() {
   std::vector<EventPtr> events = incsim.aquireEvents();
   cerr << "Slam system processing events ..."<<endl;
   slamSystem.processEvents(events);
-  for(int i=0;i<4000;i++){
+  for(int i=0;i<10;i++){
     cerr <<endl;
     cerr << "(loop) iteration: " << i <<endl;
     incsim.step();

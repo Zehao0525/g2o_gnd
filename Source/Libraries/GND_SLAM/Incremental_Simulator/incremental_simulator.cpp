@@ -38,6 +38,8 @@ using namespace std;
 namespace g2o {
 namespace tutorial {
 
+void forceLinkTypesTutorialSlam2d();
+
 using namespace Eigen;
 
 thread_local std::unique_ptr<GaussianSampler<Vector3d, Matrix3d>> IncrementalSimulator::odomSampler_;
@@ -58,6 +60,7 @@ void IncrementalSimulator::history(std::vector<double> &timeHistory, std::vector
 
 void IncrementalSimulator::start(){
   //start@ebe.core.EventBasedSimulator(obj);
+  forceLinkTypesTutorialSlam2d();
   if(verbose_){std::cout << " - Starting IncrementalSimulator ... " << std::endl;}
   if(verbose_){std::cout << " - Creating parameters ... " << std::endl;}
   //obj.platformController.start();
@@ -147,15 +150,15 @@ void IncrementalSimulator::start(){
 
   if(verbose_){std::cout << " - Creating platform comtroller ... " << std::endl;}
   // HARDCODE
-  platformController_ = PlatformController();
-  platformController_.setControllerParams(1,10,0.5,20,20,0.2,0.25,false);
+  platformController_ = std::make_unique<PlatformController>();
+  platformController_->setControllerParams(1,10,0.5,20,20,0.2,0.25,false);
   std::vector<Eigen::Vector2d> waypoints;
   waypoints.emplace_back(50.0, 0.0);
   waypoints.emplace_back(50.0, 50.0);
   waypoints.emplace_back(0.0, 50.0);
   waypoints.emplace_back(0.0, 0.0);
   waypoints.emplace_back(25.0, 0.0);
-  platformController_.setWaypoints(waypoints);
+  platformController_->setWaypoints(waypoints);
 
   // NOTE for syncronouse Simulator only
   odomPeriod_ = 1;
@@ -188,6 +191,8 @@ void IncrementalSimulator::step(){
   if(verbose_){std::cout << " - SlamSystem step() ..."<< std::endl;}
   stepNumber_ += 1;
   currentTime_ += dT_;
+
+  if(verbose_){std::cout << " - Current Pose: " << x_.toVector() << ", Current Vel: " << u_.toVector() << std::endl;}
 
   if(verbose_){std::cout << " - Predicting forward ..."<< std::endl;}
   handlePredictForwards(dT_);
@@ -223,7 +228,7 @@ void IncrementalSimulator::initialize(){
   x_ = x0;
   initialized_ = true;
   if(verbose_){std::cout << "   - Creating initialization event ... " << std::endl;}
-  InitializationEvent initEvent = InitializationEvent(currentTime_, x0, SE2(0,0,0), P0, Matrix3d::Zero());
+  InitializationEvent initEvent = InitializationEvent(currentTime_, x0, SE2(0,0,0), P0, Matrix3d::Identity());
   if(verbose_){std::cout << "   - Push event to queue ... " << std::endl;}
   eventQueue_.push(std::make_shared<InitializationEvent>(initEvent));
   if(verbose_){std::cout << "   - initialize() complete " << std::endl;}
@@ -239,12 +244,12 @@ void IncrementalSimulator::updateOdometry(){
 
   // Implement Controller
 
-  if (platformController_.off()){
+  if (platformController_->off()){
       carryOnRunning_ = false;
       return;
   }
 
-  u_ = platformController_.computeControlInputs(x_);
+  u_ = platformController_->computeControlInputs(x_);
 
   SE2 u = u_ + (noiseScale_ * (odomSampler_->generateSample()));      
 

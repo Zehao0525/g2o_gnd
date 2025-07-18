@@ -40,6 +40,8 @@ private:
   double maxDelta_ = M_PI / 4;
   double maxDeltaRate_ = M_PI / 10;
   double odomUpdatePeriod_ = 0.2;
+
+  const bool verbose_ = true;
 };
 
 }  // namespace tutorial
