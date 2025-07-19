@@ -47,6 +47,7 @@ SE2 PlatformController::computeControlInputs(const SE2& x) {
       if (repeatVisitingWaypoints_) {
         waypointIndex_ = 0;
       } else {
+        off_ = true;
         return SE2();  // zero-size vector indicates end
       }
     } else {

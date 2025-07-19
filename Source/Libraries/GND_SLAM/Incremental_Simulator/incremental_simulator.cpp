@@ -74,7 +74,7 @@ void IncrementalSimulator::start(){
   //obj.eventGeneratorQueue = ebe.core.detail.EventGeneratorQueue();
 
   // % Set the noise scale
-  noiseScale_ = 1;
+  noiseScale_ = 0;
 
   // We will set maximum step number to 4000
   //obj.timeStore.resize(4000);
@@ -137,6 +137,7 @@ void IncrementalSimulator::start(){
   Matrix2d lmrbObsSigma;
   lmrbObsSigma.fill(0);
   lmrbObsSigma(0,0) = 1;
+  //lmrbObsSigma(1,1) = 0.1;
   lmrbObsSigma(1,1) = 0.1;
 
 
@@ -246,14 +247,21 @@ void IncrementalSimulator::updateOdometry(){
 
   if (platformController_->off()){
       carryOnRunning_ = false;
+      std::cout<<"Platform Controller reached the end, Simulator ending as well."<<std::endl;
       return;
   }
 
   u_ = platformController_->computeControlInputs(x_);
 
-  SE2 u = u_ + (noiseScale_ * (odomSampler_->generateSample()));      
+  std::cout << "u_:" << u_.toVector() << std::endl;
+  Vector3d noise = Vector3d(Sampler::gaussRand(0.0, (0.2)), Sampler::gaussRand(0.0, (0.1)), Sampler::gaussRand(0.0, (M_PI/180)));
 
-  OdometryEvent odomEvent = OdometryEvent(currentTime_, u_, sigmaU_);
+  SE2 u;
+  u.fromVector(u_.toVector() + noise); //(noiseScale_ * (odomSampler_->generateSample()));      
+  std::cout << "noise:" << noise << std::endl;
+  std::cout << "u_:" << u.toVector() << std::endl;
+
+  OdometryEvent odomEvent = OdometryEvent(currentTime_, u, sigmaU_);
   eventQueue_.push(std::make_shared<OdometryEvent>(odomEvent));
 }
 
@@ -279,6 +287,34 @@ void IncrementalSimulator::predictSLAMObservations() {
 void IncrementalSimulator::storeStepResults(){
   timeStore_.emplace_back(currentTime_);
   xTrueStore_.emplace_back(x_);
+}
+
+void IncrementalSimulator::saveGroundTruth(const std::string& filename) {
+    std::ofstream out(filename);
+    if (!out.is_open()) {
+        std::cerr << "Error: cannot open file " << filename << std::endl;
+        return;
+    }
+
+    // Optional: write an offset param line like in tutorial_before.g2o
+    out << "TUTORIAL_PARAMS_SE2_OFFSET 0 0 0 0\n";
+
+    for (size_t i = 0; i < xTrueStore_.size(); ++i) {
+        const auto& pose = xTrueStore_[i];
+        out << std::fixed << std::setprecision(6);
+        out << "TUTORIAL_VERTEX_SE2 " << i << " "
+            << pose[0] << " "
+            << pose[1] << " "
+            << pose[2] << "\n";
+    }
+
+    // Optional: fix the first pose if needed
+    if (!xTrueStore_.empty()) {
+        out << "FIX 0\n";
+    }
+
+    out.close();
+    std::cout << "Ground truth written to " << filename << std::endl;
 }
 
 

@@ -55,8 +55,8 @@ using namespace Eigen;
 
 //thread_local std::unique_ptr<SparseOptimizer> SlamSystem::optimizer_;
 std::unique_ptr<SparseOptimizer> SlamSystem::optimizer_;
-//
-  SlamSystem::SlamSystem():verbose_(true){}
+//TODO opt period update
+  SlamSystem::SlamSystem():verbose_(true), optPeriod_(1000){}
   SlamSystem::~SlamSystem(){}
 
 
@@ -79,8 +79,12 @@ std::unique_ptr<SparseOptimizer> SlamSystem::optimizer_;
       linearSolver->setBlockOrdering(false);
 
       // Change to Levenburg Marquit later
-      OptimizationAlgorithmLevenberg* solver =
-          new OptimizationAlgorithmLevenberg(
+      // OptimizationAlgorithmLevenberg* solver =
+      //     new OptimizationAlgorithmLevenberg(
+      //         std::make_unique<BlockSolver<BlockSolverTraits<-1, -1> >>(std::move(linearSolver)));
+
+      OptimizationAlgorithmGaussNewton* solver =
+          new OptimizationAlgorithmGaussNewton(
               std::make_unique<BlockSolver<BlockSolverTraits<-1, -1> >>(std::move(linearSolver)));
       
       if(!optimizer_){
@@ -104,6 +108,8 @@ std::unique_ptr<SparseOptimizer> SlamSystem::optimizer_;
 
       // Setup sensor offset
       SE2 sensorOffsetTransf(0.0, 0.0, 0.0);
+      std::cout<< "sensorOffsetTransf" << std::endl;
+      std::cout<< sensorOffsetTransf.toVector() << std::endl;
       sensorOffset_ = new ParameterSE2Offset();
       sensorOffset_->setOffset(sensorOffsetTransf);
       sensorOffset_->setId(0);
@@ -120,14 +126,17 @@ std::unique_ptr<SparseOptimizer> SlamSystem::optimizer_;
 
     // % If we are fixing past vehicle states (Q3) then handle
     // % unfixing for the final optimization pass
-    optimize(200);
+    optimize(20);
 
     //if (fixOlderPlatformVertices_ == true){
-      for (const auto& vertex : optimizer_->vertices()) {
-        g2o::OptimizableGraph::Vertex* v = static_cast<g2o::OptimizableGraph::Vertex*>(vertex.second);
+    // TODO We are doing id = 0 for now.
+    for (const auto& vertex : optimizer_->vertices()) {
+      g2o::OptimizableGraph::Vertex* v = static_cast<g2o::OptimizableGraph::Vertex*>(vertex.second);
+      if(v->id() > 0){
         v->setFixed(false);
       }
-      optimize(50);
+    }
+    optimize(20);
     //}
 
   }
@@ -141,6 +150,8 @@ std::unique_ptr<SparseOptimizer> SlamSystem::optimizer_;
     if(verbose_){
       std::cerr << "Final chi2: " << optimizer_->activeChi2() << std::endl;
       std::cerr << "Num Iterations: " << numIterations << std::endl;
+      std::cout << "Number of vertices: " << optimizer_->vertices().size() << std::endl;
+      std::cout << "Number of edges: " << optimizer_->edges().size() << std::endl;
     }
     return numIterations;
     // Add performance data?
@@ -188,11 +199,7 @@ std::unique_ptr<SparseOptimizer> SlamSystem::optimizer_;
           }
       }
     }
-    std::cout << "Number of vertices: " << optimizer_->vertices().size() << std::endl;
-    std::cout << "Number of edges: " << optimizer_->edges().size() << std::endl;
 
-
-    optimize(20);
     SparseBlockMatrix<MatrixX> spinv;
     if(verbose_){std::cout << " - Optimizer Computing Marginals ..." << std::endl;}
 
@@ -277,12 +284,24 @@ std::unique_ptr<SparseOptimizer> SlamSystem::optimizer_;
     for (const auto& event : events) {
       processEvent(*event);
     }
+    // TODO improve this part
+    if(stepNumber_ % optPeriod_ == 0){
+      optimize(10);
+    }
   }
 
 
 
   void SlamSystem::setVerbose(bool verbose){
     verbose_ = verbose;
+  }
+
+    /**
+   * @brief calls save on the optimizer
+   * @param fileName verbose
+   */
+  void SlamSystem::saveOptimizerResults(std::string fileName){
+    optimizer_->save(fileName.c_str());
   }
 
 
@@ -294,7 +313,7 @@ std::unique_ptr<SparseOptimizer> SlamSystem::optimizer_;
     double dT = event.time - currentTime_;
     
     // TODO Change this to match minDT
-    if(dT < 1e-4){
+    if(dT < 1e-3){
       handleNoPrediction();
     }
     else{
@@ -401,10 +420,11 @@ std::unique_ptr<SparseOptimizer> SlamSystem::optimizer_;
    */
   void SlamSystem::handleSLAMObservationEvent(LandmarkObservationsEvent event){
     if(verbose_){std::cout << " - SlamSystem handleSLAMObservationEvent start ..." << std::endl;}
-    SE2 curvtxEst;
-    Matrix2d P;
+    
+    //Matrix2d P;
     if(verbose_){std::cout << " - Estimating platform position ..." << std::endl;}
-    SlamSystem::platformEstimate(curvtxEst, P);
+    SE2 curvtxEst = currentPlatformVertex_->estimate();
+
     for(const auto& lmObs : event.landmarkObservations){
       assert(lmObs.value.size() == 2);
       assert(lmObs.covariance.rows() == 2 && lmObs.covariance.cols() == 2);
@@ -423,12 +443,13 @@ std::unique_ptr<SparseOptimizer> SlamSystem::optimizer_;
       EdgeSE2PointXY* landmarkObservation = new EdgeSE2PointXY;
       //landmarkObservation->resize(2);
       landmarkObservation->setVertex(0,currentPlatformVertex_);
+      if(verbose_){std::cout<< (dynamic_cast<VertexSE2*>(landmarkObservation->vertices()[0])->estimate()).toVector() <<std::endl;}
       landmarkObservation->setVertex(1, lmVertex);
+      if(verbose_){std::cout<< (dynamic_cast<VertexPointXY*>(landmarkObservation->vertices()[1])->estimate()) <<std::endl;}
 
       if(verbose_){std::cout << " = Setting measurments" << std::endl;}
-      if(verbose_){std::cout << lmObs.value << std::endl;}
       landmarkObservation->setMeasurement(lmObs.value);
-      if(verbose_){std::cout<< landmarkObservation->estimate() <<std::endl;}
+      if(verbose_){std::cout<< landmarkObservation->measurement() <<std::endl;}
 
       if(verbose_){std::cout << " = Setting information" << std::endl;}
 
@@ -440,8 +461,8 @@ std::unique_ptr<SparseOptimizer> SlamSystem::optimizer_;
       landmarkObservation->setParameterId(0, sensorOffset_->id());
       if(verbose_){std::cout << " - Adding edge to factor graph..." << std::endl;}
 
-      checkTypeRegistration();
-      landmarkObservation->linearizeOplus();
+      //checkTypeRegistration();
+      //landmarkObservation->linearizeOplus();
 
       optimizer_->addEdge(landmarkObservation);
     }

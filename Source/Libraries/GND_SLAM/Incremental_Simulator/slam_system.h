@@ -138,6 +138,13 @@ class G2O_TUTORIAL_SLAM2D_API SlamSystem {
    */
   void setVerbose(bool verbose);
 
+  /**
+   * @brief calls save on the optimizer
+   * @param fileName verbose
+   */
+  void saveOptimizerResults(std::string fileName);
+
+
 protected:
   /**
    * @brief process a event
@@ -209,6 +216,8 @@ private:
   double currentTime_;
   bool initialized_;
   bool componentsReady_ = false;
+
+  int optPeriod_;
 
 
   //static thread_local std::unique_ptr<SparseOptimizer> optimizer_;

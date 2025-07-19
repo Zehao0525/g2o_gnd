@@ -85,9 +85,9 @@ class G2O_TUTORIAL_SLAM2D_API SE2 {
 
   // This is such that i can linearly add to the SE2's elements
   SE2 operator+(const Eigen::Vector3d& v) const {
-    SE2 ret;
-    ret._t = _t + v.head<2>();
-    ret._R = Eigen::Rotation2Dd(_R.angle() + v[2]);
+    SE2 ret(*this);
+    ret._t += v.head<2>();
+    ret._R.angle() += v[2];
     ret._R.angle() = normalize_theta(ret._R.angle());
     return ret;
   }

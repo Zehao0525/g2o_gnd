@@ -87,7 +87,7 @@ int main() {
   std::vector<EventPtr> events = incsim.aquireEvents();
   cerr << "Slam system processing events ..."<<endl;
   slamSystem.processEvents(events);
-  for(int i=0;i<10;i++){
+  for(int i=0;i<4000;i++){
     cerr <<endl;
     cerr << "(loop) iteration: " << i <<endl;
     incsim.step();
@@ -95,7 +95,7 @@ int main() {
     std::vector<EventPtr> events = incsim.aquireEvents();
     cerr << "(loop) slam system processing events ... ..."<<endl;
     slamSystem.processEvents(events);
-    cerr << "(loop) determining loop break ... ..."<<endl;
+    cerr << "(loop) determining loop break ... ..."<<endl << endl;
     if(!incsim.keepRunning()){
       cerr << " loop break"<<endl;
       break;
@@ -104,5 +104,9 @@ int main() {
   cerr << endl;
   // incsim.stop();
   cerr << "SLAM System Stopping ..."<<endl;
+  slamSystem.saveOptimizerResults("trajectory_before.g2o");
   slamSystem.stop();
+
+  slamSystem.saveOptimizerResults("trajectory_est.g2o");
+  incsim.saveGroundTruth("trajectory_gt.g2o");
 }

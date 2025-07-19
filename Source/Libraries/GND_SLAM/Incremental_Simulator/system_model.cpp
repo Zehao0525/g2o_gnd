@@ -40,7 +40,7 @@ namespace tutorial {
 
     // Given x and 
     SE2 SystemModel::predictState(const SE2& x, const SE2& u, double dT) const{
-        return x * (u*dT);
+        return x * (u * dT);
     }
 
     // For effefciency: This avoids unessesary inverses.
@@ -68,10 +68,13 @@ namespace tutorial {
 
             observation += noiseScale_ * slamSampler_->generateSample();
 
-            lmObsVec.emplace_back(l->id, observation, RSLAM_);
+            //lmObsVec.emplace_back(l->id, observation, RSLAM_);
+            delta += noiseScale_ * slamSampler_->generateSample();
+            lmObsVec.emplace_back(l->id, delta, RSLAM_);
         }
         return lmObsVec;
     }
+
 
     //TODO Deal with
     // GPSObservation SystemModel::predictGPSObservation(){

@@ -98,6 +98,10 @@ class G2O_TUTORIAL_SLAM2D_API IncrementalSimulator {
   */
   void step();
 
+
+
+  void saveGroundTruth(const std::string& filename);
+
   
 
 protected:
