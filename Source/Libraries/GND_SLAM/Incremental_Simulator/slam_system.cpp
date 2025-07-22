@@ -399,8 +399,8 @@ std::unique_ptr<SparseOptimizer> SlamSystem::optimizer_;
       case Event::EventType::LMRangeBearingObservations:
         handleRangeBearingObservationEvent(static_cast<LMRangeBearingObservationsEvent&>(event));
         break;
-      case Event::EventType::GPS:
-        handleUpdateOdometryEvent(static_cast<OdometryEvent&>(event));
+      case Event::EventType::GPSObservation:
+        handleGPSObservationEvent(static_cast<GPSObservationEvent&>(event));
         break;
       case Event::EventType::Odometry:
         handleUpdateOdometryEvent(static_cast<OdometryEvent&>(event));
@@ -628,6 +628,15 @@ std::unique_ptr<SparseOptimizer> SlamSystem::optimizer_;
         landmarkIdMap_[id] = landmarkVertices_.size() - 1;  // Map landmark id to index
         return true;
     }
+  }
+
+  void SlamSystem::handleGPSObservationEvent(GPSObservationEvent event){
+    EdgePlatformLocPrior* gpsObservation = new EdgePlatformLocPrior;
+    gpsObservation->setVertex(0,currentPlatformVertex_);
+    gpsObservation->setMeasurement(event.value);
+    gpsObservation->setInformation(event.covariance.inverse());
+    gpsObservation->setParameterId(0, sensorOffset_->id());
+    optimizer_->addEdge(gpsObservation);
   }
   // handlenoUpdate()
   // handleInitializationEvent(event)

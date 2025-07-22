@@ -7,6 +7,10 @@ add_library(G2O_Graph ${LIB_TYPE}
   g2o_tutorial_slam2d_api.h
   edge_range_bearing.h
   edge_range_bearing.cpp
+  edge_platform_loc_prior.h
+  edge_platform_loc_prior.cpp
+  edge_platform_loc_prior_gnd.h
+  edge_platform_loc_prior_gnd.cpp
 )
 
 #target_include_directories(G2O_Graph PUBLIC ${CMAKE_CURRENT_DIRECTORY})

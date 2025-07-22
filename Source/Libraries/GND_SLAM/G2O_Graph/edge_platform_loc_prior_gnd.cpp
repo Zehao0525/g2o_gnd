@@ -24,22 +24,22 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "edge_platform_loc_prior.h"
+#include "edge_platform_loc_prior_gnd.h"
 
 using namespace Eigen;
 
 namespace g2o {
 namespace tutorial {
 
-EdgePlatformLocPrior::EdgePlatformLocPrior()
-    : BaseUnaryEdge<2, Vector2d, VertexSE2>(),
+EdgePlatformLocPriorGND::EdgePlatformLocPriorGND()
+    : BaseUnaryEdge<1, Vector2d, VertexSE2>(),
       _sensorOffset(0),
       _sensorCache(0) {
   resizeParameters(1);
   installParameter(_sensorOffset, 0);
 }
 
-bool EdgePlatformLocPrior::read(std::istream& is) {
+bool EdgePlatformLocPriorGND::read(std::istream& is) {
   int paramId;
   is >> paramId;
   if (!setParameterId(0, paramId)) return false;
@@ -49,7 +49,7 @@ bool EdgePlatformLocPrior::read(std::istream& is) {
   return true;
 }
 
-bool EdgePlatformLocPrior::write(std::ostream& os) const {
+bool EdgePlatformLocPriorGND::write(std::ostream& os) const {
   os << _sensorOffset->id() << " ";
   os << measurement()[0] << " " << measurement()[1] << " ";
   os << information()(0, 0) << " " << information()(0, 1) << " "
@@ -57,12 +57,23 @@ bool EdgePlatformLocPrior::write(std::ostream& os) const {
   return os.good();
 }
 
-void EdgePlatformLocPrior::computeError() {
+void EdgePlatformLocPriorGND::computeError() {
   Eigen::Vector3d pose = (_sensorCache->n2w()).toVector();
 
 
-  _error[0] = pose[0] - _measurement[0];
-  _error[1] = pose[1] - _measurement[1];  // Normalize angle to [-pi, pi]
+  Eigen::Vector2d error;
+  error[0] = pose[0] - _measurement[0];
+  error[1] = pose[1] - _measurement[1];  // Normalize angle to [-pi, pi]
+
+  _error[0] = sqrt(_lnc + pow((error * _realInformation * error.transpose()),  _power));
+
+}
+
+void EdgePlatformLocPriorGND::gndSetInformation(Matrix2d& information, double power){
+  _realInformation = information;
+  _power = power;
+  _lnc = 1e-3;
+  setInformation(Eigen::Matrix1d::Identity());
 }
 
 bool EdgePlatformLocPrior::resolveCaches() {

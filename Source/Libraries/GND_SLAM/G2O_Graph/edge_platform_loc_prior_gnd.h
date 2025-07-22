@@ -24,55 +24,46 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "edge_platform_loc_prior.h"
+#ifndef G2O_TUTORIAL_EDGE_PLATFORM_LOC_PRIOR_H
+#define G2O_TUTORIAL_EDGE_PLATFORM_LOC_PRIOR_H
 
-using namespace Eigen;
+#include "g2o/core/base_unary_edge.h"
+#include "g2o_tutorial_slam2d_api.h"
+#include "parameter_se2_offset.h"
+#include "vertex_se2.h"
 
 namespace g2o {
+
 namespace tutorial {
 
-EdgePlatformLocPrior::EdgePlatformLocPrior()
-    : BaseUnaryEdge<2, Vector2d, VertexSE2>(),
-      _sensorOffset(0),
-      _sensorCache(0) {
-  resizeParameters(1);
-  installParameter(_sensorOffset, 0);
-}
+class ParameterSE2Offset;
+class CacheSE2Offset;
 
-bool EdgePlatformLocPrior::read(std::istream& is) {
-  int paramId;
-  is >> paramId;
-  if (!setParameterId(0, paramId)) return false;
-  is >> _measurement[0] >> _measurement[1];
-  is >> information()(0, 0) >> information()(0, 1) >> information()(1, 1);
-  information()(1, 0) = information()(0, 1);
-  return true;
-}
+class G2O_TUTORIAL_SLAM2D_API EdgePlatformLocPriorGND
+    : public BaseUnaryEdge<2, Eigen::Vector2d, VertexSE2> {
+ public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
+  EdgePlatformLocPriorGND();
 
-bool EdgePlatformLocPrior::write(std::ostream& os) const {
-  os << _sensorOffset->id() << " ";
-  os << measurement()[0] << " " << measurement()[1] << " ";
-  os << information()(0, 0) << " " << information()(0, 1) << " "
-     << information()(1, 1);
-  return os.good();
-}
+  void computeError();
 
-void EdgePlatformLocPrior::computeError() {
-  Eigen::Vector3d pose = (_sensorCache->n2w()).toVector();
+  void gndSetInformation(Eigen::Matrix2d );
 
+  virtual bool read(std::istream& is);
+  virtual bool write(std::ostream& os) const;
 
-  _error[0] = pose[0] - _measurement[0];
-  _error[1] = pose[1] - _measurement[1];  // Normalize angle to [-pi, pi]
-}
+ protected:
+  ParameterSE2Offset* _sensorOffset;
+  CacheSE2Offset* _sensorCache;
 
-bool EdgePlatformLocPrior::resolveCaches() {
-  ParameterVector pv(1);
-  pv[0] = _sensorOffset;
-  resolveCache(_sensorCache,
-               static_cast<OptimizableGraph::Vertex*>(_vertices[0]),
-               "TUTORIAL_CACHE_SE2_OFFSET", pv);
-  return _sensorCache != 0;
-}
+  virtual bool resolveCaches();
+
+  Eigen::Matrix2d _realInformation;
+  double _power;
+  double _lnc;
+};
 
 }  // namespace tutorial
 }  // namespace g2o
+
+#endif

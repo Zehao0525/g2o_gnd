@@ -55,7 +55,7 @@
 #include "edge_se2.h"
 #include "edge_se2_pointxy.h"
 #include "edge_range_bearing.h"
-#include "platform_loc_prior.h"
+#include "edge_platform_loc_prior.h"
 
 
 
@@ -218,6 +218,8 @@ protected:
   // handleInitializationEvent(event)
   
   // ... all other observations ,,,
+
+  void handleGPSObservationEvent(GPSObservationEvent event);
 
 
   /**

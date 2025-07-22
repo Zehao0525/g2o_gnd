@@ -57,8 +57,8 @@ namespace tutorial {
 
         RGPSSqrt_ = Eigen::Matrix2d::Zero();
         std::vector<double> rgpssqrt = j["sensors"]["gps"].value("sigma", std::vector<double>(1,1));
-        RSLAMSqrt_(0,0) = rgpssqrt[0];
-        RSLAMSqrt_(1,1) = rgpssqrt[1];
+        RGPSSqrt_(0,0) = rgpssqrt[0];
+        RGPSSqrt_(1,1) = rgpssqrt[1];
         RGPS_ = RGPSSqrt_ * RGPSSqrt_.transpose();
 
         perturbWithNoise_ = j.value("perturb_with_noise", false);
@@ -76,12 +76,15 @@ namespace tutorial {
         truePose_ = xTrue;
     }
 
-    GPSObservationEvent SystemModel::predictGPSObservation(const SE2& xTrue) const{
+    void SystemModel::predictGPSObservation(const SE2& xTrue, Eigen::Vector2d& value, Eigen::Matrix2d& R) const {
         Eigen::Vector2d noise = Eigen::Vector2d(Sampler::gaussRand(0.0, RGPSSqrt_(0,0)), Sampler::gaussRand(0.0, RGPSSqrt_(1,1)));
-        GPSObservationEvent gpsObs();
+        value = xTrue.translation() + noise;
+        R = RGPS_;
+        if(verbose_){std::cout<<" - GPS value" << value <<std::endl;}
+        if(verbose_){std::cout<<" - GPS R" << R <<std::endl;}
     }
 
-    LandmarkObservationVector SystemModel::predictSLAMObservations(const SE2& xTrue, const LandmarkPtrVector& ls){
+    LandmarkObservationVector SystemModel::predictSLAMObservations(const SE2& xTrue, const LandmarkPtrVector& ls) const{
         if(verbose_){std::cout<<" - SystemModel::predictSLAMObservations() start ..."<<std::endl;}
         SE2 trueInv = xTrue.inverse();
 
@@ -104,7 +107,7 @@ namespace tutorial {
 
 
 
-    LMRangeBearingObservationVector SystemModel::predictRangeBearingObservations(const SE2& xTrue, const LandmarkPtrVector& ls){
+    LMRangeBearingObservationVector SystemModel::predictRangeBearingObservations(const SE2& xTrue, const LandmarkPtrVector& ls) const{
         if(verbose_){std::cout<<" - SystemModel::predictSLAMObservations() start ..."<<std::endl;}
         SE2 trueInv = xTrue.inverse();
 

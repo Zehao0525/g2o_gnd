@@ -90,6 +90,16 @@ IncrementalSimulator::IncrementalSimulator(const std::string& filename):
         landmarks_.push_back(l);
     }
 
+
+
+
+    bool have_gps_obs = j["sensors"]["gps"].value("on", false);
+    gpsObsPeriod_ = have_gps_obs ? j["sensors"]["gps"].value("measurment_period", 5) : maximumStepNumber_+2;
+
+
+
+
+
     bool addNoise = j.value("perturb_with_noise", true);
     if(addNoise){
       noiseScale_  =1;
@@ -99,11 +109,10 @@ IncrementalSimulator::IncrementalSimulator(const std::string& filename):
     }
     if(verbose_){std::cout<<"- perturb_with_noise = " << addNoise <<std::endl;}
 
+
+
+
     if(verbose_){std::cout<<"- creating system model ... " << addNoise <<std::endl;}
-    // Matrix2d lmrbObsSigma = Matrix2d::Zero();
-    // lmrbObsSigma(0,0) = j["lmrbObsSigma"][0];
-    // lmrbObsSigma(1,1) = j["lmrbObsSigma"][1];
-    // systemModel_ = std::make_unique<SystemModel>(addNoise, lmrbObsSigma, 25, Matrix2d());
     systemModel_ = std::make_unique<SystemModel>(j);
 
 
@@ -128,6 +137,7 @@ IncrementalSimulator::IncrementalSimulator(const std::string& filename):
     if(verbose_){std::cout<<"- creating odom sampler" <<std::endl;}
     if (!odomSampler_) odomSampler_ = std::make_unique<GaussianSampler<Vector3d, Matrix3d>>();
     odomSampler_->setDistribution(sigmaU_);
+    
 
 
     eventQueue_ = OrderedEventQueue();
@@ -206,6 +216,10 @@ void IncrementalSimulator::step(){
     if(verbose_){std::cout << " - Predicting range bearing observation ..."<< std::endl;}
     predictRangeBearingObservations();
   }
+  if(stepNumber_ % gpsObsPeriod_ == 0){
+    if(verbose_){std::cout << " - Predicting range bearing observation ..."<< std::endl;}
+    predictGPSObservation();
+  }
 
   // We need to have an outgoing events queue, where the estimator can aquire events from there.
   std::cout << "- Storing Step Result ..."<< std::endl;
@@ -275,9 +289,7 @@ void IncrementalSimulator::predictSLAMObservations() {
 
   // Create and push event
   if(verbose_){std::cout << "   - predictSLAMObservations() start ..."<< std::endl;}
-  if(verbose_){std::cout << "   - querying system model for lm observation vector ..."<< std::endl;}
   LandmarkObservationVector lmObsVec = systemModel_->predictSLAMObservations(x_, landmarks_);
-  if(verbose_){std::cout << "   - creating lmObsEvent ..."<< std::endl;}
   auto lmObsEvent = std::make_shared<LandmarkObservationsEvent>(currentTime_, lmObsVec);
   eventQueue_.push(lmObsEvent);
   if(verbose_){std::cout << "   - predictSLAMObservations() complete"<< std::endl;}
@@ -287,13 +299,21 @@ void IncrementalSimulator::predictSLAMObservations() {
 void IncrementalSimulator::predictRangeBearingObservations() {
 
   // Create and push event
-  if(verbose_){std::cout << "   - predictSLAMObservations() start ..."<< std::endl;}
-  if(verbose_){std::cout << "   - querying system model for lm observation (range bearing) vector ..."<< std::endl;}
+  if(verbose_){std::cout << "   - predictRangeBearingObservations() start ..."<< std::endl;}
   LMRangeBearingObservationVector lmObsVec = systemModel_->predictRangeBearingObservations(x_, landmarks_);
-  if(verbose_){std::cout << "   - creating lmObsEvent ..."<< std::endl;}
   auto lmObsEvent = std::make_shared<LMRangeBearingObservationsEvent>(currentTime_, lmObsVec);
   eventQueue_.push(lmObsEvent);
-  if(verbose_){std::cout << "   - predictSLAMObservations() complete"<< std::endl;}
+  if(verbose_){std::cout << "   - predictRangeBearingObservations() complete"<< std::endl;}
+}
+
+
+void IncrementalSimulator::predictGPSObservation(){
+  if(verbose_){std::cout << "   - predictGPSObservations() start ..."<< std::endl;}
+  Eigen::Vector2d value;
+  Eigen::Matrix2d R;
+  systemModel_->predictGPSObservation(x_, value, R);
+  eventQueue_.push(std::make_shared<GPSObservationEvent>(currentTime_, value, R));
+  if(verbose_){std::cout << "   - predictGPSObservations() complete"<< std::endl;}
 }
 
 

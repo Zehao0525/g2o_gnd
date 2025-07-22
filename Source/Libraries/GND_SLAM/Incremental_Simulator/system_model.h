@@ -42,13 +42,11 @@ public:
                     const SE2& u,
                     double dT) const;
 
-    GPSObservationEvent SystemModel::predictGPSObservation(const SE2& xTrue) const;
+    void predictGPSObservation(const SE2& xTrue, Eigen::Vector2d& value, Eigen::Matrix2d& R) const;
 
-    LandmarkObservationVector predictSLAMObservations(const SE2& xTrue, const LandmarkPtrVector& ls);
+    LandmarkObservationVector predictSLAMObservations(const SE2& xTrue, const LandmarkPtrVector& ls) const;
 
-    LMRangeBearingObservationVector predictRangeBearingObservations(const SE2& xTrue, const LandmarkPtrVector& ls);
-
-    //Eigen::VectorXd predictGPSObservation();
+    LMRangeBearingObservationVector predictRangeBearingObservations(const SE2& xTrue, const LandmarkPtrVector& ls) const;
 
 protected:
     void setupModels();

@@ -32,7 +32,7 @@
     "gps":{
       "on": false,
       "perturb_with_noise": true,
-      "sigma": [1.0, 1.0],
+      "sigma": [2.0, 2.0],
       "measurment_period": 5
     }
   },

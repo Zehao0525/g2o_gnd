@@ -94,10 +94,10 @@ namespace tutorial {
     struct G2O_TUTORIAL_SLAM2D_API GPSObservationEvent : public Event {
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
         Eigen::Vector2d value;
-        Eigen::Matrix3d covariance;
-        InitializationEvent(const double timestamp,
+        Eigen::Matrix2d covariance;
+        GPSObservationEvent(const double timestamp,
                         const Eigen::Vector2d& pos,
-                        const Eigen::Matrix3d& cov): Event(timestamp), value(pos), covariance(cov) {  };
+                        const Eigen::Matrix2d& cov): Event(timestamp), value(pos), covariance(cov) {  };
         EventType type() const override{return EventType::GPSObservation;};
     };
 

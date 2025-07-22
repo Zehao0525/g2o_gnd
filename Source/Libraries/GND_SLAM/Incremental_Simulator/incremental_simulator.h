@@ -151,6 +151,12 @@ protected:
 
 
   /** 
+  * @brief Simulate SLAM observation and emmit according event
+  */
+  void predictGPSObservation();
+
+
+  /** 
    * @brief Generate Heartbeat Event
   */
   void generateHeartbeat();
@@ -224,6 +230,7 @@ protected:
   int odomPeriod_;
   int slamObsPeriod_;
   int rangBearingObsPeriod_;
+  int gpsObsPeriod_;
 
   // TODO: Set up MainLoop.
   // TODO: Set up Events.
