@@ -18,8 +18,9 @@ namespace tutorial {
         double time;
         enum class EventType {
             HeartBeat,
-            LandmarkObservation,
+            LMRangeBearingObservations,
             LandmarkObservations,
+            GPSObservation,
             Odometry,
             Initialization
         };
@@ -36,19 +37,6 @@ namespace tutorial {
     };
 
 
-    struct G2O_TUTORIAL_SLAM2D_API LandmarkObservationEvent : public Event {
-        EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
-        int landmark_id;
-        Eigen::Vector2d value;
-        Eigen::Matrix2d covariance;
-        LandmarkObservationEvent(const double timestamp,
-                                const Eigen::Vector2d& obs,
-                                const Eigen::Matrix2d& cov,
-                                int id): Event(timestamp), value(obs), covariance(cov), landmark_id(id) { };
-
-        EventType type() const override{return EventType::LandmarkObservation;};
-    };
-
     struct G2O_TUTORIAL_SLAM2D_API LandmarkObservationsEvent : public Event {
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 
@@ -59,6 +47,20 @@ namespace tutorial {
 
         EventType type() const override {
             return EventType::LandmarkObservations;
+        }
+    };
+
+
+    struct G2O_TUTORIAL_SLAM2D_API LMRangeBearingObservationsEvent : public Event {
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
+
+        LMRangeBearingObservationVector landmarkObservations;
+
+        LMRangeBearingObservationsEvent(double timestamp, LMRangeBearingObservationVector obsertations)
+            : Event(timestamp), landmarkObservations(obsertations) {}
+
+        EventType type() const override {
+            return EventType::LMRangeBearingObservations;
         }
     };
     
@@ -86,6 +88,17 @@ namespace tutorial {
                         const Eigen::Matrix3d& posCov,
                         const Eigen::Matrix3d& sigmau): Event(timestamp), pose(pos), velocity(vel), covariance(posCov), sigmaU(sigmau) {  };
         EventType type() const override{return EventType::Initialization;};
+    };
+
+
+    struct G2O_TUTORIAL_SLAM2D_API GPSObservationEvent : public Event {
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
+        Eigen::Vector2d value;
+        Eigen::Matrix3d covariance;
+        InitializationEvent(const double timestamp,
+                        const Eigen::Vector2d& pos,
+                        const Eigen::Matrix3d& cov): Event(timestamp), value(pos), covariance(cov) {  };
+        EventType type() const override{return EventType::GPSObservation;};
     };
 
 

@@ -30,6 +30,8 @@
 #include <map>
 #include <vector>
 
+#include <nlohmann/json.hpp>
+
 #include "g2o_tutorial_slam2d_api.h"
 #include "se2.h"
 #include "system_model.h"
@@ -40,6 +42,7 @@
 namespace g2o {
 namespace tutorial {
 
+
 //
 class G2O_TUTORIAL_SLAM2D_API IncrementalSimulator {
  public:
@@ -47,7 +50,7 @@ class G2O_TUTORIAL_SLAM2D_API IncrementalSimulator {
 
 
  public:
-  IncrementalSimulator();
+  IncrementalSimulator(const std::string& filename);
   ~IncrementalSimulator();
 
   // =============================
@@ -57,6 +60,10 @@ class G2O_TUTORIAL_SLAM2D_API IncrementalSimulator {
    * @brief returns the pose of the simulated viechle
    */
   SE2 xTrue() const;
+
+  std::vector<Eigen::Vector2d> landmarkPosesTrue() const;
+
+  std::vector<Eigen::Vector2d> waypointsTrue() const;
 
   /**
    * @brief returns the trajectory of the simulated viechle
@@ -136,6 +143,13 @@ protected:
   */
   void predictSLAMObservations();
 
+
+  /** 
+   * @brief Simulate SLAM observation and emmit according event
+  */
+  void predictRangeBearingObservations();
+
+
   /** 
    * @brief Generate Heartbeat Event
   */
@@ -209,13 +223,14 @@ protected:
   // So effectivly if the step number is divisible by period we make prediction.
   int odomPeriod_;
   int slamObsPeriod_;
+  int rangBearingObsPeriod_;
 
   // TODO: Set up MainLoop.
   // TODO: Set up Events.
   // TODO: set up a SLAMSystem that takes events.
 
   // Debug
-  const bool verbose_ = false;
+  bool verbose_;
 };
 
 }  // namespace tutorial

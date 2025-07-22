@@ -7,6 +7,8 @@
 
 #include <Eigen/Core>
 
+#include <nlohmann/json.hpp>
+
 #include "g2o_tutorial_slam2d_api.h"
 #include "se2.h"
 #include "events.h"
@@ -29,6 +31,9 @@ public:
                 double SLAM_Range,
                 const Eigen::Matrix2d& GPSsigmaRSqrt);
 
+    
+    SystemModel(nlohmann::json j);
+
                  
     void setPlatformPose(const SE2& x);
 
@@ -37,7 +42,11 @@ public:
                     const SE2& u,
                     double dT) const;
 
+    GPSObservationEvent SystemModel::predictGPSObservation(const SE2& xTrue) const;
+
     LandmarkObservationVector predictSLAMObservations(const SE2& xTrue, const LandmarkPtrVector& ls);
+
+    LMRangeBearingObservationVector predictRangeBearingObservations(const SE2& xTrue, const LandmarkPtrVector& ls);
 
     //Eigen::VectorXd predictGPSObservation();
 
@@ -49,12 +58,16 @@ protected:
 
     // What should This be?
     Eigen::Matrix2d RGPS_;
-    Eigen::Matrix2d RGPSSqrtm_;
+    Eigen::Matrix2d RGPSSqrt_;
 
     Eigen::Matrix2d RSLAM_;
     static thread_local std::unique_ptr<g2o::GaussianSampler<Eigen::Vector2d, Eigen::Matrix2d>> slamSampler_;
     Eigen::Matrix2d RSLAMSqrt_;
     double SlamRange_;
+
+    Eigen::Matrix2d RRB_;
+    Eigen::Matrix2d RRBSqrt_;
+    double RBRange_;
 
     SE2 trueInv_;
     SE2 truePose_;
@@ -62,7 +75,7 @@ protected:
     std::default_random_engine rng_;
 
 
-    const bool verbose_ = false;
+    bool verbose_ = true;
 };
 }
 }

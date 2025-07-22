@@ -56,6 +56,7 @@ namespace tutorial {
   };
   using LandmarkEdgeVector = std::vector<LandmarkEdge>;
     
+  
     // value = Range,Bearing
     struct LandmarkObservation {
         int landmark_id;
@@ -67,6 +68,19 @@ namespace tutorial {
     };
 
     using LandmarkObservationVector = std::vector<LandmarkObservation>;
+
+
+    // value = Range,Bearing
+    struct LandmarkRangeBearingObservation {
+        int landmark_id;
+        Eigen::Vector2d value;
+        Eigen::Matrix2d covariance;
+
+        LandmarkRangeBearingObservation(int id, const Eigen::Vector2d& val, const Eigen::Matrix2d& cov)
+            : landmark_id(id), value(val), covariance(cov) {}
+    };
+
+    using LMRangeBearingObservationVector = std::vector<LandmarkRangeBearingObservation>;
 
 }
 }

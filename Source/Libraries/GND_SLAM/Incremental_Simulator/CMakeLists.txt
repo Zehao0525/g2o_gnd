@@ -1,3 +1,5 @@
+#add_subdirectory(visualizer)
+
 add_library(Incremental_Simulator ${LIB_TYPE}
   events.h 
   incremental_simulator.h
@@ -11,6 +13,8 @@ add_library(Incremental_Simulator ${LIB_TYPE}
   slam_system.cpp 
 )
 
+find_package(nlohmann_json REQUIRED)
+
 target_link_libraries(Incremental_Simulator PRIVATE G2O_Graph)
 target_include_directories(Incremental_Simulator PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
@@ -20,6 +24,7 @@ target_link_libraries(Incremental_Simulator PUBLIC
   g2o::core
   g2o::stuff
   g2o::solver_eigen
+  nlohmann_json::nlohmann_json
 )
 
 target_include_directories(Incremental_Simulator PUBLIC

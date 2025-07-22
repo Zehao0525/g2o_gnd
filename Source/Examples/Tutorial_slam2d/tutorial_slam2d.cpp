@@ -91,6 +91,7 @@ int main() {
     robot->setEstimate(t);
     optimizer.addVertex(robot);
   }
+  cerr << "Number of poses added: " << simulator.poses().size() << endl;
   cerr << "done." << endl;
 
   // second add the odometry constraints
@@ -105,6 +106,7 @@ int main() {
     odometry->setInformation(simEdge.information);
     optimizer.addEdge(odometry);
   }
+  cerr << "Number of measurements added: " << simulator.odometry().size() << endl;
   cerr << "done." << endl;
 
   // add the landmark observations
@@ -116,6 +118,7 @@ int main() {
     landmark->setEstimate(l.simulatedPose);
     optimizer.addVertex(landmark);
   }
+  cerr << "Number of landmarks added: " << simulator.landmarks().size() << endl;
   cerr << "done." << endl;
 
   cerr << "Optimization: add landmark observations ... ";
@@ -130,6 +133,7 @@ int main() {
     landmarkObservation->setParameterId(0, sensorOffset->id());
     optimizer.addEdge(landmarkObservation);
   }
+  cerr << "Number of observations added: " << simulator.landmarkObservations().size() << endl;
   cerr << "done." << endl;
 
   /*********************************************************************************

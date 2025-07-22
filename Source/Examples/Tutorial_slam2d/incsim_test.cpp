@@ -26,6 +26,7 @@
 
 #include <cmath>
 #include <iostream>
+#include <unistd.h>
 
 #include "edge_se2.h"
 #include "edge_se2_pointxy.h"
@@ -42,10 +43,14 @@
 #include "types_tutorial_slam2d.h"
 #include "vertex_point_xy.h"
 #include "vertex_se2.h"
+#include "view_manager.h"
+#include "simulator_view.h"
+#include "slam_system_view.h"
 
 using namespace std;
 using namespace g2o;
 using namespace g2o::tutorial;
+using namespace Eigen;
 
 namespace g2o::tutorial {
   void forceLinkTypesTutorialSlam2d();  // Forward declaration
@@ -76,17 +81,25 @@ namespace g2o::tutorial {
 int main() {
   forceLinkTypesTutorialSlam2d();
   checkTypeRegistration();
-  IncrementalSimulator incsim = IncrementalSimulator();
-  SlamSystem slamSystem = SlamSystem();
+  IncrementalSimulator incsim = IncrementalSimulator("Source/Examples/Tutorial_slam2d/simulator_config.json");
+  SlamSystem slamSystem = SlamSystem("Source/Examples/Tutorial_slam2d/slam_system_config.json");
+  viz::ViewManager vizer = viz::ViewManager();
+  std::shared_ptr<viz::SimulatorView> simVizer = std::make_shared<viz::SimulatorView>(&incsim, "Source/Examples/Tutorial_slam2d/view_config.json");
+  std::shared_ptr<viz::SLAMSystemView> slamVizer = std::make_shared<viz::SLAMSystemView>(&slamSystem, Vector3f(0.0f, 0.0f, 1.0f));
+  vizer.addView(simVizer);
+  vizer.addView(slamVizer);
 
   cerr << "Simulator starting ... "<<endl;
   incsim.start();
   cerr << "SLAM System Starting ..."<<endl;
   slamSystem.start();
+  cerr << "Visualizer Starting ..."<<endl;
+  vizer.start();
   cerr << "Aquiring events from simulator ..."<<endl;
   std::vector<EventPtr> events = incsim.aquireEvents();
   cerr << "Slam system processing events ..."<<endl;
   slamSystem.processEvents(events);
+  
   for(int i=0;i<4000;i++){
     cerr <<endl;
     cerr << "(loop) iteration: " << i <<endl;
@@ -96,16 +109,33 @@ int main() {
     cerr << "(loop) slam system processing events ... ..."<<endl;
     slamSystem.processEvents(events);
     cerr << "(loop) determining loop break ... ..."<<endl << endl;
+
+    Vector3d simx = incsim.xTrue().toVector();
+    simVizer->updateRobotPose(simx);
+
+    slamVizer->update();
+
+
+    // use slamSystem.platformEstimate(SE2& x, Matrix2d& P) to access the estimated position.
+    // use incsim.xTrue() to access the ground truth. 
     if(!incsim.keepRunning()){
       cerr << " loop break"<<endl;
       break;
     }
+    usleep(25000);
   }
   cerr << endl;
   // incsim.stop();
   cerr << "SLAM System Stopping ..."<<endl;
   slamSystem.saveOptimizerResults("trajectory_before.g2o");
   slamSystem.stop();
+
+  Vector3d simx = incsim.xTrue().toVector();
+  simVizer->updateRobotPose(simx);
+
+  slamVizer->update();
+  sleep(5);
+  vizer.stop();
 
   slamSystem.saveOptimizerResults("trajectory_est.g2o");
   incsim.saveGroundTruth("trajectory_gt.g2o");

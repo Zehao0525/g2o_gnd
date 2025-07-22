@@ -13,6 +13,7 @@ public:
   PlatformController();
 
   void setWaypoints(const std::vector<Eigen::Vector2d>& waypoints);
+  std::vector<Eigen::Vector2d> getWaypoints() const;
   void setControllerParams(double minSpeed, double maxSpeed, double maxAccel,
                            double maxDelta, double maxDeltaRate, double odomUpdatePeriod,
                             double B, bool repeat);
@@ -34,6 +35,7 @@ private:
   bool off_;
 
   // Config
+  // We use the unicycle model
   double B_ = 1.0;
   double minSpeed_ = 0.0, maxSpeed_ = 1.0;
   double maxAccel_ = 1.0;

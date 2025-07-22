@@ -1,0 +1,58 @@
+{
+  "verbose": true,
+  "max_steps": 4000,
+  "landmarks": [
+    [15.0, 15.0],
+    [35.0, 35.0],
+    [15.0, 35.0],
+    [35.0, 15.0]
+  ],
+  "waypoints": [
+    [50.0, 0.0],
+    [50.0, 50.0],
+    [0.0, 50.0],
+    [0.0, 0.0],
+    [25.0, 0.0]
+  ],
+  "sensors": {
+    "landmark_relative_location":{
+      "on": false,
+      "perturb_with_noise": true,
+      "sigma": [1.0, 1.0],
+      "range": 25,
+      "measurment_period": 1
+    },
+    "landmark_range_bearing":{
+      "on": true,
+      "perturb_with_noise": true,
+      "sigma": [1.0, 0.1],
+      "range": 25,
+      "measurment_period": 5
+    },
+    "gps":{
+      "on": false,
+      "perturb_with_noise": true,
+      "sigma": [1.0, 1.0],
+      "measurment_period": 5
+    }
+  },
+  "perturb_with_noise": true,
+
+  "odom_period": 1,
+  "platform": {
+    "noise": {
+      "sigmaU": [0.2, 0.1, 1.0],
+      "deg_to_rad": true,
+      "perturb_with_noise": true
+    },
+    "min_speed": 1.0,
+    "max_speed": 10,
+    "max_accel": 0.5,
+    "max_delta": 20,
+    "max_delta_rate":20,
+    "odom_update_period": 0.2,
+    "B": 0.25,
+    "repeat": false
+
+  }
+}

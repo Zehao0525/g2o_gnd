@@ -30,10 +30,7 @@
 #include <map>
 #include <vector>
 
-#include "g2o_tutorial_slam2d_api.h"
-#include "se2.h"
-#include "events.h"
-#include "sensor_data.h"
+#include <nlohmann/json.hpp>
 
 #include "g2o/core/block_solver.h"
 #include "g2o/core/factory.h"
@@ -45,11 +42,21 @@
 #include "g2o/solvers/eigen/linear_solver_eigen.h"
 // #include "simulator.h"
 
+
+
+#include "g2o_tutorial_slam2d_api.h"
+#include "se2.h"
+#include "events.h"
+#include "sensor_data.h"
+
 #include "types_tutorial_slam2d.h"
 #include "vertex_point_xy.h"
 #include "vertex_se2.h"
 #include "edge_se2.h"
 #include "edge_se2_pointxy.h"
+#include "edge_range_bearing.h"
+#include "platform_loc_prior.h"
+
 
 
 namespace g2o {
@@ -66,7 +73,7 @@ typedef LinearSolverEigen<SlamBlockSolver::PoseMatrixType> SlamLinearSolver;
 class G2O_TUTORIAL_SLAM2D_API SlamSystem {
 
  public:
-  SlamSystem();
+  SlamSystem(const std::string& filename);
   ~SlamSystem();
 
   /**
@@ -113,7 +120,8 @@ class G2O_TUTORIAL_SLAM2D_API SlamSystem {
    * @param x platform pose estimate
    * @param P platform pose estimate covariance
    */
-  void platformEstimate(SE2& x, Eigen::Matrix2d& P);
+  void platformEstimate(Eigen::Vector3d& x, Eigen::Matrix2d& P);
+  void platformEstimate(Eigen::Vector3d& x);
 
     /**
    * @brief return the platform estimates
@@ -195,6 +203,12 @@ protected:
    */
   void handleSLAMObservationEvent(LandmarkObservationsEvent event);
 
+    /**
+   * @brief event handler for landmark observation events
+   * @param event
+   */
+  void handleRangeBearingObservationEvent(LMRangeBearingObservationsEvent event);
+
   /**
    * @brief given landmark id, retrieve landmark. Create landmark if landmark not already there
    * @param event
@@ -204,6 +218,12 @@ protected:
   // handleInitializationEvent(event)
   
   // ... all other observations ,,,
+
+
+  /**
+   * @brief As of now this actually also resets the optmizer.
+   */
+  void setupOptimizer();
   
 
 
@@ -218,6 +238,10 @@ private:
   bool componentsReady_ = false;
 
   int optPeriod_;
+  std::string optimizationAlg_;
+  int optCountProcess_;
+  int optCountStop_;
+  int optCountStopFix_;
 
 
   //static thread_local std::unique_ptr<SparseOptimizer> optimizer_;

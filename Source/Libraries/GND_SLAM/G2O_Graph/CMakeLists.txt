@@ -5,6 +5,8 @@ add_library(G2O_Graph ${LIB_TYPE}
   parameter_se2_offset.h parameter_se2_offset.cpp
   types_tutorial_slam2d.h types_tutorial_slam2d.cpp
   g2o_tutorial_slam2d_api.h
+  edge_range_bearing.h
+  edge_range_bearing.cpp
 )
 
 #target_include_directories(G2O_Graph PUBLIC ${CMAKE_CURRENT_DIRECTORY})

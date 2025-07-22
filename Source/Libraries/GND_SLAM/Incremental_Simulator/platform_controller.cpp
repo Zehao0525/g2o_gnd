@@ -15,6 +15,11 @@ void PlatformController::setWaypoints(const std::vector<Eigen::Vector2d>& waypoi
   numWaypoints_ = static_cast<int>(waypoints_.size());
 }
 
+std::vector<Eigen::Vector2d> PlatformController::getWaypoints() const{
+  std::vector<Eigen::Vector2d> waypoints = waypoints_;
+  return waypoints;
+}
+
 void PlatformController::setControllerParams(double minSpeed, double maxSpeed, double maxAccel,
                                              double maxDelta, double maxDeltaRate, double odomUpdatePeriod,
                                             double B, bool repeat) {
@@ -24,6 +29,7 @@ void PlatformController::setControllerParams(double minSpeed, double maxSpeed, d
   maxDelta_ = maxDelta;
   maxDeltaRate_ = maxDeltaRate;
   odomUpdatePeriod_ = odomUpdatePeriod;
+
   B_ = B;
   repeatVisitingWaypoints_ = repeat;
 }

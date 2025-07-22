@@ -44,13 +44,112 @@ using namespace Eigen;
 
 thread_local std::unique_ptr<GaussianSampler<Vector3d, Matrix3d>> IncrementalSimulator::odomSampler_;
 
-IncrementalSimulator::IncrementalSimulator() = default;
+IncrementalSimulator::IncrementalSimulator(const std::string& filename):
+      currentTime_(0), stepNumber_(0), carryOnRunning_(true), initialized_(false){
+  std::ifstream f(filename);
+    if (!f) {
+        throw std::runtime_error("Cannot open Simulator config file: " + filename);
+    }
+    nlohmann::json j;
+    f >> j;
+
+    verbose_ = j.value("verbose", false);
+    if(verbose_){std::cout<<"- SlamSystem Created, verbose_ = true."<<std::endl;}
+    if(verbose_){std::cout<<"- Reading all other parameters."<<std::endl;}
+    maximumStepNumber_ = j.value("max_steps", 4000);
+    if(verbose_){std::cout<<"- maximumStepNumber_ = " << maximumStepNumber_ <<std::endl;}
+
+    auto noise = j["platform"]["noise"].value("sigmaU", std::vector<double>{0.2, 0.1, 1.0});
+    sigmaUSqrtm_.setZero();
+    sigmaUSqrtm_(0, 0) = noise[0];
+    sigmaUSqrtm_(1, 1) = noise[1];
+    sigmaUSqrtm_(2, 2) = (j["platform"]["noise"].value("deg_to_rad", true)) ? deg2rad(noise[2]) : noise[2];
+    sigmaU_ = sigmaUSqrtm_ * sigmaUSqrtm_;
+    if(verbose_){std::cout<<"- sigmaU set" <<std::endl;}
+
+    // TODO change 
+    odomPeriod_ = j.value("odom_period", 1);
+
+    bool have_slam_obs = j["sensors"]["landmark_relative_location"].value("on", false);
+    slamObsPeriod_ =  have_slam_obs ? j["sensors"]["landmark_relative_location"].value("measurment_period", 5) : maximumStepNumber_+2;
+
+
+    bool have_rb_obs = j["sensors"]["landmark_range_bearing"].value("on", false);
+    rangBearingObsPeriod_ = have_rb_obs ? j["sensors"]["landmark_range_bearing"].value("measurment_period", 5) : maximumStepNumber_+2;
+
+    if(verbose_){std::cout<<"- odomPeriod_ = " << odomPeriod_ << ", slamObsPeriod_ = " << slamObsPeriod_ <<std::endl;}
+
+    if(verbose_){std::cout<<"- Adding landmarks ..."<<std::endl;}
+    landmarks_.clear();
+    int id_counter = 0;
+    for (const auto& lm : j["landmarks"]) {
+        auto* l = new Landmark();
+        l->id = id_counter++;
+        l->truePose = Eigen::Vector2d(lm[0], lm[1]);
+        l->simulatedPose = l->truePose;
+        landmarks_.push_back(l);
+    }
+
+    bool addNoise = j.value("perturb_with_noise", true);
+    if(addNoise){
+      noiseScale_  =1;
+    }
+    else{
+      noiseScale_ = 0;
+    }
+    if(verbose_){std::cout<<"- perturb_with_noise = " << addNoise <<std::endl;}
+
+    if(verbose_){std::cout<<"- creating system model ... " << addNoise <<std::endl;}
+    // Matrix2d lmrbObsSigma = Matrix2d::Zero();
+    // lmrbObsSigma(0,0) = j["lmrbObsSigma"][0];
+    // lmrbObsSigma(1,1) = j["lmrbObsSigma"][1];
+    // systemModel_ = std::make_unique<SystemModel>(addNoise, lmrbObsSigma, 25, Matrix2d());
+    systemModel_ = std::make_unique<SystemModel>(j);
+
+
+    if(verbose_){std::cout<<"- creating platform controller ... " << addNoise <<std::endl;}
+    platformController_ = std::make_unique<PlatformController>();
+    platformController_->setControllerParams(j["platform"].value("min_speed",1.0),
+                                            j["platform"].value("max_speed",10.0),
+                                            j["platform"].value("max_accel",0.5),
+                                            j["platform"].value("max_delta", 20),
+                                            j["platform"].value("max_delta_rate", 20),
+                                            j["platform"].value("odom_update_period",0.2),
+                                            j["platform"].value("B",0.25),
+                                            j["platform"].value("repeat", false));
+    std::vector<Eigen::Vector2d> waypoints;
+    for (const auto& wp : j["waypoints"]) {
+        waypoints.emplace_back(wp[0], wp[1]);
+    }
+    platformController_->setWaypoints(waypoints);
+
+
+
+    if(verbose_){std::cout<<"- creating odom sampler" <<std::endl;}
+    if (!odomSampler_) odomSampler_ = std::make_unique<GaussianSampler<Vector3d, Matrix3d>>();
+    odomSampler_->setDistribution(sigmaU_);
+
+
+    eventQueue_ = OrderedEventQueue();
+}
 
 IncrementalSimulator::~IncrementalSimulator() = default;
 
 
 SE2 IncrementalSimulator::xTrue() const{
   return x_;
+}
+
+std::vector<Eigen::Vector2d> IncrementalSimulator::landmarkPosesTrue() const{
+  std::vector<Eigen::Vector2d> poses;
+  for (const auto* lm : landmarks_) {
+      poses.push_back(lm->truePose);
+  }
+  return poses;
+}
+
+std::vector<Eigen::Vector2d> IncrementalSimulator::waypointsTrue() const{
+  return platformController_->getWaypoints();
 }
 
 void IncrementalSimulator::history(std::vector<double> &timeHistory, std::vector<SE2> & xTrueHistory) const{
@@ -61,109 +160,6 @@ void IncrementalSimulator::history(std::vector<double> &timeHistory, std::vector
 void IncrementalSimulator::start(){
   //start@ebe.core.EventBasedSimulator(obj);
   forceLinkTypesTutorialSlam2d();
-  if(verbose_){std::cout << " - Starting IncrementalSimulator ... " << std::endl;}
-  if(verbose_){std::cout << " - Creating parameters ... " << std::endl;}
-  //obj.platformController.start();
-  currentTime_ = 0;
-  stepNumber_ = 0;
-
-  carryOnRunning_ = true;
-  initialized_ = false;
-
-  //% Create the queue for generating the events
-  //obj.eventGeneratorQueue = ebe.core.detail.EventGeneratorQueue();
-
-  // % Set the noise scale
-  noiseScale_ = 0;
-
-  // We will set maximum step number to 4000
-  //obj.timeStore.resize(4000);
-  //obj.xTrueStore.resize(4000);
-
-  // HARDCODE TODO
-  maximumStepNumber_ = 4000;
-  if(verbose_){std::cout << "   - Creating sigmaUSqrtm_ ... " << std::endl;}
-  sigmaUSqrtm_.fill(0.);
-  sigmaUSqrtm_(0, 0) = 0.2;
-  sigmaUSqrtm_(1, 1) = 0.1;
-  sigmaUSqrtm_(2, 2) = deg2rad(1);
-  if(verbose_){std::cout << "   - Creating sigmaU_ ... " << std::endl;}
-  sigmaU_ = sigmaUSqrtm_ * sigmaUSqrtm_;
-  if(verbose_){std::cout << "   - Setting odomSampler_ ... " << std::endl;}
-  if (!odomSampler_) {
-    if(verbose_){std::cout << "   - odomSampler_ not initialised, initialising ... " << std::endl;}
-    odomSampler_ = std::make_unique<GaussianSampler<Vector3d, Matrix3d>>();
-  }
-  odomSampler_->setDistribution(sigmaU_);
-
-
-  //obj.eventGeneratorQueue.insert(0, @obj.initialize);
-
-  //Get the landmarks
-  // slamLandmarks = obj.scenario.landmarks.slam;
-
-  // % Just handle random case for now
-  // if (strcmp(slamLandmarks.configuration, 'random') == true)
-  //     lms = [slamLandmarks.x_min;slamLandmarks.y_min] + ...
-  //         [slamLandmarks.x_max-slamLandmarks.x_min;slamLandmarks.y_max-slamLandmarks.y_min] .* ...
-  //         rand(2, slamLandmarks.numLandmarks);
-  // else
-  //     lms = slamLandmarks.landmarks;
-  // end
-
-  //[[15,15],[35,35],[15,35],[35,15]]
-
-  if(verbose_){std::cout << " - Creating landmarks ... " << std::endl;}
-  // Generate LMs like this as of now
-  // HARDCODE
-  std::vector<Eigen::Vector2d> lm_locs = {
-    {15.0, 15.0},
-    {35.0, 35.0},
-    {15.0, 35.0},
-    {35.0, 15.0}
-  };
-
-  int id_counter = 0;
-  for (const auto& loc : lm_locs) {
-    auto* lm = new Landmark();       // allocate Landmark on heap
-    lm->id = id_counter++;
-    lm->truePose = loc;
-    lm->simulatedPose = loc;         // if you want to match the truePose initially
-    landmarks_.push_back(lm);
-  }
-
-
-  // HARDCODE TODO
-  Matrix2d lmrbObsSigma;
-  lmrbObsSigma.fill(0);
-  lmrbObsSigma(0,0) = 1;
-  //lmrbObsSigma(1,1) = 0.1;
-  lmrbObsSigma(1,1) = 0.1;
-
-
-  if(verbose_){std::cout << " - Creating event queue ... " << std::endl;}
-
-  eventQueue_ = OrderedEventQueue();
-
-  if(verbose_){std::cout << " - Creating system model ... " << std::endl;}
-  systemModel_ = std::make_unique<SystemModel>(true, lmrbObsSigma, 25, Matrix2d());
-
-
-  if(verbose_){std::cout << " - Creating platform comtroller ... " << std::endl;}
-  // HARDCODE
-  platformController_ = std::make_unique<PlatformController>();
-  platformController_->setControllerParams(1,10,0.5,20,20,0.2,0.25,false);
-  std::vector<Eigen::Vector2d> waypoints;
-  waypoints.emplace_back(50.0, 0.0);
-  waypoints.emplace_back(50.0, 50.0);
-  waypoints.emplace_back(0.0, 50.0);
-  waypoints.emplace_back(0.0, 0.0);
-  waypoints.emplace_back(25.0, 0.0);
-  platformController_->setWaypoints(waypoints);
-
-  // NOTE for syncronouse Simulator only
-  odomPeriod_ = 1;
-  slamObsPeriod_ = 5;
 
   if(verbose_){std::cout << " - Trigger initialization event ... " << std::endl;}
   initialize();
@@ -202,9 +198,13 @@ void IncrementalSimulator::step(){
     if(verbose_){std::cout << " - Updating Odom ..."<< std::endl;}
     updateOdometry();
   }
-  if(stepNumber_ % odomPeriod_ == 0){
+  if(stepNumber_ % slamObsPeriod_ == 0){
     if(verbose_){std::cout << " - Predicting SLAM Obs ..."<< std::endl;}
     predictSLAMObservations();
+  }
+  if(stepNumber_ % rangBearingObsPeriod_ == 0){
+    if(verbose_){std::cout << " - Predicting range bearing observation ..."<< std::endl;}
+    predictRangeBearingObservations();
   }
 
   // We need to have an outgoing events queue, where the estimator can aquire events from there.
@@ -254,7 +254,7 @@ void IncrementalSimulator::updateOdometry(){
   u_ = platformController_->computeControlInputs(x_);
 
   std::cout << "u_:" << u_.toVector() << std::endl;
-  Vector3d noise = Vector3d(Sampler::gaussRand(0.0, (0.2)), Sampler::gaussRand(0.0, (0.1)), Sampler::gaussRand(0.0, (M_PI/180)));
+  Vector3d noise = Vector3d(Sampler::gaussRand(0.0, sigmaUSqrtm_(0,0)), Sampler::gaussRand(0.0, sigmaUSqrtm_(1,1)), Sampler::gaussRand(0.0, sigmaUSqrtm_(2,2)));
 
   SE2 u;
   u.fromVector(u_.toVector() + noise); //(noiseScale_ * (odomSampler_->generateSample()));      
@@ -282,6 +282,20 @@ void IncrementalSimulator::predictSLAMObservations() {
   eventQueue_.push(lmObsEvent);
   if(verbose_){std::cout << "   - predictSLAMObservations() complete"<< std::endl;}
 }
+
+
+void IncrementalSimulator::predictRangeBearingObservations() {
+
+  // Create and push event
+  if(verbose_){std::cout << "   - predictSLAMObservations() start ..."<< std::endl;}
+  if(verbose_){std::cout << "   - querying system model for lm observation (range bearing) vector ..."<< std::endl;}
+  LMRangeBearingObservationVector lmObsVec = systemModel_->predictRangeBearingObservations(x_, landmarks_);
+  if(verbose_){std::cout << "   - creating lmObsEvent ..."<< std::endl;}
+  auto lmObsEvent = std::make_shared<LMRangeBearingObservationsEvent>(currentTime_, lmObsVec);
+  eventQueue_.push(lmObsEvent);
+  if(verbose_){std::cout << "   - predictSLAMObservations() complete"<< std::endl;}
+}
+
 
 //void generateHeartbeat();
 void IncrementalSimulator::storeStepResults(){
