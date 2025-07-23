@@ -8,6 +8,8 @@ This a hand coded simulator based on the refactored ORB_SLAM2 repository. All th
 2. To run the executable, run "Build/Debug/Source/Examples/Tutorial_slam2d/incsim_test" from THIS directory level. I used relative path for the json enties in the executable, so trying to execute this in another directory level may or may not work. 
 
 3. You can modify the setup of "incsim_test" by modifying the json files at "Source/Examples/Tutorial_slam2d". The names are quite intuitive so I won't elaborate on what each of them do. 
+
+4. The outputs from the simulator and the slam_system are stored in "trajectory_before.g2o", "trajectory_after.g2o", "trajectory_gt.g2o". From which the " The "trajectory_after.g2o" and "trajectory_before.g2o" can be read in by the optimizer to set itself up (Haven't tried that yet). "visualizer.py" can visualize the trajectory files.
 `.
 
 
