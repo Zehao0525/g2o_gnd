@@ -24,46 +24,37 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef G2O_TUTORIAL_EDGE_PLATFORM_LOC_PRIOR_H
-#define G2O_TUTORIAL_EDGE_PLATFORM_LOC_PRIOR_H
+#include "edge_platform_loc_prior_gnd.h"
 
-#include "g2o/core/base_unary_edge.h"
-#include "g2o_tutorial_slam2d_api.h"
-#include "parameter_se2_offset.h"
-#include "vertex_se2.h"
+using namespace Eigen;
 
 namespace g2o {
-
 namespace tutorial {
 
-class ParameterSE2Offset;
-class CacheSE2Offset;
+EdgePlatformLocPriorGND::EdgePlatformLocPriorGND()
+    : EdgeNoneGaussianUnary<3, VertexSE2>() {}
 
-class G2O_TUTORIAL_SLAM2D_API EdgePlatformLocPriorGND
-    : public BaseUnaryEdge<2, Eigen::Vector2d, VertexSE2> {
- public:
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
-  EdgePlatformLocPriorGND();
 
-  void computeError();
+bool EdgePlatformLocPriorGND::read(std::istream& is) {
+    return EdgeNoneGaussianUnary<3, VertexSE2>::read(is);
+}
 
-  void gndSetInformation(Eigen::Matrix2d );
+bool EdgePlatformLocPriorGND::write(std::ostream& os) const {
+    return EdgeNoneGaussianUnary<3, VertexSE2>::write(os);
+}
 
-  virtual bool read(std::istream& is);
-  virtual bool write(std::ostream& os) const;
+void EdgePlatformLocPriorGND::computeError() {
+  Eigen::Vector3d pose = (_sensorCache->n2w()).toVector();
 
- protected:
-  ParameterSE2Offset* _sensorOffset;
-  CacheSE2Offset* _sensorCache;
 
-  virtual bool resolveCaches();
+  Eigen::Vector3d error;
+  error[0] = pose[0] - _measurement[0];
+  error[1] = pose[1] - _measurement[1];
+  error[2] = pose[2] - _measurement[2];   // Normalize angle to [-pi, pi]
 
-  Eigen::Matrix2d _realInformation;
-  double _power;
-  double _lnc;
-};
+  _error[0] = sqrt(_lnc + pow((error.transpose() * _realInformation * error),  _power));
+
+}
 
 }  // namespace tutorial
 }  // namespace g2o
-
-#endif

@@ -1,3 +1,4 @@
+
 add_library(G2O_Graph ${LIB_TYPE}
   edge_se2_pointxy.cpp  se2.h                vertex_point_xy.h
   edge_se2.cpp    edge_se2_pointxy.h    vertex_se2.cpp
@@ -9,8 +10,12 @@ add_library(G2O_Graph ${LIB_TYPE}
   edge_range_bearing.cpp
   edge_platform_loc_prior.h
   edge_platform_loc_prior.cpp
-  edge_platform_loc_prior_gnd.h
-  edge_platform_loc_prior_gnd.cpp
+  edge_platform_pose_prior.h
+  edge_platform_pose_prior.cpp
+
+  GNDEdges/edge_none_gaussian_unary.h
+  GNDEdges/edge_platform_loc_prior_gnd.h
+  GNDEdges/edge_platform_loc_prior_gnd.cpp
 )
 
 #target_include_directories(G2O_Graph PUBLIC ${CMAKE_CURRENT_DIRECTORY})
@@ -29,6 +34,8 @@ target_link_libraries(G2O_Graph PUBLIC
 )
 
 target_include_directories(G2O_Graph PUBLIC
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  ${CMAKE_CURRENT_SOURCE_DIR}/GNDEdges
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
 )

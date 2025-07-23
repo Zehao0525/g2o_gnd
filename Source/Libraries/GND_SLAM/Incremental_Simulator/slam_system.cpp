@@ -630,11 +630,20 @@ std::unique_ptr<SparseOptimizer> SlamSystem::optimizer_;
     }
   }
 
+  // void SlamSystem::handleGPSObservationEvent(GPSObservationEvent event){
+  //   EdgePlatformLocPrior* gpsObservation = new EdgePlatformLocPrior;
+  //   gpsObservation->setVertex(0,currentPlatformVertex_);
+  //   gpsObservation->setMeasurement(event.value);
+  //   gpsObservation->setInformation(event.covariance.inverse());
+  //   gpsObservation->setParameterId(0, sensorOffset_->id());
+  //   optimizer_->addEdge(gpsObservation);
+  // }
+
   void SlamSystem::handleGPSObservationEvent(GPSObservationEvent event){
-    EdgePlatformLocPrior* gpsObservation = new EdgePlatformLocPrior;
+    EdgePlatformLocPriorGND* gpsObservation = new EdgePlatformLocPriorGND;
     gpsObservation->setVertex(0,currentPlatformVertex_);
     gpsObservation->setMeasurement(event.value);
-    gpsObservation->setInformation(event.covariance.inverse());
+    gpsObservation->gndSetInformation(event.covariance.inverse(), 8);
     gpsObservation->setParameterId(0, sensorOffset_->id());
     optimizer_->addEdge(gpsObservation);
   }

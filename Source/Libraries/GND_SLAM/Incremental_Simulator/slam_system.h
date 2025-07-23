@@ -56,6 +56,7 @@
 #include "edge_se2_pointxy.h"
 #include "edge_range_bearing.h"
 #include "edge_platform_loc_prior.h"
+#include "GNDEdges/edge_platform_loc_prior_gnd.h"
 
 
 

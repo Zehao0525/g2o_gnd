@@ -24,59 +24,50 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "edge_platform_loc_prior_gnd.h"
+#include "edge_platform_pose_prior.h"
 
 using namespace Eigen;
 
 namespace g2o {
 namespace tutorial {
 
-EdgePlatformLocPriorGND::EdgePlatformLocPriorGND()
-    : BaseUnaryEdge<1, Vector2d, VertexSE2>(),
+EdgePlatformPosePrior::EdgePlatformPosePrior()
+    : BaseUnaryEdge<3, Vector3d, VertexSE2>(),
       _sensorOffset(0),
       _sensorCache(0) {
   resizeParameters(1);
   installParameter(_sensorOffset, 0);
 }
 
-bool EdgePlatformLocPriorGND::read(std::istream& is) {
-  int paramId;
-  is >> paramId;
-  if (!setParameterId(0, paramId)) return false;
-  is >> _measurement[0] >> _measurement[1];
-  is >> information()(0, 0) >> information()(0, 1) >> information()(1, 1);
-  information()(1, 0) = information()(0, 1);
+bool EdgePlatformPosePrior::read(std::istream& is) {
+  Vector3d p;
+  is >> _measurement[0] >> _measurement[1] >> _measurement[2];
+  for (int i = 0; i < 3; ++i)
+    for (int j = i; j < 3; ++j) {
+      is >> information()(i, j);
+      if (i != j) information()(j, i) = information()(i, j);
+    }
   return true;
 }
 
-bool EdgePlatformLocPriorGND::write(std::ostream& os) const {
-  os << _sensorOffset->id() << " ";
-  os << measurement()[0] << " " << measurement()[1] << " ";
-  os << information()(0, 0) << " " << information()(0, 1) << " "
-     << information()(1, 1);
+bool EdgePlatformPosePrior::write(std::ostream& os) const {
+  Vector3d p = _measurement;
+  os << p.x() << " " << p.y() << " " << p.z();
+  for (int i = 0; i < 3; ++i)
+    for (int j = i; j < 3; ++j) os << " " << information()(i, j);
   return os.good();
 }
 
-void EdgePlatformLocPriorGND::computeError() {
+void EdgePlatformPosePrior::computeError() {
   Eigen::Vector3d pose = (_sensorCache->n2w()).toVector();
 
 
-  Eigen::Vector2d error;
-  error[0] = pose[0] - _measurement[0];
-  error[1] = pose[1] - _measurement[1];  // Normalize angle to [-pi, pi]
-
-  _error[0] = sqrt(_lnc + pow((error * _realInformation * error.transpose()),  _power));
-
+  _error[0] = pose[0] - _measurement[0];
+  _error[1] = pose[1] - _measurement[1];
+  _error[2] = normalize_theta(pose[2] - _measurement[2]);  // Normalize angle to [-pi, pi]
 }
 
-void EdgePlatformLocPriorGND::gndSetInformation(Matrix2d& information, double power){
-  _realInformation = information;
-  _power = power;
-  _lnc = 1e-3;
-  setInformation(Eigen::Matrix1d::Identity());
-}
-
-bool EdgePlatformLocPrior::resolveCaches() {
+bool EdgePlatformPosePrior::resolveCaches() {
   ParameterVector pv(1);
   pv[0] = _sensorOffset;
   resolveCache(_sensorCache,
