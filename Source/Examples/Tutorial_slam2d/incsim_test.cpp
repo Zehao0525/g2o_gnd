@@ -81,13 +81,29 @@ namespace g2o::tutorial {
 int main() {
   forceLinkTypesTutorialSlam2d();
   checkTypeRegistration();
+
+  std::string viewFilenme = "Source/Examples/Tutorial_slam2d/view_config.json";
+
   IncrementalSimulator incsim = IncrementalSimulator("Source/Examples/Tutorial_slam2d/simulator_config.json");
   SlamSystem slamSystem = SlamSystem("Source/Examples/Tutorial_slam2d/slam_system_config.json");
   viz::ViewManager vizer = viz::ViewManager();
   std::shared_ptr<viz::SimulatorView> simVizer = std::make_shared<viz::SimulatorView>(&incsim, "Source/Examples/Tutorial_slam2d/view_config.json");
-  std::shared_ptr<viz::SLAMSystemView> slamVizer = std::make_shared<viz::SLAMSystemView>(&slamSystem, Vector3f(0.0f, 0.0f, 1.0f));
+  //std::shared_ptr<viz::SLAMSystemView> slamVizer = std::make_shared<viz::SLAMSystemView>(&slamSystem, Vector3f(0.0f, 0.0f, 1.0f));
+  std::shared_ptr<viz::SLAMSystemView> slamVizer = std::make_shared<viz::SLAMSystemView>(&slamSystem,viewFilenme);
   vizer.addView(simVizer);
   vizer.addView(slamVizer);
+
+
+
+  std::ifstream f(viewFilenme);
+    if (!f) {
+        throw std::runtime_error("Cannot open Simulator config file: " + viewFilenme);
+    }
+  nlohmann::json viewJson;
+  f >> viewJson;
+  int frame_pause = viewJson.value("frame_pause", 50000);
+
+
 
   cerr << "Simulator starting ... "<<endl;
   incsim.start();
@@ -99,6 +115,7 @@ int main() {
   std::vector<EventPtr> events = incsim.aquireEvents();
   cerr << "Slam system processing events ..."<<endl;
   slamSystem.processEvents(events);
+  simVizer->processEvents(events);
   
   for(int i=0;i<4000;i++){
     cerr <<endl;
@@ -108,6 +125,7 @@ int main() {
     std::vector<EventPtr> events = incsim.aquireEvents();
     cerr << "(loop) slam system processing events ... ..."<<endl;
     slamSystem.processEvents(events);
+    simVizer->processEvents(events);
     cerr << "(loop) determining loop break ... ..."<<endl << endl;
 
     Vector3d simx = incsim.xTrue().toVector();
@@ -122,7 +140,7 @@ int main() {
       cerr << " loop break"<<endl;
       break;
     }
-    usleep(25000);
+    usleep(frame_pause);
   }
   cerr << endl;
   // incsim.stop();
@@ -134,6 +152,7 @@ int main() {
   simVizer->updateRobotPose(simx);
 
   slamVizer->update();
+  vizer.pause();
   sleep(5);
   vizer.stop();
 

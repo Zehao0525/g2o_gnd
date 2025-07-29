@@ -3,6 +3,7 @@
 #include "incremental_simulator.h"
 
 #include <fstream> 
+#include <Eigen/Core>
 #include <nlohmann/json.hpp>
 
 
@@ -14,6 +15,10 @@ class SimulatorView : public View {
 public:
     SimulatorView(IncrementalSimulator* simulator, const Eigen::Vector3f& color, const Eigen::Vector3f& lmColor, const Eigen::Vector3f& wpColor);
     SimulatorView(IncrementalSimulator* simulator, const std::string& filename);
+
+    void processEvents(EventPtrVector& events);
+
+    void pause() override;
 
     void update() override;
 
@@ -29,6 +34,10 @@ private:
     double wpSize_;
     std::vector<Eigen::Vector2d> landmarkPoses_;
     std::vector<Eigen::Vector2d> wayPoints_;
+
+    Eigen::Vector3f gpsMeasColor_;
+    Eigen::Vector3f lmrbMeasColor_;
+    Eigen::Vector3f lmobMeasColor_;
 };
 
 }}}

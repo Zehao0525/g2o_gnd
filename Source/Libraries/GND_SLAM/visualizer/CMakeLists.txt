@@ -9,6 +9,8 @@ add_library(Incremental_Visualizer ${LIB_TYPE}
   simulator_view.cpp
   slam_system_view.h
   slam_system_view.cpp
+
+  #viz_shape.h
 )
 
 find_package(OpenGL REQUIRED)

@@ -6,6 +6,8 @@
 
 #include <Eigen/Eigenvalues>
 
+#include "viz_shape.h"
+
 namespace g2o {
 namespace tutorial {
 namespace viz {
@@ -20,6 +22,14 @@ public:
     // Rendering logic
     void renderRobotPose() const;
     void renderRobotPath() const;
+    void renderMeasurmentViz();
+    void renderCovariance(const CovarianceViz& viz);
+    void renderCircle(const CircleViz& viz);
+    void renderLine(const LineViz& viz);
+
+    virtual void pause();
+
+
     virtual void renderScene() const;
     virtual void setView(const std::string& filename);
 
@@ -27,7 +37,6 @@ public:
     void updateRobotPath(const std::vector<Eigen::Vector3d>& path);
     void appendToRobotPath(const Eigen::Vector3d& pose);
     void updateRobotPose(const Eigen::Vector3d& pose);
-    void updateRobotMarginals(const Eigen::Matrix2d& margianls);
 
 protected:
     Eigen::Vector3f color_;
@@ -36,9 +45,9 @@ protected:
 
     Eigen::Vector3d pose_;
 
-    bool marginalsInitialized_;
-    Eigen::Matrix2d poseMarginal2d_;
-    Eigen::Matrix2d sqrtPoseMarginal2d_;
+    std::vector<std::shared_ptr<MeasurmentViz>> measVizVertex_;
+    Eigen::Vector3f measColor_;
+    bool running_;
 
     std::mutex dataMutex_;
 };

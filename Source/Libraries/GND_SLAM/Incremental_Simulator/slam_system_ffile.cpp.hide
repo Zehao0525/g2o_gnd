@@ -1,0 +1,184 @@
+// g2o - General Graph Optimization
+// Copyright (C) 2011 R. Kuemmerle, G. Grisetti, W. Burgard
+// All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are
+// met:
+//
+// * Redistributions of source code must retain the above copyright notice,
+//   this list of conditions and the following disclaimer.
+// * Redistributions in binary form must reproduce the above copyright
+//   notice, this list of conditions and the following disclaimer in the
+//   documentation and/or other materials provided with the distribution.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+// IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+// TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+// PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+// TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+// PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+// LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+// NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+#include "slam_system_ffile.h"
+
+
+
+namespace g2o {
+namespace tutorial {
+
+using namespace Eigen;
+
+using VertexContainer = g2o::OptimizableGraph::VertexContainer;
+
+
+protected:
+  using Base = SlamSystemBase<VertexSE3, EdgeSE3>;
+  //using Base::verbose_;
+
+  using Base::stepNumber_;
+  using Base::currentTime_;
+  using Base::initialized_;
+  using Base::componentsReady_;
+
+  using Base::optPeriod_;
+  using Base::optCountProcess_;
+  using Base::optCountStop_;
+  using Base::optCountStopFix_;
+
+  using Base::optimizer_;
+
+  using Base::vertexId_;
+  using Base::processModelEdges_;
+  using Base::numProcessModelEdges_;
+  using Base::unfixedTimeWindow_;
+
+
+  using Base::x_;
+  using Base::currentPlatformVertex_;
+
+
+  using Base::platformVertices_;
+  using Base::optimize;
+
+
+  SlamSystemFromFile::SlamSystemFromFile(const std::string& filename){
+
+  }
+
+  SlamSystemFromFile::~SlamSystemFromFile();
+
+
+  void SlamSystemFromFile::start(){
+
+  }
+
+
+  void SlamSystemFromFile::stop(){
+
+  }
+
+  void SlamSystemFromFile::processEvent(Event& event){
+    switch(event.type()){
+      case Event::EventType::FileObservation:
+        handleObservationEvent(static_cast<FileObsEvent&>(event));
+        break;
+      case Event::EventType::FileOdometry:
+        handleOdometryEvent(static_cast<FileOdomEvent&>(event));
+        break;
+      case Event::EventType::FileInitialization:
+        handleInitializationEvent(static_cast<FileInitEvent&>(event));
+        break;
+      default:
+        ignoreUnknownEventType();
+        break;
+    }
+  }
+
+
+
+  void SlamSystemFromFile::ignoreUnknownEventType(){}
+
+
+  void SlamSystemFromFile::handleInitializationEvent(InitializationEvent event){
+    if(verbose_){std::cout << " - SlamSystem handleInitializationEvent start ..." << std::endl;}
+    if(verbose_){std::cout << " - Creaing vertex ..." << std::endl;}
+    currentPlatformVertex_ = new VertexSE3();
+
+
+    currentPlatformVertex_->setId(event.vtxId);
+    currentPlatformVertex_->setEstimate(event.value);
+    if(verbose_){std::cout << " - Adding vertex to optimizer ..." << std::endl;}
+    optimizer_->addVertex(currentPlatformVertex_);
+
+    platformVertices_.emplace_back(currentPlatformVertex_);
+    // place the id into the vertex id map
+    if (VertexIdMap_.find(id) == VertexIdMap_.end()) {
+      VertexIdMap_[id] = static_cast<int>(VertexIdMap_.size());
+    }
+
+    // TODO replace with initialization prior
+    if(verbose_){std::cout << " - Fixing initial vertex ..." << std::endl;}
+    currentPlatformVertex_->setFixed(true);
+    initialized_ = true;
+    if(verbose_){std::cout << " - SlamSystem handleInitializationEvent end ..." << std::endl;}
+
+  }
+
+
+  void SlamSystemFromFile::handleOdometryEvent(OdometryEdgeEvent event){
+    if(verbose_){std::cout << " - SlamSystem handleInitializationEvent start ..." << std::endl;}
+    if(verbose_){std::cout << " - Creaing vertex ..." << std::endl;}
+    currentPlatformVertex_ = new VertexSE3();
+
+
+    currentPlatformVertex_->setId(event.vtxId);
+    if(verbose_){std::cout << " - Adding vertex to optimizer ..." << std::endl;}
+    optimizer_->addVertex(currentPlatformVertex_);
+
+    platformVertices_.emplace_back(currentPlatformVertex_);
+    // place the id into the vertex id map
+    if (VertexIdMap_.find(id) == VertexIdMap_.end()) {
+      VertexIdMap_[id] = static_cast<int>(VertexIdMap_.size());
+    }
+
+    // TODO replace with initialization prior
+    if(verbose_){std::cout << " - Adding Edge ..." << std::endl;}
+    EdgeSE3* odometry = new EdgeSE3();
+    VertexSE3* v0 = platformVertices_[platformVertices_.size() - 2];
+    odometry->setVertex(0, v0);
+    odometry->setVertex(1, currentPlatformVertex_);
+
+    OptimizableGraph::VertexSet fromSet;
+    fromSet.insert(v0);
+    odometry->initialEstimate(fromSet);
+
+    if(verbose_){std::cout << " - Vertex set, setting measurments ..." << std::endl;}
+    if(verbose_){std::cout << (lastpredX.inverse() * newX).toVector() << std::endl;}
+    odometry->setMeasurement(event.value);
+    assert(odometry->information().rows() == 3);
+    if(verbose_){std::cout << " - measurements set, setting information ..." << std::endl;}
+    odometry->setInformation((event.information));
+    if(verbose_){std::cout << " - Adding edge to optimizer ..." << std::endl;}
+    optimizer_->addEdge(odometry);
+
+    processModelEdges_.emplace_back(odometry);
+    numProcessModelEdges_ += 1;
+
+
+    if(verbose_){std::cout << " - SlamSystem handleInitializationEvent end ..." << std::endl;}
+  }
+
+
+  void SlamSystemFromFile::handleObservationEvent(ObservationEdgeEvent event){
+    //TODO implement
+
+  }
+
+
+}  // namespace tutorial
+}  // namespace g2o

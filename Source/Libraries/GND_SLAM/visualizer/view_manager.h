@@ -25,6 +25,7 @@ public:
     void setVizType(std::string typeKey);
     void start();
     void stop();
+    void pause();
 
 private:
     void renderLoop();

@@ -22,7 +22,10 @@ namespace tutorial {
             LandmarkObservations,
             GPSObservation,
             Odometry,
-            Initialization
+            Initialization,
+            FileInitialization,
+            FileObservation,
+            FileOdometry
         };
 
         Event(double t) : time(t) {};
@@ -99,6 +102,41 @@ namespace tutorial {
                         const Eigen::Vector2d& pos,
                         const Eigen::Matrix2d& cov): Event(timestamp), value(pos), covariance(cov) {  };
         EventType type() const override{return EventType::GPSObservation;};
+    };
+
+
+    struct G2O_TUTORIAL_SLAM2D_API FileInitEvent : public Event {
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
+        int vtxId;
+        Eigen::Vector3d value;
+        Eigen::Matrix<double,6,6> information;
+        FileInitEvent(const int vtxId,
+                        const Eigen::Vector3d& pos,
+                        const Eigen::Matrix<double,6,6>& info): Event(0), vtxId(vtxId), value(pos), information(info) {  };
+        EventType type() const override{return EventType::FileInitialization;};
+    };
+
+    struct G2O_TUTORIAL_SLAM2D_API FileOdomEvent : public Event {
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
+        int vtxId;
+        Eigen::Vector3d value;
+        Eigen::Matrix<double,6,6> information;
+        FileOdomEvent(const int vtxId,
+                        const Eigen::Vector3d& pos,
+                        const Eigen::Matrix<double,6,6>& info): Event(0), vtxId(vtxId), value(pos), information(info) {  };
+        EventType type() const override{return EventType::FileOdometry;};
+    };
+
+
+    struct G2O_TUTORIAL_SLAM2D_API FileObsEvent : public Event {
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
+        int vtxId;
+        Eigen::Vector3d value;
+        Eigen::Matrix<double,6,6> information;
+        FileObsEvent(const int vtxId,
+                        const Eigen::Vector3d& pos,
+                        const Eigen::Matrix<double,6,6>& info): Event(0), vtxId(vtxId), value(pos), information(info) {  };
+        EventType type() const override{return EventType::FileObservation;};
     };
 
 

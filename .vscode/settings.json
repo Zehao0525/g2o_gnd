@@ -76,6 +76,8 @@
         "valarray": "cpp",
         "variant": "cpp",
         "core": "cpp",
-        "numericaldiff": "cpp"
+        "numericaldiff": "cpp",
+        "*.bak": "cpp",
+        "*.bak2": "cpp"
     }
 }

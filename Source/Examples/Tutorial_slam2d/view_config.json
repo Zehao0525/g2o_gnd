@@ -5,7 +5,7 @@
       "size":1.5
     },
     "landmark": {
-      "color":[0.0, 1.0, 0.5],
+      "color":[1.0, 0.3, 0.0],
       "size":0.5
     },
     "waypoint":{
@@ -21,6 +21,13 @@
     "landmark": {
       "color":[0.0, 0.5, 1.0],
       "size":0.5
-    }
-  }
+    },
+    "measurment":{
+      "gps_color":[0.2,0.8,0.4],
+      "lm_range_bearing_color":[1.0,1.0,0.0],
+      "lm_observation_color":[0.5,1.0,0.0]
+    },
+    "marginal_update_period":100
+  },
+  "frame_pause":10000
 }

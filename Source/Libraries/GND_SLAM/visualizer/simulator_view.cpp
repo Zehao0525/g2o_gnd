@@ -23,6 +23,9 @@ SimulatorView::SimulatorView(IncrementalSimulator* sim, const std::string& filen
     }
 
 
+void SimulatorView::pause(){
+    View::pause();
+}
 
 void SimulatorView::update() {
     updateRobotPose(simulator_->xTrue().toVector());
@@ -47,7 +50,59 @@ void SimulatorView::setView(const std::string& filename){
     auto wpColor = j["simulator"]["waypoint"].value("color", std::vector<float>{1.0f,0.5f,0.0f});
     wpColor_ = Eigen::Vector3f(wpColor[0], wpColor[1], wpColor[2]);
     wpSize_ = j["simulator"]["waypoint"].value("size", 0.5);
+
+    auto measColor = j["slam_system"]["measurment"].value("color", std::vector<float>{0.0f,1.0f,0.5f});
+    measColor_ = Eigen::Vector3f(measColor[0], measColor[1], measColor[2]);
+
+    // measurment colors
+    auto gpsColor = j["slam_system"]["measurment"].value("gps_color", std::vector<float>{0.0f,1.0f,0.5f});
+    gpsMeasColor_ = Eigen::Vector3f(gpsColor[0], gpsColor[1], gpsColor[2]);
+
+    auto lmrbMeasColor = j["slam_system"]["measurment"].value("lm_range_bearing_color", std::vector<float>{0.0f,1.0f,0.5f});
+    lmrbMeasColor_ = Eigen::Vector3f(lmrbMeasColor[0], lmrbMeasColor[1], lmrbMeasColor[2]);
+
+    auto lmobMeasColor = j["slam_system"]["measurment"].value("lm_observation_color", std::vector<float>{0.0f,1.0f,0.5f});
+    lmobMeasColor_ = Eigen::Vector3f(lmobMeasColor[0], lmobMeasColor[1], lmobMeasColor[2]);
 }
+
+
+void SimulatorView::processEvents(EventPtrVector& events){
+    updateRobotPose(simulator_->xTrue().toVector());
+    for (const auto& event : events) {
+      switch(event->type()){
+        case Event::EventType::LandmarkObservations:{
+            LandmarkObservationsEvent& lmObsEvent = static_cast<LandmarkObservationsEvent&>(*event);
+            for(const auto& lmObs : lmObsEvent.landmarkObservations){
+                double x = lmObs.value[0]*cos(pose_[2]) - lmObs.value[1]*sin(pose_[2]) + pose_[0];
+                double y = lmObs.value[0]*sin(pose_[2]) + lmObs.value[1]*cos(pose_[2]) + pose_[1];
+                std::shared_ptr<LineViz> lmObsViz = std::make_shared<LineViz>(Eigen::Vector2d(x,y), Eigen::Vector2d(pose_[0],pose_[1]), 25, 0,  MeasurmentViz::AttachmentType::World, lmobMeasColor_);
+                measVizVertex_.push_back(lmObsViz);
+            }
+            break;
+        }
+        case Event::EventType::LMRangeBearingObservations:{
+            LMRangeBearingObservationsEvent& lmObsEvent = static_cast<LMRangeBearingObservationsEvent&>(*event);
+            for(const auto& lmObs : lmObsEvent.landmarkObservations){
+                double x = lmObs.value[0] * cos(lmObs.value[1] + pose_[2]) + pose_[0];
+                double y = lmObs.value[0] * sin(lmObs.value[1] + pose_[2]) + pose_[1];
+                std::shared_ptr<LineViz> lmObsViz = std::make_shared<LineViz>(Eigen::Vector2d(x,y), pose_.head<2>(), 25, 0,  MeasurmentViz::AttachmentType::World, lmrbMeasColor_);
+                measVizVertex_.push_back(lmObsViz);
+            }
+            break;
+        }
+        case Event::EventType::GPSObservation:{
+            GPSObservationEvent& gpsEvent = static_cast<GPSObservationEvent&>(*event);
+            std::shared_ptr<CircleViz> gpsViz = std::make_shared<CircleViz>(gpsEvent.value, sqrt(gpsEvent.covariance(0,0))*2.0, 25, 0,  MeasurmentViz::AttachmentType::World, gpsMeasColor_);
+            measVizVertex_.push_back(gpsViz);
+            break;
+        }
+        default:
+            break;
+      }
+    }
+}
+
+
 
 void SimulatorView::renderScene() const{
     // Draw landmarks as crosses

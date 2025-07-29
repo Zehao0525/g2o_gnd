@@ -3,7 +3,7 @@
   "debug_verbose": true,
   "optimization_period": 100,
   "sensor_offset": [0.0, 0.0, 0.0],
-  "optimization_algorithm": "GaussNewton",
+  "optimization_algorithm": "LevenbergMarquardt",
 
   "optimize_count":{
     "process":5,

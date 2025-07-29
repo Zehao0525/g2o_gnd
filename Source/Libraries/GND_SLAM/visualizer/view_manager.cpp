@@ -17,6 +17,12 @@ void ViewManager::start() {
     renderThread_ = std::thread(&ViewManager::renderLoop, this);
 }
 
+void ViewManager::pause(){
+    for (auto& view : views_) {
+        view->pause();
+    }
+}
+
 void ViewManager::stop() {
     running_ = false;
     if (renderThread_.joinable()) {
@@ -68,6 +74,7 @@ void ViewManager::renderLoop() {
             }
             view->renderRobotPose();
             view->renderScene();
+            view->renderMeasurmentViz();
             
         }
 

@@ -64,7 +64,7 @@ IncrementalSimulator::IncrementalSimulator(const std::string& filename):
     sigmaUSqrtm_(0, 0) = noise[0];
     sigmaUSqrtm_(1, 1) = noise[1];
     sigmaUSqrtm_(2, 2) = (j["platform"]["noise"].value("deg_to_rad", true)) ? deg2rad(noise[2]) : noise[2];
-    sigmaU_ = sigmaUSqrtm_ * sigmaUSqrtm_;
+    sigmaU_ = sigmaUSqrtm_ * sigmaUSqrtm_.transpose();
     if(verbose_){std::cout<<"- sigmaU set" <<std::endl;}
 
     // TODO change 
@@ -243,7 +243,7 @@ void IncrementalSimulator::initialize(){
   x_ = x0;
   initialized_ = true;
   if(verbose_){std::cout << "   - Creating initialization event ... " << std::endl;}
-  InitializationEvent initEvent = InitializationEvent(currentTime_, x0, SE2(0,0,0), P0, Matrix3d::Identity());
+  InitializationEvent initEvent = InitializationEvent(currentTime_, x0, SE2(0,0,0), P0, sigmaU_);
   if(verbose_){std::cout << "   - Push event to queue ... " << std::endl;}
   eventQueue_.push(std::make_shared<InitializationEvent>(initEvent));
   if(verbose_){std::cout << "   - initialize() complete " << std::endl;}
@@ -269,9 +269,9 @@ void IncrementalSimulator::updateOdometry(){
 
   std::cout << "u_:" << u_.toVector() << std::endl;
   Vector3d noise = Vector3d(Sampler::gaussRand(0.0, sigmaUSqrtm_(0,0)), Sampler::gaussRand(0.0, sigmaUSqrtm_(1,1)), Sampler::gaussRand(0.0, sigmaUSqrtm_(2,2)));
-
+  //Vector3d noise = Vector3d(0.0,0.0,0.0);
   SE2 u;
-  u.fromVector(u_.toVector() + noise); //(noiseScale_ * (odomSampler_->generateSample()));      
+  u.fromVector(u_.toVector() + noiseScale_ * noise); //(noiseScale_ * (odomSampler_->generateSample()));      
   std::cout << "noise:" << noise << std::endl;
   std::cout << "u_:" << u.toVector() << std::endl;
 

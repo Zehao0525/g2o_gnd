@@ -20,20 +20,20 @@
       "perturb_with_noise": true,
       "sigma": [1.0, 1.0],
       "range": 25,
-      "measurment_period": 1
+      "measurment_period": 5
     },
     "landmark_range_bearing":{
-      "on": false,
+      "on": true,
       "perturb_with_noise": true,
       "sigma": [1.0, 0.1],
       "range": 25,
       "measurment_period": 5
     },
     "gps":{
-      "on": true,
+      "on": false,
       "perturb_with_noise": true,
       "sigma": [2.0, 2.0],
-      "measurment_period": 5
+      "measurment_period": 20
     }
   },
   "perturb_with_noise": true,
@@ -41,7 +41,7 @@
   "odom_period": 1,
   "platform": {
     "noise": {
-      "sigmaU": [0.2, 0.1, 1.0],
+      "sigmaU": [0.2, 0.1, 1],
       "deg_to_rad": true,
       "perturb_with_noise": true
     },
