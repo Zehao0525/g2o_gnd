@@ -24,7 +24,8 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#pragma once
+#ifndef G2O_INCSIM2D_SLAM_SYSTEM_H
+#define G2O_INCSIM2D_SLAM_SYSTEM_H
 
 #include <map>
 #include <vector>
@@ -57,7 +58,6 @@
 #include "edge_range_bearing.h"
 #include "edge_platform_loc_prior.h"
 #include "GNDEdges/edge_platform_loc_prior_gnd.h"
-#include "slam_system_base.h"
 
 
 
@@ -72,37 +72,7 @@ typedef BlockSolver<BlockSolverTraits<-1, -1> > SlamBlockSolver;
 typedef LinearSolverEigen<SlamBlockSolver::PoseMatrixType> SlamLinearSolver;
 
 
-class G2O_TUTORIAL_SLAM2D_API SlamSystem : public SlamSystemBase<VertexSE2, EdgeVelocitySE2> {
-
-
-protected:
-  using Base = SlamSystemBase<VertexSE2, EdgeVelocitySE2>;
-  //using Base::verbose_;
-
-  using Base::stepNumber_;
-  using Base::currentTime_;
-  using Base::initialized_;
-  using Base::componentsReady_;
-
-  using Base::optPeriod_;
-  using Base::optCountProcess_;
-  using Base::optCountStop_;
-  using Base::optCountStopFix_;
-
-  using Base::optimizer_;
-
-  using Base::vertexId_;
-  using Base::processModelEdges_;
-  using Base::numProcessModelEdges_;
-  using Base::unfixedTimeWindow_;
-
-
-  using Base::x_;
-  using Base::currentPlatformVertex_;
-
-
-  using Base::platformVertices_;
-  using Base::optimize;
+class G2O_TUTORIAL_SLAM2D_API SlamSystem {
 
  public:
   SlamSystem(const std::string& filename);
@@ -111,18 +81,49 @@ protected:
   /**
    * @brief Initialie and start the SLAM system.
    */
-  void start() override;
+  void start();
 
+
+  void checkTypeRegistration();
 
   /**
    * @brief stop the SLAM system and finallise result accumulation
    */
-  void stop() override;
+  void stop();
+
+  /**
+   * @brief optmize graph and store optimsation result
+   */
+  int optimize(int maximumNumberOfOptimizationSteps);
+
+  /**
+   * @brief optmize graph and store optimsation result
+   */
+  SparseOptimizer& optimizer();
+  // probably not 
+  // setValidateGraph()
+  // validateGraph()
+
+  // To expand
+  // setConfig()
 
   /**
    * @brief set the maximum observations per landmark
    */
   void setMaxObservationsPerLandmark(int maxObservationsPerLandmark);
+
+  /**
+   * @brief set the time window where the platform edges are unfixed
+   */
+  void setFixOlderPlatformVertices(double unfixedTimeWindow);
+
+  /**
+   * @brief return the platform estimates
+   * @param x platform pose estimate
+   * @param P platform pose estimate covariance
+   */
+  void platformEstimate(Eigen::Vector3d& x, Eigen::Matrix2d& P);
+  void platformEstimate(Eigen::Vector3d& x);
 
     /**
    * @brief return the platform estimates
@@ -140,13 +141,39 @@ protected:
   //function [samples, chi2s] = landmarkSamples(obj, Ns, width)
   //function trajectory = getTrajectory(obj, vxtid)
 
+  /**
+   * @brief process an event vector
+   * @param events Input the events into the slam_system
+   */
+  void processEvents(EventPtrVector& events);
+
+  /**
+   * @brief set verbose
+   * @param verbose verbose
+   */
+  void setVerbose(bool verbose);
+
+  /**
+   * @brief calls save on the optimizer
+   * @param fileName verbose
+   */
+  void saveOptimizerResults(std::string fileName);
+
 
 protected:
   /**
    * @brief process a event
    * @param events event to process
    */
-  void processEvent(Event& event) override;
+  void processEvent(Event& event);
+
+  /**
+   * @brief process a event
+   * At this moment we won't have this step. mybe in the future.
+   * @param eventType type of event
+   * @param eventHandler handler that handles that type of event
+   */
+  //void registerEventHandler(EventType eventType, EventHandler eventHandler);
 
 
   /**
@@ -200,23 +227,60 @@ protected:
   // ... all other observations ,,,
 
   void handleGPSObservationEvent(GPSObservationEvent event);
+
+
+  /**
+   * @brief As of now this actually also resets the optmizer.
+   */
+  void setupOptimizer();
   
 
 
 
 
 private:
+  bool verbose_;
+
+  int stepNumber_;
+  double currentTime_;
+  bool initialized_;
+  bool componentsReady_ = false;
+
+  int optPeriod_;
+  std::string optimizationAlg_;
+  int optCountProcess_;
+  int optCountStop_;
+  int optCountStopFix_;
+
+
+  //static thread_local std::unique_ptr<SparseOptimizer> optimizer_;
+  static std::unique_ptr<SparseOptimizer> optimizer_;
+
   ParameterSE2Offset* sensorOffset_;
+
+  std::vector<VertexSE2*> platformVertices_;
+
+  // This id has been abandoned.
+  int vertexId_;
+
+  //std::vector<EdgeSE2*> processModelEdges_;
+  std::vector<EdgeVelocitySE2*> processModelEdges_;
+  int numProcessModelEdges_;
+  int unfixedTimeWindow_;
+
+  VertexSE2* currentPlatformVertex_;
 
   // Landmark related
   VertexContainer landmarkVertices_;
   std::map<int, int> landmarkIdMap_;
   int maxObservationsPerLandmark_;
 
-  // process model related
+  SE2 x_;
   SE2 u_;
   Eigen::Matrix3d sigmaU_;
 };
 
 }  // namespace tutorial
 }  // namespace g2o
+
+#endif

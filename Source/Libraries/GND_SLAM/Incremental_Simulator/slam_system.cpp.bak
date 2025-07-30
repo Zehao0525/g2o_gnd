@@ -29,10 +29,36 @@
 namespace g2o {
 namespace tutorial {
 
+
+  void SlamSystem::checkTypeRegistration() {
+      auto* factory = g2o::Factory::instance();
+
+      std::vector<std::string> tags = {
+          "TUTORIAL_VERTEX_SE2",
+          "TUTORIAL_VERTEX_POINT_XY",
+          "TUTORIAL_PARAMS_SE2_OFFSET",
+          "TUTORIAL_CACHE_SE2_OFFSET",
+          "TUTORIAL_EDGE_SE2",
+          "TUTORIAL_EDGE_SE2_POINT_XY"
+      };
+
+      for (const auto& tag : tags) {
+          if (factory->knowsTag(tag)) {
+              std::cout << "✅ Factory knows type: " << tag << std::endl;
+          } else {
+              std::cout << "❌ Factory DOES NOT know type: " << tag << std::endl;
+          }
+      }
+  }
+
 using namespace Eigen;
 
+//thread_local std::unique_ptr<SparseOptimizer> SlamSystem::optimizer_;
+std::unique_ptr<SparseOptimizer> SlamSystem::optimizer_;
 //TODO opt period update
-  SlamSystem::SlamSystem(const std::string& filename) : SlamSystemBase<VertexSE2, EdgeVelocitySE2>(filename){
+  SlamSystem::SlamSystem(const std::string& filename):
+                currentTime_(0), stepNumber_(0), initialized_(false), componentsReady_(false),
+                vertexId_(-1), numProcessModelEdges_(0),currentPlatformVertex_(nullptr){
     std::ifstream f(filename);
 
       // Reading in the files
@@ -62,17 +88,39 @@ using namespace Eigen;
 
 
       if(verbose_){std::cout<<"- creating optimizer ..." <<std::endl;}
-      //optimizer_ = std::make_unique<SparseOptimizer>();
-
-      optimizer_->addParameter(sensorOffset_);
+      optimizer_ = std::make_unique<SparseOptimizer>();
       setupOptimizer();
-      landmarkIdMap_.clear();
 
       optCountProcess_ = j["optimize_count"].value("process", 10);
       optCountStop_ = j["optimize_count"].value("stop", 10);
       optCountStopFix_ = j["optimize_count"].value("stop_fixed", 10);
   }
   SlamSystem::~SlamSystem(){}
+
+
+
+  void SlamSystem::setupOptimizer(){
+    if(verbose_){std::cout<<"- Setup Optimizer ..." <<std::endl;}
+    optimizer_->addParameter(sensorOffset_);
+
+    auto linearSolver = std::make_unique<LinearSolverEigen<BlockSolver<BlockSolverTraits<-1, -1>>::PoseMatrixType>>();
+    if (optimizationAlg_ == "GaussNewton") {
+        optimizer_->setAlgorithm(new OptimizationAlgorithmGaussNewton(
+            std::make_unique<BlockSolver<BlockSolverTraits<-1, -1>>>(std::move(linearSolver))
+        ));
+    }
+    else if (optimizationAlg_ == "LevenbergMarquardt") {
+        optimizer_->setAlgorithm(new OptimizationAlgorithmLevenberg(
+            std::make_unique<BlockSolver<BlockSolverTraits<-1, -1>>>(std::move(linearSolver))
+        ));
+    }
+    else {
+        throw std::runtime_error("Unknown optimization_algorithm: " + optimizationAlg_);
+    }
+    platformVertices_.clear();
+    processModelEdges_.clear();
+    landmarkIdMap_.clear();
+  }
 
 
   void SlamSystem::start(){
@@ -161,9 +209,136 @@ using namespace Eigen;
 
 
 
+  int SlamSystem::optimize(int maximumNumberOfOptimizationSteps){
+    if(verbose_){optimizer_->setVerbose(true);}
+    optimizer_->initializeOptimization();
+    int numIterations = optimizer_->optimize(maximumNumberOfOptimizationSteps);
+    if(verbose_){
+      std::cerr << "Final chi2: " << optimizer_->activeChi2() << std::endl;
+      std::cerr << "Num Iterations: " << numIterations << std::endl;
+      std::cout << "Number of vertices: " << optimizer_->vertices().size() << std::endl;
+      std::cout << "Number of edges: " << optimizer_->edges().size() << std::endl;
+    }
+    return numIterations;
+    // Add performance data?
+  }
+
+
+
+  
+  SparseOptimizer& SlamSystem::optimizer(){
+    return *optimizer_;
+  }
+
+
+
   
   void SlamSystem::setMaxObservationsPerLandmark(int maxObservationsPerLandmark){
     maxObservationsPerLandmark_ = maxObservationsPerLandmark;
+  }
+
+
+  
+  void SlamSystem::setFixOlderPlatformVertices(double unfixedTimeWindow){
+    unfixedTimeWindow_ = unfixedTimeWindow;
+  }
+
+
+  
+  void SlamSystem::platformEstimate(Vector3d& x, Matrix2d& P){
+    if(verbose_){std::cout << " - SlamSystem platformEstimate start ..." << std::endl;}
+    if(verbose_){std::cerr << "Graph verification success - " << optimizer_->verifyInformationMatrices(true) << ", checking for null pointers in edges" << std::endl;}
+    if(verbose_){
+      if (!optimizer_->parameter(0)) {
+        std::cerr << "Sensor offset parameter not registered in optimizer!" << std::endl;
+        throw std::runtime_error("Missing parameter!");
+      }
+      else{
+        std::cerr << optimizer_->parameter(0) << std::endl;
+      }
+    }
+    // for (const auto& e : optimizer_->edges()) {
+    //   for (size_t i = 0; i < e->vertices().size(); ++i) {
+    //       if (!e->vertex(i)) {
+    //           std::cerr << "Edge has null vertex at position " << i << std::endl;
+    //           throw std::runtime_error("Null vertex in edge");
+    //       }
+    //   }
+    // }
+
+    SparseBlockMatrix<MatrixX> spinv;
+    if(verbose_){std::cout << " - Optimizer Computing Marginals ..." << std::endl;}
+
+
+    std::cout << " - currentPlatformVertex_->fixed() " << currentPlatformVertex_->fixed() << std::endl;
+    x = (currentPlatformVertex_->estimate()).toVector();
+    if (currentPlatformVertex_->fixed()) {
+      if (verbose_) {
+        std::cout << " - Current vertex is fixed. Skipping marginal computation." << std::endl;
+      }
+      P.setZero();
+      return;
+    }
+
+    //optimize(1);
+
+
+    int idx = currentPlatformVertex_->hessianIndex();
+
+    bool success = false;
+
+    try {
+      if (verbose_) { std::cout << " - Compute Marginals..." << std::endl; }
+      success = optimizer_->computeMarginals(spinv, currentPlatformVertex_);
+
+      if (!success) {
+        if (verbose_) { std::cout << " - Marginal computation reported failure." << std::endl; }
+        P.setZero();
+        return;
+      }
+    } catch (const std::exception& e) {
+      std::cerr << "[computeMarginals] Exception: " << e.what() << std::endl;
+      P.setZero();
+      return;
+    } catch (...) {
+      std::cerr << "[computeMarginals] Unknown error (not a std::exception)." << std::endl;
+      P.setZero();
+      return;
+    }
+
+
+
+    if (!success) {
+      if (verbose_) {
+        std::cout << " - Optimization failed" << std::endl;
+      }
+      P.setZero();
+      return;
+    }
+
+    if(verbose_){std::cout << " - currentPlatformVertex_->hessianIndex():" << idx << ", Compute margianl success - " << success << std::endl;}
+    if(verbose_){std::cout << " - Assigning to x and P ..." << std::endl;}
+    const auto block = spinv.block(idx, idx);
+    if(block){
+        std::cout << "Covariance block:\n" << block->topLeftCorner<3,3>() << std::endl;
+        std::cout << "Covariance block:\n" << block->topLeftCorner<3,3>() << std::endl;
+        std::cout << "Covariance block:\n" << block->topLeftCorner<3,3>() << std::endl;
+        std::cout << "Covariance block:\n" << block->topLeftCorner<3,3>() << std::endl;
+        std::cout << "Covariance block:\n" << block->topLeftCorner<3,3>() << std::endl;
+        std::cout << "Covariance block:\n" << block->topLeftCorner<3,3>() << std::endl;
+        std::cout << "Covariance block:\n" << block->topLeftCorner<3,3>() << std::endl;
+        std::cout << "Covariance block:\n" << block->topLeftCorner<3,3>() << std::endl;
+        P = block->topLeftCorner<2,2>();
+    } else {
+        if(verbose_){std::cout << "   - WARNING: Marginal block is null (probably vertex is fixed), setting P to zero." << std::endl;}
+        P.setZero();
+    }
+    if(verbose_){std::cout << " - SlamSystem platformEstimate end ..." << std::endl;}
+  }
+
+
+  void SlamSystem::platformEstimate(Vector3d& x){
+    x = (currentPlatformVertex_->estimate()).toVector();
   }
 
 
@@ -226,6 +401,35 @@ using namespace Eigen;
   }
 
 
+  
+  void SlamSystem::processEvents(EventPtrVector& events){
+    if(verbose_){std::cout << " - SlamSystem processEvents start ..." << std::endl;}
+    for (const auto& event : events) {
+      if (events.empty()) {
+        if (verbose_) std::cout << " - no events to process\n";
+      }
+      processEvent(*event);
+    }
+    // TODO improve this part
+    if(stepNumber_ % optPeriod_ == 0){
+      optimize(optCountProcess_);
+    }
+  }
+
+
+
+  void SlamSystem::setVerbose(bool verbose){
+    verbose_ = verbose;
+  }
+
+    /**
+   * @brief calls save on the optimizer
+   * @param fileName verbose
+   */
+  void SlamSystem::saveOptimizerResults(std::string fileName){
+    optimizer_->save(fileName.c_str());
+  }
+
 
   /**
    * @brief process a event
@@ -278,6 +482,40 @@ using namespace Eigen;
 
 
   void SlamSystem::ignoreUnknownEventType(){}
+
+
+  // void SlamSystem::handlePredictForwards(double dT){
+  //   if(verbose_){std::cout << " - SlamSystem handlePredictForwards start ..." << std::endl;}
+  //   SE2 lastpredX = currentPlatformVertex_->estimate();
+  //   SE2 newX = lastpredX * (u_*dT);
+    
+  //   if(verbose_){std::cout << " - Creating new vertex ..." << std::endl;}
+  //   currentPlatformVertex_ = new VertexSE2;
+  //   currentPlatformVertex_->setEstimate(newX);
+  //   currentPlatformVertex_->setId(++vertexId_);
+  //   if(verbose_){std::cout << " - Adding vertex to optimizer ..." << std::endl;}
+  //   optimizer_->addVertex(currentPlatformVertex_);
+  //   platformVertices_.emplace_back(currentPlatformVertex_);
+
+  //   if(verbose_){std::cout << " - Creating new odometry edge ..." << std::endl;}
+  //   EdgeSE2* odometry = new EdgeSE2;
+  //   odometry->setVertex(0, platformVertices_[platformVertices_.size() - 2]);
+  //   odometry->setVertex(1, currentPlatformVertex_);
+  //   if(verbose_){std::cout << " - Vertex set, setting measurments ..." << std::endl;}
+  //   if(verbose_){std::cout << (lastpredX.inverse() * newX).toVector() << std::endl;}
+  //   odometry->setMeasurement(lastpredX.inverse() * newX);
+  //   assert(odometry->information().rows() == 3);
+  //   if(verbose_){std::cout << " - measurements set, setting information ..." << std::endl;}
+  //   if(verbose_){std::cout << (sigmaU_*dT*dT) << std::endl;}
+  //   odometry->setInformation((sigmaU_*dT*dT).inverse());
+  //   if(verbose_){std::cout << " - Adding edge to optimizer ..." << std::endl;}
+  //   optimizer_->addEdge(odometry);
+
+  //   processModelEdges_.emplace_back(odometry);
+  //   numProcessModelEdges_ += 1;
+
+  //   // I'll skip fix older platform vertex for now.
+  // }
 
   void SlamSystem::handlePredictForwards(double dT){
     if(verbose_){std::cout << " - SlamSystem handlePredictForwards start ..." << std::endl;}
@@ -483,6 +721,14 @@ using namespace Eigen;
     }
   }
 
+  // void SlamSystem::handleGPSObservationEvent(GPSObservationEvent event){
+  //   EdgePlatformLocPrior* gpsObservation = new EdgePlatformLocPrior;
+  //   gpsObservation->setVertex(0,currentPlatformVertex_);
+  //   gpsObservation->setMeasurement(event.value);
+  //   gpsObservation->setInformation(event.covariance.inverse());
+  //   gpsObservation->setParameterId(0, sensorOffset_->id());
+  //   optimizer_->addEdge(gpsObservation);
+  // }
 
   void SlamSystem::handleGPSObservationEvent(GPSObservationEvent event){
     EdgePlatformLocPriorGND* gpsObservation = new EdgePlatformLocPriorGND;

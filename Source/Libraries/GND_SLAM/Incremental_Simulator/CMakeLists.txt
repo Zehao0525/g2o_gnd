@@ -11,6 +11,8 @@ add_library(Incremental_Simulator ${LIB_TYPE}
   platform_controller.cpp 
   slam_system.h
   slam_system.cpp 
+  file_simulator.h
+  file_simulator.cpp
 )
 
 find_package(nlohmann_json REQUIRED)

@@ -49,24 +49,25 @@ namespace tutorial {
 class G2O_TUTORIAL_SLAM2D_API FileSimulator {
 
 
-struct Vertex {
-  int id;
-  SE3Quat pose;          // stores rotation + translation
+protected:
+  struct Vertex {
+    int id;
+    SE3Quat pose;          // stores rotation + translation
 
-  Vertex(int vid, const SE3Quat& p)
-    : id(vid), pose(p)
-  {}
-};
+    Vertex(int vid, const SE3Quat& p)
+      : id(vid), pose(p)
+    {}
+  };
 
-struct Edge {
-  int v0, v1;
-  SE3Quat delta;             // relative transform from v0 → v1
-  Eigen::Matrix<double, 6, 6> info;    // full 6×6 information matrix
+  struct Edge {
+    int v0, v1;
+    SE3Quat delta;             // relative transform from v0 → v1
+    Eigen::Matrix<double, 6, 6> info;    // full 6×6 information matrix
 
-  Edge(int a, int b, const SE3Quat& d, const Eigen::Matrix<double, 6, 6>& I)
-    : v0(a), v1(b), delta(d), info(I)
-  {}
-};
+    Edge(int a, int b, const SE3Quat& d, const Eigen::Matrix<double, 6, 6>& I)
+      : v0(a), v1(b), delta(d), info(I)
+    {}
+  };
 
 
 
@@ -86,6 +87,9 @@ struct Edge {
    * @brief returns the pose of the simulated viechle
    */
   SE3Quat xTrue() const;
+
+
+  void history(std::vector<double> &timeHistory, std::vector<g2o::SE3Quat> & xTrueHistory) const;
 
   /**
    * @brief start the simulation
@@ -134,7 +138,7 @@ protected:
   * 
   * This handler should be the first thing called by the simulator.
   */
-  void initialize(Vertex vertex);
+  void initialize();
 
   // We consult the system model and we give an event.
   /**
@@ -143,12 +147,12 @@ protected:
    * 
    * This method will flag whether or not the simulation session is finished. (Outgoing events are emitted and the next call to this method is scheduled.)
    */
-  void updateOdometry(Edge odom, Vertex vertex);
+  void updateOdometry(Edge& odom);
 
   /** 
    * @brief Simulate SLAM observation and emmit according event
   */
-  void updateObservation(Edge obs);
+  void updateObservation(Edge& obs);
 
 
   /**
@@ -181,6 +185,13 @@ protected:
 
   std::vector<double> timeStore_;
   std::vector<SE3Quat> xTrueStore_;
+
+  // Vertex Edge Vectors
+  std::unordered_map<int,size_t> idToIndex_;
+  std::vector<FileSimulator::Vertex> vertices_;
+  std::unordered_map<int,std::vector<FileSimulator::Edge>> odomEdgesFrom_;
+  std::unordered_map<int,std::vector<FileSimulator::Edge>> obsEdgesFrom_;
+  int currentVtxNumber_;
 
   // Debug
   bool verbose_;

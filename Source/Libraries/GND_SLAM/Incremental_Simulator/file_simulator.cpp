@@ -42,24 +42,23 @@ void forceLinkTypesTutorialSlam2d();
 
 using namespace Eigen;
 
-thread_local std::unique_ptr<GaussianSampler<Vector3d, Matrix3d>> FileSimulator::odomSampler_;
 
 FileSimulator::FileSimulator(const std::string& filename):
-      currentTime_(0), stepNumber_(0), carryOnRunning_(true), initialized_(false){
+      currentVtxNumber_(0), carryOnRunning_(true), initialized_(false){
        // 1) Read the folder name from the command line
-    std::filesystem::path folder(argv[1]);
+    std::filesystem::path folder(filename);
 
     // 2) Build full paths for the two .g2o files
     auto vertPath = folder / "vertices.g2o";
     auto edgePath = folder / "edges.g2o";
+    auto obsEdgePath = folder / "observation_edges.g2o";
 
     std::ifstream vf(vertPath);
-    if (!vf) { std::cerr << "Cannot open vertices.g2o\n"; return 1; }
+    if (!vf) { std::cerr << "Cannot open vertices.g2o\n";}
 
-    std::vector<SlamSystemFromFile::Vertex> vertices;
-    vertices.reserve(10000);
-    std::unordered_map<int,size_t> id_to_index;
-    id_to_index.reserve(10000);
+    vertices_.reserve(10000);
+    
+    idToIndex_.reserve(10000);
 
     std::string line;
     while (std::getline(vf, line)) {
@@ -76,18 +75,18 @@ FileSimulator::FileSimulator(const std::string& filename):
         Eigen::Quaterniond(qw, qx, qy, qz), 
         Eigen::Vector3d(x, y, z)
       );
-      size_t idx = vertices.size();
-      vertices.emplace_back(id, pose);
-      id_to_index[id] = idx;
+      size_t idx = vertices_.size();
+      vertices_.emplace_back(id, pose);
+      idToIndex_[id] = idx;
     }
     vf.close();
 
     // --- load edges.g2o ---
     std::ifstream ef(edgePath);
-    if (!ef) { std::cerr << "Cannot open edges.g2o\n"; return 1; }
+    if (!ef) { std::cerr << "Cannot open edges.g2o\n";}
 
-    std::unordered_map<int,std::vector<SlamSystemFromFile::Edge>> edges_from;
-    edges_from.reserve(10000);
+    
+    odomEdgesFrom_.reserve(10000);
 
     while (std::getline(ef, line)) {
       if (line.rfind("EDGE_SE3:QUAT",0) != 0) continue;
@@ -118,29 +117,62 @@ FileSimulator::FileSimulator(const std::string& filename):
         }
       }
 
-      edges_from[v0].emplace_back(v0, v1, delta, I);
+      odomEdgesFrom_[v0].emplace_back(v0, v1, delta, I);
     }
     ef.close();
 
-    // // --- usage examples ---
-    // // Pose of vertex 5:
-    // if (auto it = id_to_index.find(5); it != id_to_index.end()) {
-    //   const auto& V = vertices[it->second];
-    //   auto t = V.isoPose.translation();
-    //   auto R = V.isoPose.rotation();
-    //   std::cout << "Vertex 5 at [" 
-    //             << t.transpose() << "]\n";
-    // }
 
-    // // All edges leaving 4070:
-    // if (auto it = edges_from.find(4070); it != edges_from.end()) {
-    //   std::cout << "Edges from 4070:\n";
-    //   for (auto& E : it->second) {
-    //     auto dt = E.isoDelta.translation();
-    //     std::cout << "  → " << E.v1 
-    //               << "  Δt=[" << dt.transpose() << "]\n";
-    //   }
-    // }
+
+    // --- load observation_edges.g2o ---
+    std::ifstream oef(obsEdgePath);
+    if (!oef) { std::cerr << "Cannot open observation_edges.g2o\n";}
+    obsEdgesFrom_.reserve(10000);
+    while (std::getline(oef, line)) {
+      if (line.rfind("EDGE_SE3:QUAT",0) != 0) continue;
+      std::istringstream ss(line);
+      std::string tag;
+      int v0, v1;
+      double dx,dy,dz, dqx,dqy,dqz,dqw;
+      ss >> tag >> v0 >> v1
+        >> dx >> dy >> dz
+        >> dqx >> dqy >> dqz >> dqw;
+
+      // build SE3Quat delta
+      SE3Quat delta(
+        Eigen::Quaterniond(dqw, dqx, dqy, dqz),
+        Eigen::Vector3d(dx, dy, dz)
+      );
+
+      // read 21 upper-triangular entries into a 6×6 matrix
+      Eigen::Matrix<double, 6,6> I = Eigen::Matrix<double, 6,6>::Zero();
+      // mapping of linear index i=0..20 to (row,col)
+      int idx = 0;
+      for (int row = 0; row < 6; ++row) {
+        for (int col = row; col < 6; ++col) {
+          double v; ss >> v;
+          I(row,col) = v;
+          I(col,row) = v;
+          ++idx;
+        }
+      }
+
+      int known_id = -1;
+      bool keepOrder = true;
+      if (idToIndex_.count(v0)) {
+        known_id = v0;
+      } else if (idToIndex_.count(v1)) {
+        known_id = v1;
+        keepOrder = false;
+      }
+
+      if (known_id != -1) {
+        if(keepOrder){obsEdgesFrom_[known_id].emplace_back(v0, v1, delta, I);}
+        else{obsEdgesFrom_[known_id].emplace_back(v1, v0, delta, I);}
+      } else {
+        if (!verbose_) { std::cerr << "edge does not match existing verticies\n"; }
+      }
+    }
+    oef.close();
 }
 
 FileSimulator::~FileSimulator() = default;
@@ -152,12 +184,12 @@ SE3Quat FileSimulator::xTrue() const{
 
 SE2 FileSimulator::xTrue2d() const{
   // 1) translation
-  const Eigen::Vector3d& t3 = se3.translation();
+  const Eigen::Vector3d& t3 = x_.translation();
   double x = t3.x();
   double y = t3.y();
 
   // 2) extract yaw from rotation matrix R
-  Eigen::Matrix3d R = se3.rotation().toRotationMatrix();
+  Eigen::Matrix3d R = x_.rotation().toRotationMatrix();
   // yaw = atan2(sinθ, cosθ) = atan2(R(1,0), R(0,0))
   double yaw = std::atan2(R(1,0), R(0,0));
 
@@ -165,7 +197,7 @@ SE2 FileSimulator::xTrue2d() const{
 }
 
 
-void FileSimulator::history(std::vector<double> &timeHistory, std::vector<SE2> & xTrueHistory) const{
+void FileSimulator::history(std::vector<double> &timeHistory, std::vector<g2o::SE3Quat> & xTrueHistory) const{
   timeHistory = timeStore_;
   xTrueHistory = xTrueStore_;
 }
@@ -193,25 +225,37 @@ std::vector<EventPtr> FileSimulator::aquireEvents(){
 //Scenario FileSimulator::getScenario() const;
 
 bool FileSimulator::keepRunning() const{
-  return ((carryOnRunning_) && (stepNumber_ <= maximumStepNumber_));
+  return ((carryOnRunning_) && (currentVtxNumber_ < vertices_.size()));
 }
 
 void FileSimulator::step(){
-  
-  
+  currentVtxNumber_ ++;
+  FileSimulator::Vertex& currentVtx = vertices_[currentVtxNumber_];
+  for(auto obsEdge : obsEdgesFrom_[currentVtx.id]){
+    updateObservation(obsEdge);
+  }
+  updateOdometry(odomEdgesFrom_[currentVtx.id][0]);
+  x_ = currentVtx.pose;
+  storeStepResults();
 }
 
 
 void FileSimulator::initialize(){
-
+  currentVtxNumber_ = 0;
+  FileSimulator::Vertex& currentVtx = vertices_[currentVtxNumber_];
+  std::shared_ptr<FileInitEvent> initEventPtr = std::make_shared<FileInitEvent>(currentVtxNumber_, currentVtx.id, currentVtx.pose, Eigen::Matrix<double,6,6>::Identity());
+  eventQueue_.push(initEventPtr);
 }
 // We consult the system model and we give an event.
 
 
 
 
-void FileSimulator::updateOdometry(){
-
+void FileSimulator::updateOdometry(FileSimulator::Edge& odomEdge){
+  // Psudo time: We make sure that the Odometry has time greater than observation, this way the SLAM system will observe first then tally odometry
+  std::shared_ptr<FileOdomEvent> odomEventPtr= std::make_shared<FileOdomEvent>(currentVtxNumber_ + 0.7, odomEdge.v1, odomEdge.delta, odomEdge.info);
+  eventQueue_.push(odomEventPtr);
+  
 }
 
 
@@ -220,15 +264,16 @@ void FileSimulator::updateOdometry(){
 //void predictGPSObservation();
 //void predictCompassObservation();
 //void predictBearingObservations();
-void FileSimulator::updateObservation() {
-
+void FileSimulator::updateObservation(FileSimulator::Edge& obsEdge) {
+  std::shared_ptr<FileObsEvent> obsEventPtr= std::make_shared<FileObsEvent>( currentVtxNumber_ + 0.7, obsEdge.v1, obsEdge.delta, obsEdge.info);
+  eventQueue_.push(obsEventPtr);
 }
 
 
 //void generateHeartbeat();
 void FileSimulator::storeStepResults(){
-  timeStore_.emplace_back(currentTime_);
-  xTrueStore_.emplace_back(xTrue2d());
+  timeStore_.emplace_back(currentVtxNumber_);
+  xTrueStore_.emplace_back(xTrue());
 }
 
 void FileSimulator::saveGroundTruth(const std::string& filename) {
@@ -238,16 +283,17 @@ void FileSimulator::saveGroundTruth(const std::string& filename) {
         return;
     }
 
-    // Optional: write an offset param line like in tutorial_before.g2o
-    out << "TUTORIAL_PARAMS_SE2_OFFSET 0 0 0 0\n";
-
     for (size_t i = 0; i < xTrueStore_.size(); ++i) {
-        const auto& pose = xTrueStore_[i];
+        const auto& pose = xTrueStore_[i].toVector();
         out << std::fixed << std::setprecision(6);
-        out << "TUTORIAL_VERTEX_SE2 " << i << " "
+        out << "VERTEX_SE3:QUAT" << i << " "
             << pose[0] << " "
             << pose[1] << " "
-            << pose[2] << "\n";
+            << pose[2] << " "
+            << pose[3] << " "
+            << pose[4] << " "
+            << pose[5] << " "
+            << pose[6] << "\n";
     }
 
     // Optional: fix the first pose if needed

@@ -10,6 +10,8 @@
 #include "se2.h"
 #include "sensor_data.h"
 
+#include "g2o/types/slam3d/se3quat.h"
+
 namespace g2o {
 namespace tutorial {
 
@@ -108,22 +110,24 @@ namespace tutorial {
     struct G2O_TUTORIAL_SLAM2D_API FileInitEvent : public Event {
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
         int vtxId;
-        Eigen::Vector3d value;
+        SE3Quat value;
         Eigen::Matrix<double,6,6> information;
-        FileInitEvent(const int vtxId,
-                        const Eigen::Vector3d& pos,
-                        const Eigen::Matrix<double,6,6>& info): Event(0), vtxId(vtxId), value(pos), information(info) {  };
+        FileInitEvent(  const double eventTime,
+                        const int vtxId,
+                        const SE3Quat& pos,
+                        const Eigen::Matrix<double,6,6>& info): Event(eventTime), vtxId(vtxId), value(pos), information(info) {  };
         EventType type() const override{return EventType::FileInitialization;};
     };
 
     struct G2O_TUTORIAL_SLAM2D_API FileOdomEvent : public Event {
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
         int vtxId;
-        Eigen::Vector3d value;
+        SE3Quat value;
         Eigen::Matrix<double,6,6> information;
-        FileOdomEvent(const int vtxId,
-                        const Eigen::Vector3d& pos,
-                        const Eigen::Matrix<double,6,6>& info): Event(0), vtxId(vtxId), value(pos), information(info) {  };
+        FileOdomEvent(  const double eventTime,
+                        const int vtxId,
+                        const SE3Quat& pos,
+                        const Eigen::Matrix<double,6,6>& info): Event(eventTime), vtxId(vtxId), value(pos), information(info) {  };
         EventType type() const override{return EventType::FileOdometry;};
     };
 
@@ -131,11 +135,12 @@ namespace tutorial {
     struct G2O_TUTORIAL_SLAM2D_API FileObsEvent : public Event {
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
         int vtxId;
-        Eigen::Vector3d value;
+        SE3Quat value;
         Eigen::Matrix<double,6,6> information;
-        FileObsEvent(const int vtxId,
-                        const Eigen::Vector3d& pos,
-                        const Eigen::Matrix<double,6,6>& info): Event(0), vtxId(vtxId), value(pos), information(info) {  };
+        FileObsEvent(   const double eventTime,
+                        const int vtxId,
+                        const SE3Quat& pos,
+                        const Eigen::Matrix<double,6,6>& info): Event(eventTime), vtxId(vtxId), value(pos), information(info) {  };
         EventType type() const override{return EventType::FileObservation;};
     };
 

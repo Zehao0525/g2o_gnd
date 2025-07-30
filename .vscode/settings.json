@@ -78,6 +78,7 @@
         "core": "cpp",
         "numericaldiff": "cpp",
         "*.bak": "cpp",
-        "*.bak2": "cpp"
+        "*.bak2": "cpp",
+        "*.hide": "cpp"
     }
 }
