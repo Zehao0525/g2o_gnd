@@ -52,19 +52,19 @@ class G2O_TUTORIAL_SLAM2D_API FileSimulator {
 protected:
   struct Vertex {
     int id;
-    SE3Quat pose;          // stores rotation + translation
+    Isometry3 pose;          // stores rotation + translation
 
-    Vertex(int vid, const SE3Quat& p)
+    Vertex(int vid, const Isometry3& p)
       : id(vid), pose(p)
     {}
   };
 
   struct Edge {
     int v0, v1;
-    SE3Quat delta;             // relative transform from v0 → v1
+    Isometry3 delta;             // relative transform from v0 → v1
     Eigen::Matrix<double, 6, 6> info;    // full 6×6 information matrix
 
-    Edge(int a, int b, const SE3Quat& d, const Eigen::Matrix<double, 6, 6>& I)
+    Edge(int a, int b, const Isometry3& d, const Eigen::Matrix<double, 6, 6>& I)
       : v0(a), v1(b), delta(d), info(I)
     {}
   };
@@ -86,10 +86,10 @@ protected:
   /**
    * @brief returns the pose of the simulated viechle
    */
-  SE3Quat xTrue() const;
+  Isometry3 xTrue() const;
 
 
-  void history(std::vector<double> &timeHistory, std::vector<g2o::SE3Quat> & xTrueHistory) const;
+  void history(std::vector<double> &timeHistory, std::vector<g2o::Isometry3> & xTrueHistory) const;
 
   /**
    * @brief start the simulation
@@ -175,7 +175,7 @@ public:
 
 protected:
   // Platform State
-  SE3Quat x_;
+  Isometry3 x_;
 
   // System Handles
   std::unique_ptr<SystemModel> systemModel_;
@@ -184,7 +184,7 @@ protected:
   // WaypointController controller_;
 
   std::vector<double> timeStore_;
-  std::vector<SE3Quat> xTrueStore_;
+  std::vector<Isometry3> xTrueStore_;
 
   // Vertex Edge Vectors
   std::unordered_map<int,size_t> idToIndex_;

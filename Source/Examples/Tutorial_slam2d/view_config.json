@@ -1,4 +1,8 @@
 {
+  "camera_setting":{
+    "look_at":[25,25,60,25,25,0],
+    "projection_matrix":[800, 600, 500, 500, 400, 300, 0.1, 100]
+  },
   "simulator": {
     "platform":{
       "color":[0.0, 1.0, 0.0],
@@ -15,7 +19,7 @@
   },
   "slam_system": {
     "platform":{
-      "color":[0.0, 0.0, 1.0],
+      "color":[0.3, 0.3, 0.7],
       "size":1.5
     },
     "landmark": {

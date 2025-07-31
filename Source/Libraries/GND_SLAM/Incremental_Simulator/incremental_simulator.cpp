@@ -195,6 +195,7 @@ bool IncrementalSimulator::keepRunning() const{
 
 void IncrementalSimulator::step(){
   // increment step
+  if(!keepRunning()){return;}
   if(verbose_){std::cout << " - SlamSystem step() ..."<< std::endl;}
   stepNumber_ += 1;
   currentTime_ += dT_;

@@ -1,0 +1,10 @@
+{
+  "camera_setting":{
+    "look_at":[2,-2.0,6,2,-2.0,0],
+    "projection_matrix":[800, 600, 500, 500, 400, 300, 0.1, 100]
+  },
+  "num_robots":5,
+  "loop_count":3000000,
+  "frame_pause":10000
+}
+

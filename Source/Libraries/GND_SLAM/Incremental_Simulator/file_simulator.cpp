@@ -44,7 +44,7 @@ using namespace Eigen;
 
 
 FileSimulator::FileSimulator(const std::string& filename):
-      currentVtxNumber_(0), carryOnRunning_(true), initialized_(false){
+      currentVtxNumber_(-1), carryOnRunning_(true), initialized_(false), verbose_(true){
        // 1) Read the folder name from the command line
     std::filesystem::path folder(filename);
 
@@ -71,10 +71,9 @@ FileSimulator::FileSimulator(const std::string& filename):
         >> x >> y >> z
         >> qx >> qy >> qz >> qw;
 
-      SE3Quat pose(
-        Eigen::Quaterniond(qw, qx, qy, qz), 
-        Eigen::Vector3d(x, y, z)
-      );
+      Isometry3 pose = Isometry3::Identity();  // Start with identity
+      pose.linear() = Eigen::Quaterniond(qw, qx, qy, qz).toRotationMatrix();    // Set rotation
+      pose.translation() = Eigen::Vector3d(x, y, z);    
       size_t idx = vertices_.size();
       vertices_.emplace_back(id, pose);
       idToIndex_[id] = idx;
@@ -98,11 +97,10 @@ FileSimulator::FileSimulator(const std::string& filename):
         >> dx >> dy >> dz
         >> dqx >> dqy >> dqz >> dqw;
 
-      // build SE3Quat delta
-      SE3Quat delta(
-        Eigen::Quaterniond(dqw, dqx, dqy, dqz),
-        Eigen::Vector3d(dx, dy, dz)
-      );
+      // build Isometry3 delta
+      Isometry3 delta = Isometry3::Identity();  // Start with identity
+      delta.linear() = Eigen::Quaterniond(dqw, dqx, dqy, dqz).toRotationMatrix();    // Set rotation
+      delta.translation() = Eigen::Vector3d(dx, dy, dz);    
 
       // read 21 upper-triangular entries into a 6×6 matrix
       Eigen::Matrix<double, 6,6> I = Eigen::Matrix<double, 6,6>::Zero();
@@ -137,11 +135,10 @@ FileSimulator::FileSimulator(const std::string& filename):
         >> dx >> dy >> dz
         >> dqx >> dqy >> dqz >> dqw;
 
-      // build SE3Quat delta
-      SE3Quat delta(
-        Eigen::Quaterniond(dqw, dqx, dqy, dqz),
-        Eigen::Vector3d(dx, dy, dz)
-      );
+      // build Isometry3 delta
+      Isometry3 delta = Isometry3::Identity();  // Start with identity
+      delta.linear() = Eigen::Quaterniond(dqw, dqx, dqy, dqz).toRotationMatrix();    // Set rotation
+      delta.translation() = Eigen::Vector3d(dx, dy, dz);    
 
       // read 21 upper-triangular entries into a 6×6 matrix
       Eigen::Matrix<double, 6,6> I = Eigen::Matrix<double, 6,6>::Zero();
@@ -178,7 +175,7 @@ FileSimulator::FileSimulator(const std::string& filename):
 FileSimulator::~FileSimulator() = default;
 
 
-SE3Quat FileSimulator::xTrue() const{
+Isometry3 FileSimulator::xTrue() const{
   return x_;
 }
 
@@ -189,7 +186,7 @@ SE2 FileSimulator::xTrue2d() const{
   double y = t3.y();
 
   // 2) extract yaw from rotation matrix R
-  Eigen::Matrix3d R = x_.rotation().toRotationMatrix();
+  Eigen::Matrix3d R = x_.rotation();
   // yaw = atan2(sinθ, cosθ) = atan2(R(1,0), R(0,0))
   double yaw = std::atan2(R(1,0), R(0,0));
 
@@ -197,7 +194,7 @@ SE2 FileSimulator::xTrue2d() const{
 }
 
 
-void FileSimulator::history(std::vector<double> &timeHistory, std::vector<g2o::SE3Quat> & xTrueHistory) const{
+void FileSimulator::history(std::vector<double> &timeHistory, std::vector<g2o::Isometry3> & xTrueHistory) const{
   timeHistory = timeStore_;
   xTrueHistory = xTrueStore_;
 }
@@ -225,16 +222,28 @@ std::vector<EventPtr> FileSimulator::aquireEvents(){
 //Scenario FileSimulator::getScenario() const;
 
 bool FileSimulator::keepRunning() const{
-  return ((carryOnRunning_) && (currentVtxNumber_ < vertices_.size()));
+  return ((carryOnRunning_));
 }
 
 void FileSimulator::step(){
+  if(!keepRunning()){
+    if(verbose_){std::cout << " - Keep running is false, stopping step ... " << std::endl;}
+    return;
+  }
+  if(verbose_){std::cout << " - Stepping:" << currentVtxNumber_ << " / " << vertices_.size() << std::endl;}
   currentVtxNumber_ ++;
+  if (currentVtxNumber_ >= vertices_.size()){
+    carryOnRunning_ = false;
+    return;
+  }
   FileSimulator::Vertex& currentVtx = vertices_[currentVtxNumber_];
   for(auto obsEdge : obsEdgesFrom_[currentVtx.id]){
     updateObservation(obsEdge);
   }
-  updateOdometry(odomEdgesFrom_[currentVtx.id][0]);
+  for(auto odomEdge : odomEdgesFrom_[currentVtx.id]){
+    updateOdometry(odomEdge);
+  }
+  
   x_ = currentVtx.pose;
   storeStepResults();
 }
@@ -243,8 +252,10 @@ void FileSimulator::step(){
 void FileSimulator::initialize(){
   currentVtxNumber_ = 0;
   FileSimulator::Vertex& currentVtx = vertices_[currentVtxNumber_];
+  x_ = currentVtx.pose;
   std::shared_ptr<FileInitEvent> initEventPtr = std::make_shared<FileInitEvent>(currentVtxNumber_, currentVtx.id, currentVtx.pose, Eigen::Matrix<double,6,6>::Identity());
   eventQueue_.push(initEventPtr);
+  storeStepResults();
 }
 // We consult the system model and we give an event.
 
@@ -265,7 +276,7 @@ void FileSimulator::updateOdometry(FileSimulator::Edge& odomEdge){
 //void predictCompassObservation();
 //void predictBearingObservations();
 void FileSimulator::updateObservation(FileSimulator::Edge& obsEdge) {
-  std::shared_ptr<FileObsEvent> obsEventPtr= std::make_shared<FileObsEvent>( currentVtxNumber_ + 0.7, obsEdge.v1, obsEdge.delta, obsEdge.info);
+  std::shared_ptr<FileObsEvent> obsEventPtr= std::make_shared<FileObsEvent>(currentVtxNumber_ + 0.7, obsEdge.v1, obsEdge.delta, obsEdge.info);
   eventQueue_.push(obsEventPtr);
 }
 
@@ -284,17 +295,18 @@ void FileSimulator::saveGroundTruth(const std::string& filename) {
     }
 
     for (size_t i = 0; i < xTrueStore_.size(); ++i) {
-        const auto& pose = xTrueStore_[i].toVector();
-        out << std::fixed << std::setprecision(6);
-        out << "VERTEX_SE3:QUAT" << i << " "
-            << pose[0] << " "
-            << pose[1] << " "
-            << pose[2] << " "
-            << pose[3] << " "
-            << pose[4] << " "
-            << pose[5] << " "
-            << pose[6] << "\n";
-    }
+      const Isometry3& pose = xTrueStore_[i];
+
+      // Extract translation and quaternion
+      const Eigen::Vector3d& t = pose.translation();
+      Eigen::Quaterniond q(pose.rotation());
+      q.normalize(); // ensure numerical stability
+
+      out << std::fixed << std::setprecision(6);
+      out << "VERTEX_SE3:QUAT " << i << " "
+          << t.x() << " " << t.y() << " " << t.z() << " "
+          << q.x() << " " << q.y() << " " << q.z() << " " << q.w() << "\n";
+  }
 
     // Optional: fix the first pose if needed
     if (!xTrueStore_.empty()) {

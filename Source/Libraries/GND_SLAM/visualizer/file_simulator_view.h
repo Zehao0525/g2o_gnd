@@ -1,6 +1,6 @@
 #pragma once
 #include "view.h"
-#include "incremental_simulator.h"
+#include "file_simulator.h"
 
 #include <fstream> 
 #include <Eigen/Core>
@@ -11,10 +11,10 @@ namespace g2o {
 namespace tutorial {
 namespace viz {
 
-class SimulatorView : public View {
+class FileSimulatorView : public View {
 public:
-    SimulatorView(IncrementalSimulator* simulator, const Eigen::Vector3f& color, const Eigen::Vector3f& lmColor, const Eigen::Vector3f& wpColor);
-    SimulatorView(IncrementalSimulator* simulator, const std::string& filename);
+    FileSimulatorView(FileSimulator* simulator, const Eigen::Vector3f& color, const Eigen::Vector3f& lmColor, const Eigen::Vector3f& wpColor);
+    FileSimulatorView(FileSimulator* simulator, const std::string& filename);
 
     void processEvents(EventPtrVector& events);
 
@@ -26,9 +26,8 @@ public:
 
     void renderScene() const override;
 
-
 private:
-    IncrementalSimulator* simulator_;
+    FileSimulator* simulator_;
     Eigen::Vector3f lmColor_;
     double lmSize_;
     Eigen::Vector3f wpColor_;
@@ -36,9 +35,7 @@ private:
     std::vector<Eigen::Vector2d> landmarkPoses_;
     std::vector<Eigen::Vector2d> wayPoints_;
 
-    Eigen::Vector3f gpsMeasColor_;
-    Eigen::Vector3f lmrbMeasColor_;
-    Eigen::Vector3f lmobMeasColor_;
+    Eigen::Vector3f obsMeasColor_;
 };
 
 }}}

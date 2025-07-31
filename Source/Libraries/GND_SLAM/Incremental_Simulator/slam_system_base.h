@@ -75,9 +75,26 @@ template <typename VertexType, typename EdgeType>
 class G2O_TUTORIAL_SLAM2D_API SlamSystemBase {
 
  public:
-  SlamSystemBase(const std::string& filename):currentTime_(0), stepNumber_(0), initialized_(false), componentsReady_(false),
+  SlamSystemBase(const std::string& filename):currentTime_(0), stepNumber_(0), lastOptStep_(-1), initialized_(false), componentsReady_(false),
                 vertexId_(-1), numProcessModelEdges_(0), currentPlatformVertex_(nullptr){
     optimizer_ = std::make_unique<SparseOptimizer>();
+    
+    std::ifstream f(filename);
+    if (!f) {
+          throw std::runtime_error("Cannot open SLAM config file: " + filename);
+      }
+      nlohmann::json j;
+      f >> j;
+
+    verbose_ = j.value("verbose", false);
+    if(verbose_){std::cout<<"- Reading all other parameters."<<std::endl;}
+    optPeriod_ = j.value("optimization_period", 100);
+    optimizationAlg_ = j.value("optimization_algorithm", "GaussNewton");
+    if(verbose_){std::cout<<"- optimizationAlg_ = " << optimizationAlg_ <<std::endl;}
+    optCountProcess_ = j["optimize_count"].value("process", 10);
+    optCountStop_ = j["optimize_count"].value("stop", 10);
+    optCountStopFix_ = j["optimize_count"].value("stop_fixed", 10);
+    setupOptimizer();
   }
   ~SlamSystemBase()= default;
 
@@ -219,11 +236,16 @@ class G2O_TUTORIAL_SLAM2D_API SlamSystemBase {
   void processEvents(EventPtrVector& events){
     if(verbose_){std::cout << " - SlamSystem processEvents start ..." << std::endl;}
     for (const auto& event : events) {
+      if (!event && verbose_) {
+        std::cerr << "⚠️ Warning: Null event pointer encountered, skipping." << std::endl;
+      }
       processEvent(*event);
     }
     // TODO improve this part
-    if(stepNumber_ % optPeriod_ == 0){
+    //if(verbose_){std::cout<<"SLAM system Step: "<< stepNumber_ << ", " << lastOptStep_ << ", "<< optPeriod_  <<std::endl;        }
+    if(stepNumber_ == 0 || lastOptStep_ + optPeriod_ <= stepNumber_){
       optimize(optCountProcess_);
+      lastOptStep_ = stepNumber_;
     }
   }
 
@@ -313,6 +335,7 @@ protected:
   bool verbose_;
 
   int stepNumber_;
+  int lastOptStep_;
   double currentTime_;
   bool initialized_;
   bool componentsReady_ = false;

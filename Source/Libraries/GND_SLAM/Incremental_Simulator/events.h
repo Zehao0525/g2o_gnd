@@ -110,11 +110,11 @@ namespace tutorial {
     struct G2O_TUTORIAL_SLAM2D_API FileInitEvent : public Event {
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
         int vtxId;
-        SE3Quat value;
+        Isometry3 value;
         Eigen::Matrix<double,6,6> information;
         FileInitEvent(  const double eventTime,
                         const int vtxId,
-                        const SE3Quat& pos,
+                        const Isometry3& pos,
                         const Eigen::Matrix<double,6,6>& info): Event(eventTime), vtxId(vtxId), value(pos), information(info) {  };
         EventType type() const override{return EventType::FileInitialization;};
     };
@@ -122,11 +122,11 @@ namespace tutorial {
     struct G2O_TUTORIAL_SLAM2D_API FileOdomEvent : public Event {
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
         int vtxId;
-        SE3Quat value;
+        Isometry3 value;
         Eigen::Matrix<double,6,6> information;
         FileOdomEvent(  const double eventTime,
                         const int vtxId,
-                        const SE3Quat& pos,
+                        const Isometry3& pos,
                         const Eigen::Matrix<double,6,6>& info): Event(eventTime), vtxId(vtxId), value(pos), information(info) {  };
         EventType type() const override{return EventType::FileOdometry;};
     };
@@ -135,11 +135,11 @@ namespace tutorial {
     struct G2O_TUTORIAL_SLAM2D_API FileObsEvent : public Event {
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
         int vtxId;
-        SE3Quat value;
+        Isometry3 value;
         Eigen::Matrix<double,6,6> information;
         FileObsEvent(   const double eventTime,
                         const int vtxId,
-                        const SE3Quat& pos,
+                        const Isometry3& pos,
                         const Eigen::Matrix<double,6,6>& info): Event(eventTime), vtxId(vtxId), value(pos), information(info) {  };
         EventType type() const override{return EventType::FileObservation;};
     };

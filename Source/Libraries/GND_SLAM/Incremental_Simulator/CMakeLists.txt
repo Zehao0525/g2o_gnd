@@ -13,6 +13,8 @@ add_library(Incremental_Simulator ${LIB_TYPE}
   slam_system.cpp 
   file_simulator.h
   file_simulator.cpp
+  file_slam_system.h
+  file_slam_system.cpp
 )
 
 find_package(nlohmann_json REQUIRED)
@@ -26,6 +28,7 @@ target_link_libraries(Incremental_Simulator PUBLIC
   g2o::core
   g2o::stuff
   g2o::solver_eigen
+  g2o::types_slam3d
   nlohmann_json::nlohmann_json
 )
 

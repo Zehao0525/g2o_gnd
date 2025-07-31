@@ -5,6 +5,7 @@
 #include "view.h"
 #include <pangolin/pangolin.h>
 #include <pangolin/handler/handler.h>
+#include <nlohmann/json.hpp>
 
 namespace g2o {
 namespace tutorial {
@@ -17,7 +18,7 @@ enum class VizType {
 
 class ViewManager {
 public:
-    ViewManager();
+    ViewManager(const std::string& filename);
     ~ViewManager() = default;
 
 
@@ -33,6 +34,9 @@ private:
     std::vector<std::shared_ptr<View>> views_;
     std::thread renderThread_;
     bool running_;
+
+    std::vector<double> cameraLookat_;
+    std::vector<double> projectionMatrix_;
 
     VizType vizType_;
 };

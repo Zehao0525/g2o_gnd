@@ -6,7 +6,19 @@ namespace g2o {
 namespace tutorial {
 namespace viz {
 
-ViewManager::ViewManager() : running_(false), vizType_(VizType::PoseOnly) {}
+ViewManager::ViewManager(const std::string& filename) : running_(false), vizType_(VizType::PoseOnly) {
+    std::ifstream f(filename);
+    if (!f) {
+        throw std::runtime_error("Cannot open Simulator config file: " + filename);
+    }
+    nlohmann::json j;
+    f >> j;
+
+    std::cout << "ViewManager_setup" <<std::endl;
+    cameraLookat_ = j["camera_setting"].value("look_at", std::vector<double>{25.0,25.0,60.0,25.0,25.0,0.0});
+    projectionMatrix_ = j["camera_setting"].value("projection_matrix", std::vector<double>{25.0,25.0,60.0,25.0,25.0,0.0});
+
+}
 
 void ViewManager::addView(std::shared_ptr<View> view) {
     views_.push_back(view);
@@ -51,8 +63,10 @@ void ViewManager::renderLoop() {
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     pangolin::OpenGlRenderState s_cam(
-        pangolin::ProjectionMatrix(800, 600, 500, 500, 400, 300, 0.1, 100),
-        pangolin::ModelViewLookAt(25, 25, 65, 25, 25, 0, pangolin::AxisY)
+        //pangolin::ProjectionMatrix(800, 600, 500, 500, 400, 300, 0.1, 100),
+        pangolin::ProjectionMatrix(projectionMatrix_[0], projectionMatrix_[1], projectionMatrix_[2], projectionMatrix_[3], projectionMatrix_[4], projectionMatrix_[5], projectionMatrix_[6], projectionMatrix_[7]),
+        //pangolin::ModelViewLookAt(25, 25, 65, 25, 25, 0, pangolin::AxisY)
+        pangolin::ModelViewLookAt(cameraLookat_[0], cameraLookat_[1], cameraLookat_[2], cameraLookat_[3], cameraLookat_[4], cameraLookat_[5], pangolin::AxisY)
     );
 
     pangolin::View& d_cam = pangolin::CreateDisplay();

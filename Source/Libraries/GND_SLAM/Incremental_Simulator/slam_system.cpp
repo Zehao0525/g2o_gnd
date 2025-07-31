@@ -58,19 +58,14 @@ using namespace Eigen;
       sensorOffset_->setId(0);
 
       optimizationAlg_ = j.value("optimization_algorithm", "GaussNewton");
-      if(verbose_){std::cout<<"- optimizationAlg_ = " << optimizationAlg_ <<std::endl;}
+      
 
 
       if(verbose_){std::cout<<"- creating optimizer ..." <<std::endl;}
       //optimizer_ = std::make_unique<SparseOptimizer>();
 
       optimizer_->addParameter(sensorOffset_);
-      setupOptimizer();
       landmarkIdMap_.clear();
-
-      optCountProcess_ = j["optimize_count"].value("process", 10);
-      optCountStop_ = j["optimize_count"].value("stop", 10);
-      optCountStopFix_ = j["optimize_count"].value("stop_fixed", 10);
   }
   SlamSystem::~SlamSystem(){}
 

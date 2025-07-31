@@ -41,9 +41,6 @@
 #include "g2o/solvers/eigen/linear_solver_eigen.h"
 // #include "simulator.h"
 
-#include "g2o/types/slam3d/edge_se3.h"
-#include "g2o/types/slam3d/vertex_se3.h"
-
 
 
 #include "g2o_tutorial_slam2d_api.h"
@@ -52,15 +49,11 @@
 #include "sensor_data.h"
 
 #include "types_tutorial_slam2d.h"
-#include "vertex_point_xy.h"
-#include "vertex_se2.h"
-#include "edge_se2.h"
-#include "edge_se2_wt.h"
-#include "edge_se2_pointxy.h"
-#include "edge_range_bearing.h"
-#include "edge_platform_loc_prior.h"
 #include "GNDEdges/edge_platform_loc_prior_gnd.h"
 #include "slam_system_base.h"
+
+#include "g2o/types/slam3d/edge_se3.h"
+#include "g2o/types/slam3d/vertex_se3.h"
 
 
 
@@ -75,7 +68,7 @@ typedef BlockSolver<BlockSolverTraits<-1, -1> > SlamBlockSolver;
 typedef LinearSolverEigen<SlamBlockSolver::PoseMatrixType> SlamLinearSolver;
 
 
-class G2O_TUTORIAL_SLAM2D_API SlamSystemFromFile : public SlamSystemBase<VertexSE3, EdgeSE3> {
+class G2O_TUTORIAL_SLAM2D_API FileSlamSystem : public SlamSystemBase<VertexSE3, EdgeSE3> {
 
 
 protected:
@@ -108,8 +101,12 @@ protected:
   using Base::optimize;
 
  public:
-  SlamSystemFromFile(const std::string& filename);
-  ~SlamSystemFromFile();
+  FileSlamSystem(const std::string& filename);
+  ~FileSlamSystem();
+
+  void platformEstimate2d(Eigen::Vector3d& x, Eigen::Matrix2d& P);
+
+  void platformEstimate2d(Eigen::Vector3d& x) const;
 
   /**
    * @brief Initialie and start the SLAM system.
@@ -121,6 +118,7 @@ protected:
    * @brief stop the SLAM system and finallise result accumulation
    */
   void stop() override;
+  
 
 
 
@@ -141,20 +139,19 @@ protected:
    * @brief event handler for initialisation events
    * @param event
    */
-  void handleInitializationEvent(InitializationEvent event);
+  void handleInitializationEvent(FileInitEvent event);
 
   /**
    * @brief event handler for odometry events
    * @param event
    */
-  void handleOdometryEvent(OdometryEdgeEvent event);
+  void handleOdometryEvent(FileOdomEvent event);
 
   /**
    * @brief event handler for landmark observation events
    * @param event
    */
-  void handleObservationEvent(ObservationEdgeEvent event);
-  
+  void handleObservationEvent(FileObsEvent event);
 
 
 

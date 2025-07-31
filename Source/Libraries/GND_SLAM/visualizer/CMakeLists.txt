@@ -9,6 +9,10 @@ add_library(Incremental_Visualizer ${LIB_TYPE}
   simulator_view.cpp
   slam_system_view.h
   slam_system_view.cpp
+  file_simulator_view.h
+  file_simulator_view.cpp
+  file_slam_system_view.h
+  file_slam_system_view.cpp
 
   #viz_shape.h
 )

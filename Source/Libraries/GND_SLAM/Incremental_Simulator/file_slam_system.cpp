@@ -24,7 +24,7 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "slam_system_ffile.h"
+#include "file_slam_system.h"
 
 
 
@@ -36,64 +36,48 @@ using namespace Eigen;
 using VertexContainer = g2o::OptimizableGraph::VertexContainer;
 
 
-protected:
-  using Base = SlamSystemBase<VertexSE3, EdgeSE3>;
-  //using Base::verbose_;
 
-  using Base::stepNumber_;
-  using Base::currentTime_;
-  using Base::initialized_;
-  using Base::componentsReady_;
-
-  using Base::optPeriod_;
-  using Base::optCountProcess_;
-  using Base::optCountStop_;
-  using Base::optCountStopFix_;
-
-  using Base::optimizer_;
-
-  using Base::vertexId_;
-  using Base::processModelEdges_;
-  using Base::numProcessModelEdges_;
-  using Base::unfixedTimeWindow_;
-
-
-  using Base::x_;
-  using Base::currentPlatformVertex_;
-
-
-  using Base::platformVertices_;
-  using Base::optimize;
-
-
-  SlamSystemFromFile::SlamSystemFromFile(const std::string& filename){
+  FileSlamSystem::FileSlamSystem(const std::string& filename)
+    :SlamSystemBase<VertexSE3, EdgeSE3>(filename){
 
   }
 
-  SlamSystemFromFile::~SlamSystemFromFile();
+  FileSlamSystem::~FileSlamSystem()=default;
 
 
-  void SlamSystemFromFile::start(){
+  void FileSlamSystem::start(){
 
   }
 
 
-  void SlamSystemFromFile::stop(){
+  void FileSlamSystem::stop(){
+    optimize(optCountStop_);
 
+    //if (fixOlderPlatformVertices_ == true){
+    // TODO We are doing id = 0 for now.
+    for (const auto& vertex : optimizer_->vertices()) {
+      g2o::OptimizableGraph::Vertex* v = static_cast<g2o::OptimizableGraph::Vertex*>(vertex.second);
+      if(v->id() > 0){
+        v->setFixed(false);
+      }
+    }
+    optimize(optCountStopFix_);
   }
 
-  void SlamSystemFromFile::processEvent(Event& event){
+  void FileSlamSystem::processEvent(Event& event){
     switch(event.type()){
       case Event::EventType::FileObservation:
         handleObservationEvent(static_cast<FileObsEvent&>(event));
         break;
       case Event::EventType::FileOdometry:
+        stepNumber_ +=1;
         handleOdometryEvent(static_cast<FileOdomEvent&>(event));
         break;
       case Event::EventType::FileInitialization:
         handleInitializationEvent(static_cast<FileInitEvent&>(event));
         break;
       default:
+        if(verbose_){std::cout << " - Unknown Event ..." << std::endl;}
         ignoreUnknownEventType();
         break;
     }
@@ -101,10 +85,10 @@ protected:
 
 
 
-  void SlamSystemFromFile::ignoreUnknownEventType(){}
+  void FileSlamSystem::ignoreUnknownEventType(){}
 
 
-  void SlamSystemFromFile::handleInitializationEvent(InitializationEvent event){
+  void FileSlamSystem::handleInitializationEvent(FileInitEvent event){
     if(verbose_){std::cout << " - SlamSystem handleInitializationEvent start ..." << std::endl;}
     if(verbose_){std::cout << " - Creaing vertex ..." << std::endl;}
     currentPlatformVertex_ = new VertexSE3();
@@ -117,8 +101,8 @@ protected:
 
     platformVertices_.emplace_back(currentPlatformVertex_);
     // place the id into the vertex id map
-    if (VertexIdMap_.find(id) == VertexIdMap_.end()) {
-      VertexIdMap_[id] = static_cast<int>(VertexIdMap_.size());
+    if (VertexIdMap_.find(event.vtxId) == VertexIdMap_.end()) {
+      VertexIdMap_[event.vtxId] = static_cast<int>(VertexIdMap_.size());
     }
 
     // TODO replace with initialization prior
@@ -130,8 +114,8 @@ protected:
   }
 
 
-  void SlamSystemFromFile::handleOdometryEvent(OdometryEdgeEvent event){
-    if(verbose_){std::cout << " - SlamSystem handleInitializationEvent start ..." << std::endl;}
+  void FileSlamSystem::handleOdometryEvent(FileOdomEvent event){
+    if(verbose_){std::cout << " - SlamSystem handleOdometryEvent start ..." << std::endl;}
     if(verbose_){std::cout << " - Creaing vertex ..." << std::endl;}
     currentPlatformVertex_ = new VertexSE3();
 
@@ -142,8 +126,8 @@ protected:
 
     platformVertices_.emplace_back(currentPlatformVertex_);
     // place the id into the vertex id map
-    if (VertexIdMap_.find(id) == VertexIdMap_.end()) {
-      VertexIdMap_[id] = static_cast<int>(VertexIdMap_.size());
+    if (VertexIdMap_.find(event.vtxId) == VertexIdMap_.end()) {
+      VertexIdMap_[event.vtxId] = static_cast<int>(VertexIdMap_.size());
     }
 
     // TODO replace with initialization prior
@@ -155,12 +139,12 @@ protected:
 
     OptimizableGraph::VertexSet fromSet;
     fromSet.insert(v0);
-    odometry->initialEstimate(fromSet);
+    //odometry->initialEstimate(fromSet, v0);
+    currentPlatformVertex_->setEstimate(v0->estimate() * event.value);
 
     if(verbose_){std::cout << " - Vertex set, setting measurments ..." << std::endl;}
-    if(verbose_){std::cout << (lastpredX.inverse() * newX).toVector() << std::endl;}
     odometry->setMeasurement(event.value);
-    assert(odometry->information().rows() == 3);
+    //assert(odometry->information().rows() == 3);
     if(verbose_){std::cout << " - measurements set, setting information ..." << std::endl;}
     odometry->setInformation((event.information));
     if(verbose_){std::cout << " - Adding edge to optimizer ..." << std::endl;}
@@ -169,14 +153,56 @@ protected:
     processModelEdges_.emplace_back(odometry);
     numProcessModelEdges_ += 1;
 
+    if(verbose_ && false){
+      // Optional: Set formatting for better readability
+      std::cout << std::fixed << std::setprecision(6);
+      std::cout << "\n\n\n\n Current Vertex\n";
+      Isometry3 v0Iso  = v0->estimate();
+      std::cout << "Translation (x y z):\n" << v0Iso.translation().transpose() << "\n\n";
+      std::cout << "Rotation matrix (3x3):\n" << v0Iso.rotation() << "\n\n";
+      // Print translation
+      std::cout << "Odom Edge Vertex\n";
+      std::cout << "Translation (x y z):\n" << event.value.translation().transpose() << "\n\n";
+      // Print rotation matrix
+      std::cout << "Rotation matrix (3x3):\n" << event.value.rotation() << "\n\n";
+      // Print quaternion form
+      Quaterniond q(event.value.rotation());
+      std::cout << "Quaternion (w x y z):\n" 
+          << q.w() << " " << q.x() << " " << q.y() << " " << q.z() << "\n\n";
+      // Print full isometry matrix
+      std::cout << "Isometry3 (4x4 homogeneous transformation):\n" << event.value.matrix() << "\n\n";
+      // Print 6x6 information matrix
+      std::cout << "Information matrix (6x6):\n" << event.information << "\n";
+    }
 
-    if(verbose_){std::cout << " - SlamSystem handleInitializationEvent end ..." << std::endl;}
+
+    if(verbose_){std::cout << " - SlamSystem handleOdometryEvent end ..." << std::endl;}
   }
 
 
-  void SlamSystemFromFile::handleObservationEvent(ObservationEdgeEvent event){
+  void FileSlamSystem::handleObservationEvent(FileObsEvent event){
     //TODO implement
+     if(verbose_){std::cout << " - SlamSystem handleObservationEvent start ..." << std::endl;}
 
+  }
+
+  void FileSlamSystem::platformEstimate2d(Eigen::Vector3d& x, Eigen::Matrix2d& P){
+
+  }
+
+  void FileSlamSystem::platformEstimate2d(Eigen::Vector3d& pose) const {
+    // 1) translation
+    Isometry3 pos = currentPlatformVertex_->estimate();
+    const Eigen::Vector3d& t3 = pos.translation();
+    double x = t3.x();
+    double y = t3.y();
+
+    // 2) extract yaw from rotation matrix R
+    Eigen::Matrix3d R = pos.rotation();
+    // yaw = atan2(sinθ, cosθ) = atan2(R(1,0), R(0,0))
+    double yaw = std::atan2(R(1,0), R(0,0));
+
+    pose = Eigen::Vector3d(x, y, yaw);
   }
 
 
