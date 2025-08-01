@@ -27,7 +27,7 @@
 #ifndef G2O_TUTORIAL_EDGE_NONE_GAUSSIAN_BINARY_H
 #define G2O_TUTORIAL_EDGE_NONE_GAUSSIAN_BINARY_H
 
-#include "g2o/core/base_unary_edge.h"
+#include "g2o/core/base_binary_edge.h"
 #include "g2o_tutorial_slam2d_api.h"
 #include "parameter_se2_offset.h"
 #include "vertex_se2.h"
@@ -49,7 +49,7 @@ public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 
   EdgeNoneGaussianBinary()
-      : g2o::BaseUnaryEdge<1, Eigen::Matrix<double, Dim, 1>, VertexType, VertexType2>(),
+      : g2o::BaseBinaryEdge<1, Eigen::Matrix<double, Dim, 1>, VertexType, VertexType2>(),
         _sensorOffset(0),
         _sensorCache(0),
         _power(2),
@@ -76,21 +76,27 @@ public:
     return os.good();
   }
 
-  void gndSetInformation(const InformationType& information) {
+
+  void ngSetInformation(const InformationType& information) {
     _realInformation = information;
     this->setInformation(Eigen::Matrix<double, 1, 1>::Identity());
   }
 
-  void gndSetInformation(const InformationType& information, double power) {
+  void ngSetInformation(const InformationType& information, double power) {
     _power = power;
     _realInformation = information / 4;
     this->setInformation(Eigen::Matrix<double, 1, 1>::Identity());
   }
 
-  void gndSetInformation(const InformationType& information, double power, double lnc) {
+  void ngSetInformation(const InformationType& information, double power, double lnc) {
     _lnc = lnc;
-    gndSetInformation(information, power);
+    ngSetInformation(information, power);
   }
+
+  void gndSetInformationInv(){
+    _realInformationInv = _realInformation.inverse();
+  }
+  
 
 protected:
   bool resolveCaches() {
@@ -107,6 +113,7 @@ protected:
   CacheSE2Offset* _sensorCache;
 
   InformationType _realInformation;  // Original info matrix before powering
+  InformationType _realInformationInv;
   double _power;
   double _lnc; // log normalization constant
 };

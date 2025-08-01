@@ -18,6 +18,11 @@ add_library(G2O_Graph ${LIB_TYPE}
   GNDEdges/edge_none_gaussian_unary.h
   GNDEdges/edge_platform_loc_prior_gnd.h
   GNDEdges/edge_platform_loc_prior_gnd.cpp
+  GNDEdges/edge_none_gaussian_binary.h
+  GNDEdges/cauchy_edge_se2_pointxy.h
+  GNDEdges/cauchy_edge_se2_pointxy.cpp
+  GNDEdges/gnd_kernel.h
+  GNDEdges/gnd_kernel.cpp
 )
 
 #target_include_directories(G2O_Graph PUBLIC ${CMAKE_CURRENT_DIRECTORY})
@@ -33,6 +38,7 @@ target_link_libraries(G2O_Graph PUBLIC
   g2o::core
   g2o::stuff
   g2o::solver_eigen
+
 )
 
 target_include_directories(G2O_Graph PUBLIC

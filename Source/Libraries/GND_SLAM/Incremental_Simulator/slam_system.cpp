@@ -42,10 +42,7 @@ using namespace Eigen;
       nlohmann::json j;
       f >> j;
 
-      verbose_ = j.value("verbose", false);
       if(verbose_){std::cout<<"- SlamSystem Created, verbose_ = true."<<std::endl;}
-      if(verbose_){std::cout<<"- Reading all other parameters."<<std::endl;}
-      optPeriod_ = j.value("optimization_period", 100);
       if(verbose_){std::cout<<"- optPeriod_ = " << optPeriod_ <<std::endl;}
       auto offset = j.value("sensor_offset", std::vector<double>{0.0, 0.0, 0.0});
       if (offset.size() != 3) {

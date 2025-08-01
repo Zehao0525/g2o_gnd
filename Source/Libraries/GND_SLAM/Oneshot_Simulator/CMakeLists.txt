@@ -1,5 +1,7 @@
 add_library(Oneshot_Simulator ${LIB_TYPE}
   simulator.h simulator.cpp
+  simulator_mc.h simulator_mc.cpp
+  rng_util.h
 )
 
 target_link_libraries(Oneshot_Simulator PRIVATE G2O_Graph)
