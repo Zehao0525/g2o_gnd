@@ -42,7 +42,7 @@ def compute_ape(traj1, traj2):
 if __name__ == "__main__":
     import numpy as np
 
-    choice = 1
+    choice = 2
     if choice == 0:
         filename = "trajectory_est.g2o"
         se2_poses_after = read_se2_vertices(filename)
@@ -91,10 +91,43 @@ if __name__ == "__main__":
         plot_trajectory(se2_poses_after, 'orange', False, 'after')
         print("APE of gaussian:", compute_ape(se2_poses_after, se2_poses_gt))
         plot_trajectory(se2_poses_before, 'blue', False, 'before')
-        plot_trajectory(se2_kernel_poses_after, 'red', False, 'kernel')
-        plot_trajectory(se2_kernel_clone_poses_after, 'purple', False, 'kernel2')
+        plot_trajectory(se2_kernel_poses_after, 'red', False, 'pose_after')
+        plot_trajectory(se2_kernel_clone_poses_after, 'purple', False, 'clone_pose_after')
         print("APE of gnd:", compute_ape(se2_kernel_poses_after, se2_poses_gt))
         print("APE of gnd w gauss init est:", compute_ape(se2_kernel_clone_poses_after, se2_poses_gt))
+        plt.title('SE2 Trajectory with Colored Orientation Arrows')
+        plt.xlabel('X')
+        plt.ylabel('Y')
+        plt.axis('equal')
+        plt.grid(True)
+        plt.legend()
+        plt.show()
+
+    if choice == 2:
+        filename = "twb_gnd.g2o"
+        results_gnd_edge = read_se2_vertices(filename)
+        
+
+        filename = "twb_gauss.g2o"
+        result_gauss_edge = read_se2_vertices(filename)
+        
+
+        filename = "twb_before.g2o"
+        result_before = read_se2_vertices(filename)
+
+        filename = "twb_gt.g2o"
+        results_gt = read_se2_vertices(filename)
+    
+
+        plt.figure(figsize=(8, 6))
+
+        plot_trajectory(results_gt, 'green', False, 'ground truth')
+        plot_trajectory(result_gauss_edge, 'orange', False, 'gaussian edges')
+        print("APE of gaussian:", compute_ape(result_gauss_edge, results_gt))
+        plot_trajectory(result_before, 'blue', False, 'before')
+        plot_trajectory(results_gnd_edge, 'red', False, 'gnd edges')
+        print("APE of gnd:", compute_ape(results_gnd_edge, results_gt))
+        print("APE before optimization:", compute_ape(result_before, results_gt))
         plt.title('SE2 Trajectory with Colored Orientation Arrows')
         plt.xlabel('X')
         plt.ylabel('Y')

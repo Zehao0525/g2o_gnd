@@ -49,6 +49,10 @@ inline double round(double number) {
 typedef std::map<int, std::map<int, Simulator::LandmarkPtrVector> >
     LandmarkGrid;
 
+Simulator::Simulator(unsigned int seed) {
+  Sampler::seedRand(static_cast<unsigned int>(seed));
+}
+
 Simulator::Simulator() {
   time_t seed = time(0);
   Sampler::seedRand(static_cast<unsigned int>(seed));

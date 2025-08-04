@@ -72,26 +72,35 @@ void GNDKernel::robustify(double e2, Vector3& rho) const {
   rho[1] = power_/2 * pow(scaledE2, power_/2 - 1) * (1 / (bound_ * bound_));
   rho[2] = (power_/2) * (power_/2 - 1) * pow(scaledE2, power_/2 - 2) *  (1 / (bound_ * bound_)) *  (1 / (bound_ * bound_));
 
-  // if(e2 < scaledDelta){
-  //   //double dr0 = (power_ / 2) * std::pow(scaledDelta, power_ / 2 - 1);
-  //   rho[0] = lnc_ + pow(scaledE2, power_/2) + dr0 * scaledDelta;
-  //   rho[1] = power_/2 * pow(scaledE2, power_/2 - 1) * (1 / (bound_ * bound_));
-  //   rho[2] = (power_/2) * (power_/2 - 1) * pow(scaledE2, power_/2 - 2) *  (1 / (bound_ * bound_)) *  (1 / (bound_ * bound_));
-  // }
-  // else{
-  //   // Match function and derivative at delta
-  //   double r0 = lnc_ + std::pow(scaledDelta, power_ / 2);
-  //   double dr0 = (power_ / 2) * std::pow(scaledDelta, power_ / 2 - 1);
+}
 
-  //   // Tangent line: rho = dr0 * e2 + (r0 - dr0 * delta * bound)
-  //   double a = dr0;
-  //   double b = r0;
 
-  //   rho[0] = a*scaledE2 + b;
-  //   rho[1] = a;
-  //   rho[2] = 0.0;  // linear continuation
-  // }
+
+ToggelableGNDKernel::ToggelableGNDKernel():ToggelableGNDKernel(2,8,nullptr){}
+
+ToggelableGNDKernel::ToggelableGNDKernel(double bound, double power, const bool* gndActive)
+  : GNDKernel(bound, power), gndActive_(gndActive) {}
+
+ToggelableGNDKernel::ToggelableGNDKernel(double bound, double power, double lnc, const bool* gndActive)
+  : GNDKernel(bound, power, lnc), gndActive_(gndActive) {}
+
+ToggelableGNDKernel::ToggelableGNDKernel(double bound, double power, double lnc, double tailPenaltyStd, const bool* gndActive)
+  : GNDKernel(bound, power, lnc, tailPenaltyStd), gndActive_(gndActive) {}
+
+void ToggelableGNDKernel::robustify(double e2, Vector3& rho) const {
+  if (gndActive_ && *gndActive_) {
+    GNDKernel::robustify(e2, rho);
+  } else {
+    rho[0] = e2;
+    rho[1] = 1.0;
+    rho[2] = 0.0;
+  }
+}
+
+void ToggelableGNDKernel::setBoolPointer(const bool* gndActive){
+  gndActive_ = gndActive;
 }
 
 G2O_REGISTER_ROBUST_KERNEL(GND, GNDKernel)
+G2O_REGISTER_ROBUST_KERNEL(ToggelableGND, ToggelableGNDKernel)
 }  // end namespace g2o

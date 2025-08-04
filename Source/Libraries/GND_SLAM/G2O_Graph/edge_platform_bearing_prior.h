@@ -26,38 +26,35 @@
 
 #pragma once
 
-#include "g2o_core_api.h"
-#include "robust_kernel.h"
+#include "g2o/core/base_unary_edge.h"
+#include "g2o_tutorial_slam2d_api.h"
+#include "parameter_se2_offset.h"
+#include "vertex_se2.h"
 
 namespace g2o {
 
-class G2O_CORE_API GNDKernel : public RobustKernel {
+namespace tutorial {
+
+class ParameterSE2Offset;
+class CacheSE2Offset;
+
+class G2O_TUTORIAL_SLAM2D_API EdgePlatformBearingPrior
+    : public BaseUnaryEdge<1, double, VertexSE2> {
  public:
-  GNDKernel();
-  GNDKernel(double errScale, double power);
-  GNDKernel(double errScale, double power, double lnc);
-  GNDKernel(double errScale, double power, double lnc, double tailPenaltyStd);
-  virtual void robustify(double e2, Vector3& rho) const;
-  void setParameters(double bound, double power, double lnc, double tailPenaltyStd);
- protected:
-  double bound_;
-  double power_;
-  double lnc_;
-};
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
+  EdgePlatformBearingPrior();
 
+  void computeError();
 
-class G2O_CORE_API ToggelableGNDKernel : public GNDKernel {
- public:
-  ToggelableGNDKernel();
-  ToggelableGNDKernel(double bound, double power, const bool* gndActive);
-  ToggelableGNDKernel(double bound, double power, double lnc, const bool* gndActive);
-  ToggelableGNDKernel(double bound, double power, double lnc, double tailPenaltyStd, const bool* gndActive);
-
-  virtual void robustify(double e2, Vector3& rho) const override;
-  void setBoolPointer(const bool* gndActive);
+  virtual bool read(std::istream& is);
+  virtual bool write(std::ostream& os) const;
 
  protected:
-  const bool* gndActive_;
+  ParameterSE2Offset* _sensorOffset;
+  CacheSE2Offset* _sensorCache;
+
+  virtual bool resolveCaches();
 };
 
-}
+}  // namespace tutorial
+}  // namespace g2o

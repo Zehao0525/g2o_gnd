@@ -12,6 +12,8 @@ add_library(G2O_Graph ${LIB_TYPE}
   edge_platform_loc_prior.cpp
   edge_platform_pose_prior.h
   edge_platform_pose_prior.cpp
+  edge_platform_bearing_prior.h
+  edge_platform_bearing_prior.cpp
   edge_se2_wt.cpp
   edge_se2_wt.h
 

@@ -24,40 +24,47 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#pragma once
+#include "edge_platform_bearing_prior.h"
 
-#include "g2o_core_api.h"
-#include "robust_kernel.h"
+using namespace Eigen;
 
 namespace g2o {
+namespace tutorial {
 
-class G2O_CORE_API GNDKernel : public RobustKernel {
- public:
-  GNDKernel();
-  GNDKernel(double errScale, double power);
-  GNDKernel(double errScale, double power, double lnc);
-  GNDKernel(double errScale, double power, double lnc, double tailPenaltyStd);
-  virtual void robustify(double e2, Vector3& rho) const;
-  void setParameters(double bound, double power, double lnc, double tailPenaltyStd);
- protected:
-  double bound_;
-  double power_;
-  double lnc_;
-};
-
-
-class G2O_CORE_API ToggelableGNDKernel : public GNDKernel {
- public:
-  ToggelableGNDKernel();
-  ToggelableGNDKernel(double bound, double power, const bool* gndActive);
-  ToggelableGNDKernel(double bound, double power, double lnc, const bool* gndActive);
-  ToggelableGNDKernel(double bound, double power, double lnc, double tailPenaltyStd, const bool* gndActive);
-
-  virtual void robustify(double e2, Vector3& rho) const override;
-  void setBoolPointer(const bool* gndActive);
-
- protected:
-  const bool* gndActive_;
-};
-
+EdgePlatformBearingPrior::EdgePlatformBearingPrior()
+    : BaseUnaryEdge<1, double, VertexSE2>(),
+      _sensorOffset(0),
+      _sensorCache(0) {
+  resizeParameters(1);
+  installParameter(_sensorOffset, 0);
 }
+
+  bool EdgePlatformBearingPrior::read(std::istream& is) {
+    is >> _measurement;
+    double info;
+    is >> info;
+    information()(0, 0) = info;
+    return true;
+  }
+
+  bool EdgePlatformBearingPrior::write(std::ostream& os) const {
+    os << _measurement << " " << information()(0, 0);
+    return os.good();
+  }
+
+void EdgePlatformBearingPrior::computeError() {
+  Eigen::Vector3d pose = (_sensorCache->n2w()).toVector();
+  _error[0] = normalize_theta(pose[2] - _measurement);
+}
+
+bool EdgePlatformBearingPrior::resolveCaches() {
+  ParameterVector pv(1);
+  pv[0] = _sensorOffset;
+  resolveCache(_sensorCache,
+               static_cast<OptimizableGraph::Vertex*>(_vertices[0]),
+               "TUTORIAL_CACHE_SE2_OFFSET", pv);
+  return _sensorCache != 0;
+}
+
+}  // namespace tutorial
+}  // namespace g2o

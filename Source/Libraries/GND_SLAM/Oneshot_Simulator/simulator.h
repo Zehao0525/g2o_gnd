@@ -91,6 +91,7 @@ class G2O_TUTORIAL_SLAM2D_API Simulator {
 
  public:
   Simulator();
+  Simulator(unsigned int seed);
   ~Simulator();
 
   void simulate(int numPoses, const SE2& sensorOffset = SE2());
