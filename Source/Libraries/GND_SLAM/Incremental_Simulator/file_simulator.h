@@ -49,7 +49,7 @@ namespace tutorial {
 class G2O_TUTORIAL_SLAM2D_API FileSimulator {
 
 
-protected:
+public:
   struct Vertex {
     int id;
     Isometry3 pose;          // stores rotation + translation
@@ -72,7 +72,7 @@ protected:
 
 
  public:
-  FileSimulator(const std::string& filename);
+  FileSimulator(int id, const std::string& filename);
   ~FileSimulator();
 
   // =============================
@@ -154,6 +154,11 @@ protected:
   */
   void updateObservation(Edge& obs);
 
+  /** 
+   * @brief Simulate SLAM observation and emmit according event
+  */
+  void updateIntraObservation(Edge& obsEdge);
+
 
   /**
    * @brief Store data into xTrueStore_ and timeStore_
@@ -191,10 +196,15 @@ protected:
   std::vector<FileSimulator::Vertex> vertices_;
   std::unordered_map<int,std::vector<FileSimulator::Edge>> odomEdgesFrom_;
   std::unordered_map<int,std::vector<FileSimulator::Edge>> obsEdgesFrom_;
+  std::unordered_map<int,std::vector<FileSimulator::Edge>> obsIntraEdgesFrom_;
   int currentVtxNumber_;
 
   // Debug
   bool verbose_;
+
+  // Communication
+  int robotId_;
+  
 };
 
 }  // namespace tutorial

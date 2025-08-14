@@ -28,7 +28,9 @@ target_link_libraries(Incremental_Simulator PUBLIC
   g2o::core
   g2o::stuff
   g2o::solver_eigen
+  -Wl,--whole-archive
   g2o::types_slam3d
+  -Wl,--no-whole-archive
   nlohmann_json::nlohmann_json
 )
 

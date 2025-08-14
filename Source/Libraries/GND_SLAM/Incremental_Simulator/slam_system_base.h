@@ -140,8 +140,8 @@ class G2O_TUTORIAL_SLAM2D_API SlamSystemBase {
   /**
    * @brief optmize graph and store optimsation result
    */
-  SparseOptimizer& optimizer(){
-    return *optimizer_;
+  SparseOptimizer* optimizer() {
+    return optimizer_.get();
   }
 
 
@@ -244,8 +244,10 @@ class G2O_TUTORIAL_SLAM2D_API SlamSystemBase {
     // TODO improve this part
     //if(verbose_){std::cout<<"SLAM system Step: "<< stepNumber_ << ", " << lastOptStep_ << ", "<< optPeriod_  <<std::endl;        }
     if(stepNumber_ == 0 || lastOptStep_ + optPeriod_ <= stepNumber_){
+      if(verbose_){std::cout << " - SlamSystem processEvents optimize ..." << std::endl;}
       optimize(optCountProcess_);
       lastOptStep_ = stepNumber_;
+      if(verbose_){std::cout << " - SlamSystem processEvents optimize complete ..." << std::endl;}
     }
   }
 
@@ -348,7 +350,7 @@ protected:
 
 
   //static thread_local std::unique_ptr<SparseOptimizer> optimizer_;
-  static std::unique_ptr<SparseOptimizer> optimizer_;
+  std::unique_ptr<SparseOptimizer> optimizer_;
 
   std::vector<VertexType*> platformVertices_;
 
@@ -364,8 +366,8 @@ protected:
   SE2 x_;
 };
 
-template <typename VertexType, typename EdgeType>
-std::unique_ptr<SparseOptimizer> SlamSystemBase<VertexType, EdgeType>::optimizer_ = nullptr;
+//template <typename VertexType, typename EdgeType>
+//std::unique_ptr<SparseOptimizer> SlamSystemBase<VertexType, EdgeType>::optimizer_ = nullptr;
 
 }  // namespace tutorial
 }  // namespace g2o

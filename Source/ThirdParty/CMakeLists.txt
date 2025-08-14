@@ -11,7 +11,7 @@ cmake_path(SET BUILD_INSTALL_PREFIX NORMALIZE ${ThirdParty_SOURCE_DIR}/../../Dev
 
 # Build shared libraries or not?
 if(NOT DEFINED BUILD_SHARED_LIBRARIES)
-  set(BUILD_SHARED_LIBRARIES NO)
+  set(BUILD_SHARED_LIBRARIES YES)
 endif()
 
 # Set common cmake arguments for all external projects

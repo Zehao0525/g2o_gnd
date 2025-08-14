@@ -82,7 +82,7 @@ int main() {
   forceLinkTypesTutorialSlam2d();
   checkTypeRegistration();
 
-  std::string viewFilenme = "Source/Examples/Tutorial_slam2d/multirobot_view_configs/overall.json";
+  std::string viewFilenme = "Source/Examples/Tutorial_slam2d/multirobot_configs/overall_view.json";
   std::ifstream f(viewFilenme);
   if (!f) {
       throw std::runtime_error("Cannot open Simulator config file: " + viewFilenme);
@@ -92,6 +92,7 @@ int main() {
   int frame_pause = viewJson.value("frame_pause", 50000);
   int num_bots = viewJson.value("num_robots", 5);
   int loop_count = viewJson.value("loop_count", 1000000);
+  int comms_interval = viewJson.value("comms_interval", 1000);
 
   bool running = true;
   vector<std::shared_ptr<FileSimulator>> filesims;
@@ -101,15 +102,15 @@ int main() {
   viz::ViewManager vizer = viz::ViewManager(viewFilenme);
   for(int i=0;i<num_bots;i++){
     cerr << "Adding Simulator and visualizer for bot " << i << endl;
-    std::string datafilename = "test1_data/bot" + std::to_string(i);
-    std::shared_ptr<FileSimulator> filesimPtr = std::make_shared<FileSimulator>(datafilename);
-    std::string slamConfig = "Source/Examples/Tutorial_slam2d/slam_system_config.json";
-    std::shared_ptr<FileSlamSystem> fileslamsystemPtr = std::make_shared<FileSlamSystem>(slamConfig);
+    std::string datafilename = viewJson.value("file_source", "test1_2_data") + "/bot" + std::to_string(i);
+    std::shared_ptr<FileSimulator> filesimPtr = std::make_shared<FileSimulator>(i, datafilename);
+    std::string slamConfig = "Source/Examples/Tutorial_slam2d/multirobot_configs/slam_system_config.json";
+    std::shared_ptr<FileSlamSystem> fileslamsystemPtr = std::make_shared<FileSlamSystem>(i, slamConfig);
 
     filesims.emplace_back(filesimPtr);
     fileslamsystems.emplace_back(fileslamsystemPtr);
 
-    std::string configname = "Source/Examples/Tutorial_slam2d/multirobot_view_configs/bot" + std::to_string(i) + ".json";
+    std::string configname = "Source/Examples/Tutorial_slam2d/multirobot_configs/bot" + std::to_string(i) + "_view.json";
     std::shared_ptr<viz::FileSimulatorView> simVizerPtr = std::make_shared<viz::FileSimulatorView>(filesimPtr.get(), configname);
     std::shared_ptr<viz::FileSlamSystemView> slamVizerPtr = std::make_shared<viz::FileSlamSystemView>(fileslamsystemPtr.get(), configname);
     vizer.addView(simVizerPtr);
@@ -123,8 +124,9 @@ int main() {
 
 
   cerr << "Simulator starting ... "<<endl;
-  for(auto fs : filesims){
-    fs->start();
+  for(int i=0;i<num_bots;i++){
+    filesims[i]->start();
+    fileslamsystems[i]->start();
   }
   //cerr << "SLAM System Starting ..."<<endl;
   //slamSystem.start();
@@ -136,9 +138,11 @@ int main() {
     simVizers[i]->processEvents(events);
     fileslamsystems[i]->processEvents(events);
     slamVizers[i]->update();
+
+    std::cout << "sys" << i << " optimizer@ " << fileslamsystems[i]->optimizer() << "\n";
   }
   
-  for(int i=0;i<4000;i++){
+  for(int i=0;i<6000;i++){
     cerr <<endl;
     cerr << "(loop) iteration: " << i <<endl;
     //cerr << "(loop) slam system processing events ... ..."<<endl;
@@ -158,6 +162,18 @@ int main() {
       Vector3d simx = filesims[j]->xTrue2d().toVector();
       simVizers[j]->updateRobotPose(simx);
     }
+
+    if(i%comms_interval == 0){
+      for(int j=0;j<num_bots;j++){
+        FileSlamSystem::ObsSyncMessage sync_msg = fileslamsystems[j]->broadcastObsSyncMessage();
+        for(int k=0;k<num_bots;k++){
+          FileSlamSystem::ObsSyncMessage osmsg = fileslamsystems[k]->handleObservationSyncRequest(sync_msg);
+          fileslamsystems[j]->handleObservationSyncResponse(osmsg);
+        }
+      }
+    }
+
+
 
     //slamVizer->update();
 
@@ -188,6 +204,31 @@ int main() {
     Vector3d simx = filesims[j]->xTrue2d().toVector();
     simVizers[j]->updateRobotPose(simx);
     slamVizers[j]->update();
+  }
+
+  for(int j=0;j<num_bots;j++){
+    fileslamsystems[j]->optimize(20);
+  }
+
+  for(int i=0;i<num_bots;i++){
+    std::string filename = "file_trajectory_pre_comm_bot" + std::to_string(i) + ".g2o";
+    fileslamsystems[i]->saveOptimizerResults(filename);
+  }
+  
+  for(int a=0;a<1;a++){
+    for(int j=0;j<num_bots;j++){
+      cerr << " j:"<<j<<endl; 
+      FileSlamSystem::ObsSyncMessage sync_msg = fileslamsystems[j]->broadcastObsSyncMessage();
+      for(int k=0;k<num_bots;k++){
+        cerr << " k:"<<k<<endl; 
+        if(j==k){continue;}
+        FileSlamSystem::ObsSyncMessage osmsg = fileslamsystems[k]->handleObservationSyncRequest(sync_msg);
+        fileslamsystems[j]->handleObservationSyncResponse(osmsg);
+      }
+    }
+    for(int j=0;j<num_bots;j++){
+      fileslamsystems[j]->optimize(20);
+    }
   }
 
   for(int i=0;i<num_bots;i++){

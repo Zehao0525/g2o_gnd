@@ -1,0 +1,13 @@
+{
+  "verbose": true,
+  "debug_verbose": true,
+  "optimization_period": 10000,
+  "sensor_offset": [0.0, 0.0, 0.0],
+  "optimization_algorithm": "LevenbergMarquardt",
+
+  "optimize_count":{
+    "process":5,
+    "stop": 10,
+    "stop_fixed": 10
+  }
+}

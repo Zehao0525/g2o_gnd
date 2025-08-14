@@ -43,8 +43,8 @@ void forceLinkTypesTutorialSlam2d();
 using namespace Eigen;
 
 
-FileSimulator::FileSimulator(const std::string& filename):
-      currentVtxNumber_(-1), carryOnRunning_(true), initialized_(false), verbose_(true){
+FileSimulator::FileSimulator(int id, const std::string& filename):
+      currentVtxNumber_(-1), carryOnRunning_(true), initialized_(false), verbose_(true), robotId_(id){
        // 1) Read the folder name from the command line
     std::filesystem::path folder(filename);
 
@@ -52,6 +52,7 @@ FileSimulator::FileSimulator(const std::string& filename):
     auto vertPath = folder / "vertices.g2o";
     auto edgePath = folder / "edges.g2o";
     auto obsEdgePath = folder / "observation_edges.g2o";
+    auto obsIntraEdgePath = folder / "intra_observation_edges.g2o";
 
     std::ifstream vf(vertPath);
     if (!vf) { std::cerr << "Cannot open vertices.g2o\n";}
@@ -118,6 +119,7 @@ FileSimulator::FileSimulator(const std::string& filename):
       odomEdgesFrom_[v0].emplace_back(v0, v1, delta, I);
     }
     ef.close();
+    std::cout << "Inserted " << odomEdgesFrom_.size() << " keys in odomEdgesFrom_\n";
 
 
 
@@ -169,7 +171,58 @@ FileSimulator::FileSimulator(const std::string& filename):
         if (!verbose_) { std::cerr << "edge does not match existing verticies\n"; }
       }
     }
-    oef.close();
+    std::cout << "Inserted " << obsEdgesFrom_.size() << " keys in obsEdgesFrom_\n";
+    for (const auto& kv : obsEdgesFrom_) {
+      std::cout << "Key: " << kv.first << std::endl;
+    }
+
+
+    // --- load observation_edges.g2o ---
+    std::ifstream ioef(obsIntraEdgePath);
+    if (!ioef) { std::cerr << "Cannot open observation_edges.g2o\n";}
+    obsIntraEdgesFrom_.reserve(10000);
+    while (std::getline(ioef, line)) {
+      if (line.rfind("EDGE_SE3:QUAT",0) != 0) continue;
+      std::istringstream ss(line);
+      std::string tag;
+      int v0, v1;
+      double dx,dy,dz, dqx,dqy,dqz,dqw;
+      ss >> tag >> v0 >> v1
+        >> dx >> dy >> dz
+        >> dqx >> dqy >> dqz >> dqw;
+
+      // build Isometry3 delta
+      Isometry3 delta = Isometry3::Identity();  // Start with identity
+      delta.linear() = Eigen::Quaterniond(dqw, dqx, dqy, dqz).toRotationMatrix();    // Set rotation
+      delta.translation() = Eigen::Vector3d(dx, dy, dz);    
+
+      // read 21 upper-triangular entries into a 6×6 matrix
+      Eigen::Matrix<double, 6,6> I = Eigen::Matrix<double, 6,6>::Zero();
+      // mapping of linear index i=0..20 to (row,col)
+      int idx = 0;
+      for (int row = 0; row < 6; ++row) {
+        for (int col = row; col < 6; ++col) {
+          double v; ss >> v;
+          I(row,col) = v;
+          I(col,row) = v;
+          ++idx;
+        }
+      }
+
+      int known_id = -1;
+      bool keepOrder = true;
+      if (v0<v1) {
+        keepOrder = false;
+      }
+
+      if(keepOrder){obsIntraEdgesFrom_[v0].emplace_back(v0, v1, delta, I);}
+      else{obsIntraEdgesFrom_[v1].emplace_back(v1, v0, delta, I);}
+    }
+    ioef.close();
+    std::cout << "Inserted " << obsIntraEdgesFrom_.size() << " keys in obsIntraEdgesFrom_\n";
+    for (const auto& kv : obsIntraEdgesFrom_) {
+      std::cout << "Key: " << kv.first << std::endl;
+    }
 }
 
 FileSimulator::~FileSimulator() = default;
@@ -243,6 +296,10 @@ void FileSimulator::step(){
   for(auto odomEdge : odomEdgesFrom_[currentVtx.id]){
     updateOdometry(odomEdge);
   }
+  for(auto iobsEdge : obsIntraEdgesFrom_[currentVtx.id]){
+    updateIntraObservation(iobsEdge);
+    //assert(robotId_ == 0);
+  }
   
   x_ = currentVtx.pose;
   storeStepResults();
@@ -276,7 +333,12 @@ void FileSimulator::updateOdometry(FileSimulator::Edge& odomEdge){
 //void predictCompassObservation();
 //void predictBearingObservations();
 void FileSimulator::updateObservation(FileSimulator::Edge& obsEdge) {
-  std::shared_ptr<FileObsEvent> obsEventPtr= std::make_shared<FileObsEvent>(currentVtxNumber_ + 0.7, obsEdge.v1, obsEdge.delta, obsEdge.info);
+  std::shared_ptr<FileObsEvent> obsEventPtr= std::make_shared<FileObsEvent>(currentVtxNumber_ + 0.7, robotId_, (robotId_ == 0 ? 1 : 0), obsEdge.v0, obsEdge.v1, obsEdge.delta, obsEdge.info);
+  eventQueue_.push(obsEventPtr);
+}
+
+void FileSimulator::updateIntraObservation(FileSimulator::Edge& obsEdge) {
+  std::shared_ptr<FileIntraObsEvent> obsEventPtr= std::make_shared<FileIntraObsEvent>(currentVtxNumber_ + 0.7, obsEdge.v0, obsEdge.v1, obsEdge.delta, obsEdge.info);
   eventQueue_.push(obsEventPtr);
 }
 

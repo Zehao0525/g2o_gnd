@@ -73,3 +73,15 @@ target_link_libraries(tutorial_bearing_test PRIVATE
   G2O_Graph
   Oneshot_Simulator
 )
+
+
+add_executable(multirobot_concept_test
+  multirobot_concept_test.cpp
+)
+
+
+target_link_libraries(multirobot_concept_test PRIVATE
+  G2O_Graph
+  Incremental_Simulator
+  Incremental_Visualizer
+)
