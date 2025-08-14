@@ -217,12 +217,13 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
     // place the id into the vertex id map
 
     // We add a vertex representing the pose frame transform between this robot and other bots. 
-    if (relativeTransforms_.find(event.idTo) == relativeTransforms_.end()) {
+    if (relativeTransforms_.find(event.vtxIdTo) == relativeTransforms_.end()) {
       VertexSE3* v = new VertexSE3();
       // We assume that there's no more than 20000 vertecies in the map
-      v->setId(20000 + event.idTo);
+      v->setId(20000 + event.vtxIdTo);
       v->setEstimate(Isometry3d::Identity());
-      relativeTransformsFrom_[event.idTo] = v;
+      relativeTransforms_[event.vtxIdTo] = v;
+      optimizer_->addVertex(v);
     }
 
     VertexSE3* observedVtx;
@@ -244,11 +245,12 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
         offset->setId(0);
         optimizer_->addParameter(offset);
       }
-      observationPrior = new EdgeSE3Prior;
-      observationPrior->setVertex(0,observedVtx);
+      observationPrior = new EdgeSE3;
+      observationPrior->setVertex(0,relativeTransforms_[event.vtxIdTo]);
+      observationPrior->setVertex(1,observedVtx);
       observationPrior->setMeasurement(v0->estimate() * event.value);
       observationPrior->setInformation(Eigen::Matrix<double,6,6>::Identity());
-      observationPrior->setParameterId(0, 0);
+      //observationPrior->setParameterId(0, 0);
       bool ok2 = optimizer_->addEdge(observationPrior);
       // std::cout << "Registered types:\n";
       // g2o::Factory::instance()->printRegisteredTypes(std::cout);
@@ -492,7 +494,7 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
     for (const auto& req : message.syncRequests) {
       auto it = externalVerticesPrior_.find(req.observedVertexId);
       if (it != externalVerticesPrior_.end()) {
-        g2o::EdgeSE3Prior* priorEdge = it->second;
+        g2o::EdgeSE3* priorEdge = it->second;
         // // overwrite the cached prior with the new measurement + information
 
         // // WARNING: This does not check information validity.it assumes the informatio nis valid.
@@ -522,7 +524,7 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
             assert(obs.observationEdge != nullptr);
             assert(obs.observationPriorEdge != nullptr);
             assert(VertexIdMap_.find(obs.observationVertex->id()) == VertexIdMap_.end());
-            assert(obs.observationVertex == obs.observationPriorEdge->vertices()[0]);
+            assert(obs.observationVertex == obs.observationPriorEdge->vertices()[1]);
             assert(obs.observationVertex == obs.observationEdge->vertices()[1]);
             assert(obs.observationPriorEdge->information().rows() == 6); // or whatever dimension
             assert(obs.observationPriorEdge->information().determinant() > 0);

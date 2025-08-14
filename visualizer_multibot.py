@@ -43,7 +43,6 @@ def read_tum_vertices_as_se2(filename):
 
     with open(filename, 'r') as file:
         for vertex_id,line in enumerate(file):
-        
             tokens = line.strip().split()
             x, y = float(tokens[1]), float(tokens[2])
             qx, qy, qz, qw = map(float, tokens[4:8])
@@ -55,8 +54,19 @@ def read_tum_vertices_as_se2(filename):
             # Extract yaw angle
             theta = np.arctan2(rot_matrix[1, 0], rot_matrix[0, 0])
 
+            if vertex_id == 0:
+                print(x,y,theta)
+                initial_x = x
+                initial_y = y
+                initial_theta = theta
+
+            x_diff = x-initial_x
+            y_diff = y-initial_y
+            theta_diff = theta-initial_theta
             # Store / overwrite to ensure unique IDs
-            pose_dict[vertex_id] = (x, y, theta)
+            pose_dict[vertex_id] = (x_diff * np.cos(-initial_theta) - y_diff * np.sin(-initial_theta), 
+                                    x_diff * np.sin(-initial_theta) + y_diff * np.cos(-initial_theta), 
+                                    np.arctan2(np.sin(theta_diff), np.cos(theta_diff)))
 
     # Convert dict to sorted list of tuples (id, x, y, theta)
     return [(vid, *pose_dict[vid]) for vid in sorted(pose_dict)]
@@ -105,25 +115,31 @@ if __name__ == "__main__":
 
     len_bot0 = 4224
 
-    filename = "file_trajectory_gt_bot0.g2o"
+    filename = "test_results/file_trajectory_gt_bot0.g2o"
     results_gt = read_se3_vertices_as_se2(filename)[:len_bot0+1]
     print("len(results_gt)", len(results_gt))
 
-    filename = "file_trajectory_opt_bot0.g2o"
+    filename = "test_results/file_trajectory_opt_bot0.g2o"
     results_gnd = read_se3_vertices_as_se2(filename)
     results_gnd_edge = results_gnd[:len_bot0+1]
     print("len(results_gnd)", len(results_gnd))
 
-    filename = "file_trajectory_pre_comm_bot0.g2o"
+
+    filename = "test_results/file_trajectory_opt_wognd_bot0.g2o"
+    results_nognd = read_se3_vertices_as_se2(filename)
+    results_nognd_edge = results_nognd[:len_bot0+1]
+    print("len(results_gnd)", len(results_nognd_edge))
+
+    filename = "test_results/file_trajectory_pre_comm_bot0.g2o"
     result_before = read_se3_vertices_as_se2(filename)[:len_bot0+1]
     print("len(result_before)", len(result_before))
 
-    filename = "file_trajectory_pre_opt_bot0.g2o"
+    filename = "test_results/file_trajectory_pre_opt_bot0.g2o"
     result_before_opt = read_se3_vertices_as_se2(filename)[:len_bot0+1]
     print("len(result_before_opt)", len(result_before_opt))
 
 
-    filename = "bot0_observation_vtxs_refs.g2o"
+    filename = "test_results/bot0_observation_vtxs_refs.g2o"
     obs_vtxs_bot0 = read_se3_vertices_as_se2(filename)[:4]
     obs_vtxs_ids = np.array(obs_vtxs_bot0)[:,0]
     selected = [p for p in results_gnd if p[0] in obs_vtxs_ids]
@@ -137,7 +153,7 @@ if __name__ == "__main__":
     print("len(bot1_gt)", len(bot1_gt))
 
     filename = "test1_new_data/gt.tum"
-    tum_gt_bot0 = read_tum_vertices_as_se2(filename)
+    tum_gt_bot0 = read_tum_vertices_as_se2(filename)[:int(len_bot0*62.5)]
 
 
 
@@ -153,11 +169,12 @@ if __name__ == "__main__":
     plot_landmarks(selected, color = 'purple', label = 'bot0 vtxs')
 
     alpha = 0.7
-    plot_trajectory(bot1_gt, 'red', False, 'Bot1', alpha = 0.5)
-    #plot_trajectory(tum_gt_bot0, 'green', False, 'ground truth', alpha = alpha)
-    plot_trajectory(result_before, 'orange', False, 'no comms', alpha = alpha)
-    plot_trajectory(result_before_opt, 'blue', False, 'gnd comms edge', alpha = alpha)
-    plot_trajectory(results_gnd_edge, 'blue', False, 'gnd comms edge', alpha = 0.5)
+    #plot_trajectory(bot1_gt, 'red', False, 'Bot1', alpha = 0.5)
+    plot_trajectory(tum_gt_bot0, 'green', False, 'ground truth', alpha = alpha)
+    #plot_trajectory(result_before, 'orange', False, 'no comms', alpha = alpha)
+    #plot_trajectory(result_before_opt, 'purple', False, 'gnd comms edge', alpha = alpha)
+    plot_trajectory(results_nognd_edge, 'red', False, 'gnd comms edge', alpha = alpha)
+    plot_trajectory(results_gnd_edge, 'blue', False, 'gnd comms edge', alpha = alpha)
     print("APE of gnd:", compute_ape(results_gnd_edge, results_gt))
     print("APE before optimization:", compute_ape(result_before, results_gt))
     plt.title('SE2 Trajectory with Colored Orientation Arrows')

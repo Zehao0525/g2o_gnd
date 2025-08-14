@@ -239,11 +239,11 @@ int main() {
   }
   cerr << endl;
   // incsim.stop();
-  //cerr << "SLAM System Stopping ..."<<endl;
-  //slamSystem.saveOptimizerResults("trajectory_before.g2o");
-  //slamSystem.stop();
+  // cerr << "SLAM System Stopping ..."<<endl;
+  // slamSystem.saveOptimizerResults("trajectory_before.g2o");
+  // slamSystem.stop();
 
-  std::string pofilename = "file_trajectory_pre_opt_bot0.g2o";
+  std::string pofilename = "test_results/file_trajectory_pre_opt_bot0.g2o";
   fileslamsystem->saveOptimizerResults(pofilename);
 
   Vector3d simx = filesim->xTrue2d().toVector();
@@ -252,7 +252,7 @@ int main() {
 
   fileslamsystem->optimize(20);
 
-  std::string filename = "file_trajectory_pre_comm_bot0.g2o";
+  std::string filename = "test_results/file_trajectory_pre_comm_bot0.g2o";
   fileslamsystem->saveOptimizerResults(filename);
   
   FileSlamSystem::ObsSyncMessage osmsg;
@@ -282,7 +282,7 @@ int main() {
       /* syncReqs  */ std::move(validResponses)
     );
 
-    writeObsSyncRequestsToFile(osmsg, "bot0_observation_vtxs_refs.g2o");
+    writeObsSyncRequestsToFile(osmsg, "test_results/bot0_observation_vtxs_refs.g2o");
 
     
     
@@ -290,11 +290,15 @@ int main() {
     // FileSlamSystem::ObsSyncMessage osmsg = fileslamsystem->handleObservationSyncRequest(sync_msg);
     fileslamsystem->handleObservationSyncResponse(osmsg);
     fileslamsystem->optimize(20);
+    std::string slamfilename1 = "test_results/file_trajectory_opt_wognd_bot0.g2o";
+    fileslamsystem->saveOptimizerResults(slamfilename1);
+    (fileslamsystem->gndActive_) = true;
+
   }
 
   fileslamsystem->stop();
-  std::string gtfilename = "file_trajectory_gt_bot0.g2o";
-  std::string slamfilename = "file_trajectory_opt_bot0.g2o";
+  std::string gtfilename = "test_results/file_trajectory_gt_bot0.g2o";
+  std::string slamfilename = "test_results/file_trajectory_opt_bot0.g2o";
   filesim->saveGroundTruth(gtfilename);
   fileslamsystem->saveOptimizerResults(slamfilename);
   //slamVizer->update();

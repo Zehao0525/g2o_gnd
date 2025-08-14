@@ -27,4 +27,6 @@ lib/
 Develop/
 CMakeCache.txt
 CMakeFiles
+test_results
+test_data
 

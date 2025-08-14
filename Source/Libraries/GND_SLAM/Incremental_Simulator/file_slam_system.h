@@ -107,7 +107,7 @@ public:
 
  public:
   struct Observation {
-    g2o::EdgeSE3Prior* observationPriorEdge;  // pointer, since EdgeSE3Prior is non-copyable
+    g2o::EdgeSE3* observationPriorEdge;  // pointer, since EdgeSE3Prior is non-copyable
     g2o::EdgeSE3* observationEdge;  // pointer, since EdgeSE3 is non-copyable
     g2o::VertexSE3* observationVertex;  // pointer, since VertexSE3 is non-copyable
     int observerRobotId;                // ID of observer
@@ -116,7 +116,7 @@ public:
     int observedVertexId;               // ID of the vertex observed
     bool initialized;                   // If the data represented by the observation has been added to the graph
 
-    Observation(int selfId, int robotId, int selfVtxId, int vertexId, g2o::EdgeSE3Prior* obsPriorEdge, g2o::EdgeSE3* obsEdge, g2o::VertexSE3* obsVtx)
+    Observation(int selfId, int robotId, int selfVtxId, int vertexId, g2o::EdgeSE3* obsPriorEdge, g2o::EdgeSE3* obsEdge, g2o::VertexSE3* obsVtx)
       : observerRobotId(selfId),
         observationEdge(obsEdge),
         observationPriorEdge(obsPriorEdge),
@@ -224,6 +224,8 @@ protected:
 
   int getRobotId(){return robotId_;}
 
+public:
+  bool gndActive_;
 
 protected:
 
@@ -234,7 +236,7 @@ protected:
 
   int robotId_;
   std::map<int, VertexSE3*> externalVertices_;
-  std::map<int, EdgeSE3Prior*> externalVerticesPrior_;
+  std::map<int, EdgeSE3*> externalVerticesPrior_;
 
   bool haveUninitializedObs_;
   std::vector<FileSlamSystem::Observation> observations_;
@@ -243,7 +245,6 @@ protected:
   // (Transform to bot_i's frame) * (pose in bot_i's frame) == (Transform to observation source) * (noiseless observation measurment)
   std::map<int, VertexSE3*> relativeTransforms_;
 
-  bool gndActive_;
   int intraRobotCount_ = 0;
   bool graphChanged_;
 };
