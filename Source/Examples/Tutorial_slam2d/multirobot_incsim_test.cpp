@@ -89,6 +89,9 @@ int main() {
   }
   nlohmann::json viewJson;
   f >> viewJson;
+
+  bool synced_update = false;
+
   int frame_pause = viewJson.value("frame_pause", 50000);
   int num_bots = viewJson.value("num_robots", 5);
   int loop_count = viewJson.value("loop_count", 1000000);
@@ -102,7 +105,7 @@ int main() {
   viz::ViewManager vizer = viz::ViewManager(viewFilenme);
   for(int i=0;i<num_bots;i++){
     cerr << "Adding Simulator and visualizer for bot " << i << endl;
-    std::string datafilename = viewJson.value("file_source", "test1_2_data") + "/bot" + std::to_string(i);
+    std::string datafilename = viewJson.value("file_source", "test1_new_data") + "/bot" + std::to_string(i);
     std::shared_ptr<FileSimulator> filesimPtr = std::make_shared<FileSimulator>(i, datafilename);
     std::string slamConfig = "Source/Examples/Tutorial_slam2d/multirobot_configs/slam_system_config.json";
     std::shared_ptr<FileSlamSystem> fileslamsystemPtr = std::make_shared<FileSlamSystem>(i, slamConfig);
@@ -170,6 +173,7 @@ int main() {
           FileSlamSystem::ObsSyncMessage osmsg = fileslamsystems[k]->handleObservationSyncRequest(sync_msg);
           fileslamsystems[j]->handleObservationSyncResponse(osmsg);
         }
+        fileslamsystems[j]->optimize(10);
       }
     }
 
@@ -207,34 +211,59 @@ int main() {
   }
 
   for(int j=0;j<num_bots;j++){
-    fileslamsystems[j]->optimize(20);
+    fileslamsystems[j]->optimize(10);
   }
 
   for(int i=0;i<num_bots;i++){
-    std::string filename = "file_trajectory_pre_comm_bot" + std::to_string(i) + ".g2o";
+    std::string filename = "test_results/multirobot/file_trajectory_pre_comm_bot" + std::to_string(i) + ".g2o";
     fileslamsystems[i]->saveOptimizerResults(filename);
   }
   
-  for(int a=0;a<1;a++){
+  for(int a=0;a<3;a++){
+    std::vector<FileSlamSystem::ObsSyncMessage> returnMsgs;
     for(int j=0;j<num_bots;j++){
+
+
       cerr << " j:"<<j<<endl; 
       FileSlamSystem::ObsSyncMessage sync_msg = fileslamsystems[j]->broadcastObsSyncMessage();
       for(int k=0;k<num_bots;k++){
         cerr << " k:"<<k<<endl; 
         if(j==k){continue;}
+        
         FileSlamSystem::ObsSyncMessage osmsg = fileslamsystems[k]->handleObservationSyncRequest(sync_msg);
-        fileslamsystems[j]->handleObservationSyncResponse(osmsg);
+        returnMsgs.emplace_back(osmsg);
+        if(!synced_update){
+          fileslamsystems[j]->handleObservationSyncResponse(osmsg);
+          (fileslamsystems[j]->gndActive_) = false;
+          fileslamsystems[j]->optimize(50);
+          (fileslamsystems[j]->gndActive_) = true;
+          fileslamsystems[j]->optimize(10);
+        }
       }
     }
-    for(int j=0;j<num_bots;j++){
-      fileslamsystems[j]->optimize(20);
+
+    if(synced_update){
+      for(int j=0;j<num_bots;j++){
+          fileslamsystems[j]->handleObservationSyncResponse(returnMsgs[j]);
+          (fileslamsystems[j]->gndActive_) = false;
+          fileslamsystems[j]->optimize(50);
+          (fileslamsystems[j]->gndActive_) = true;
+          fileslamsystems[j]->optimize(10);
+      }
     }
+  }
+
+  for(int k=0;k<num_bots;k++){
+    (fileslamsystems[k]->gndActive_) = false;
+    fileslamsystems[k]->optimize(50);
+    (fileslamsystems[k]->gndActive_) = true;
+    fileslamsystems[k]->optimize(10);
   }
 
   for(int i=0;i<num_bots;i++){
     fileslamsystems[i]->stop();
-    std::string filename = "file_trajectory_gt_bot" + std::to_string(i) + ".g2o";
-    std::string slamfilename = "file_trajectory_opt_bot" + std::to_string(i) + ".g2o";
+    std::string filename = "test_results/multirobot/multi_round/file_trajectory_gt_bot" + std::to_string(i) + ".g2o";
+    std::string slamfilename = "test_results/multirobot/multi_round/file_trajectory_opt_bot" + std::to_string(i) + ".g2o";
     filesims[i]->saveGroundTruth(filename);
     fileslamsystems[i]->saveOptimizerResults(slamfilename);
   }

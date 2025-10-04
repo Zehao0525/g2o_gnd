@@ -81,6 +81,8 @@ void View::renderMeasurmentViz() {
 
 
 void View::renderCovariance(const CovarianceViz& viz) {
+    glLineWidth(3.0f);  // or 3.0f, etc.
+
     double alpha = 1.0;
     if (viz.lifetime_ > viz.fadeStart_) {
         alpha = std::min(1.0, double(viz.lifetimeRemaining_) / (viz.lifetime_ - viz.fadeStart_));
@@ -113,6 +115,8 @@ void View::renderCovariance(const CovarianceViz& viz) {
 }
 
 void View::renderCircle(const CircleViz& viz) {
+    glLineWidth(3.0f);  // or 3.0f, etc.
+
     double alpha = 1.0;
     if (viz.lifetime_ > viz.fadeStart_) {
         alpha = std::min(1.0, double(viz.lifetimeRemaining_) / (viz.lifetime_ - viz.fadeStart_));
@@ -139,6 +143,8 @@ void View::renderCircle(const CircleViz& viz) {
 }
 
 void View::renderLine(const LineViz& viz) {
+    glLineWidth(3.0f);  // or 3.0f, etc.
+
     double alpha = 1.0;
     if (viz.lifetime_ > viz.fadeStart_) {
         alpha = std::min(1.0, double(viz.lifetimeRemaining_) / (viz.lifetime_ - viz.fadeStart_));

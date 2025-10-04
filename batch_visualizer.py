@@ -45,7 +45,7 @@ def compute_ape(traj1, traj2):
     sqr_dists = coord_diffs_sqr.sum(axis = 1)
     return np.mean(sqr_dists)
 
-def evaluate_batch_results(root_dir="gnd_test_results", num_tests=30, save_path=None):
+def evaluate_batch_results(root_dir="gnd_test_results", num_tests=30, save_path=None, percentile = 1.0):
     results = []
 
     for i in range(num_tests):
@@ -56,8 +56,10 @@ def evaluate_batch_results(root_dir="gnd_test_results", num_tests=30, save_path=
 
         try:
             poses_gauss = read_se2_vertices(file_gauss)
-            poses_gnd = read_se2_vertices(file_gnd)
-            poses_gt = read_se2_vertices(file_gt)
+            percentile_len = int(percentile * len(poses_gauss))
+            poses_gauss = poses_gauss[:percentile_len]
+            poses_gnd = read_se2_vertices(file_gnd)[:percentile_len]
+            poses_gt = read_se2_vertices(file_gt)[:percentile_len]
 
             if not (poses_gauss and poses_gnd and poses_gt):
                 print(f"[WARNING] Missing or empty file(s) in test_{i}")
@@ -83,7 +85,7 @@ def evaluate_batch_results(root_dir="gnd_test_results", num_tests=30, save_path=
     return df
 
 if __name__ == "__main__":
-    df_results = evaluate_batch_results(root_dir="gnd_test_results_0", save_path="gnd_test_results_0/ape_results.pkl")
+    df_results = evaluate_batch_results(root_dir="test_results/exp1_test_results_1", save_path="test_results/exp1_test_results_1/ape_results.pkl", percentile = 0.7)
     print(df_results)
 
 
@@ -95,6 +97,19 @@ if __name__ == "__main__":
 
     print(f"Mean APE (Gaussian): {mean_ape_gaussian:.6f}")
     print(f"Mean APE (GND):      {mean_ape_gnd:.6f}")
+
+    max_ape_gaussian = np.max(results_np[:, 0])
+    max_ape_gnd = np.max(results_np[:, 1])
+
+    print(f"Max APE (Gaussian): {max_ape_gaussian:.6f}")
+    print(f"Max APE (GND):      {max_ape_gnd:.6f}")
+
+    # 2. Compute std APEs (sample std; use ddof=0 for population)
+    std_ape_gaussian = np.std(results_np[:, 0], ddof=1)
+    std_ape_gnd      = np.std(results_np[:, 1], ddof=1)
+
+    print(f"Std APE (Gaussian):  {std_ape_gaussian:.6f}")
+    print(f"Std APE (GND):       {std_ape_gnd:.6f}")
 
     # 2. Evaluate GND improvement (per test, GND must be strictly better)
     gnd_wins = np.sum(results_np[:, 1] < results_np[:, 0])

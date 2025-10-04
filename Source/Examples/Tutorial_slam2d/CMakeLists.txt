@@ -85,3 +85,13 @@ target_link_libraries(multirobot_concept_test PRIVATE
   Incremental_Simulator
   Incremental_Visualizer
 )
+
+
+add_executable(multibot_full_graph
+  multibot_full_graph.cpp
+)
+
+target_link_libraries(multibot_full_graph PRIVATE
+  G2O_Graph
+  Incremental_Simulator
+)

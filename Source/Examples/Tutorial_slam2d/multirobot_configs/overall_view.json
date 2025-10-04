@@ -7,6 +7,6 @@
   "file_source":"test1_new_data",
   "loop_count":3000000,
   "frame_pause":50,
-  "comms_interval":50000
+  "comms_interval":30000
 }
 

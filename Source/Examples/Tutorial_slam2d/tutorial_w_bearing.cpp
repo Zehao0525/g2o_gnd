@@ -80,6 +80,9 @@ int main() {
 
   bool gndActive = false;
 
+  int gps_period = 30;
+  bool increment_gps_period = false;
+
   /*********************************************************************************
    * creating the optimization problem
    ********************************************************************************/
@@ -143,20 +146,20 @@ int main() {
         cerr << "Noisy bearing: " << normalize_theta((p.truePose*sensorOffsetTransf).toVector()[2] + bearing_noise) << endl;
         bearing->setMeasurement(normalize_theta((p.truePose*sensorOffsetTransf).toVector()[2] + bearing_noise));
         bearing->setParameterId(0, sensorOffset->id());
-        auto rk = new g2o::ToggelableGNDKernel(1.1, 6, 1e-3, 2.0*2.0,&gndActive);
+        auto rk = new g2o::ToggelableGNDKernel(2.0, 6, 1e-3, 2.0*2.0,&gndActive);
         bearing->setRobustKernel(rk);
         optimizer.addEdge(bearing);
       }
 
       // Right I'm adding a What about a GPS as well every 20 vertecies
-      if(i%1 == 0){
+      if(i%gps_period == 0){
         EdgePlatformLocPrior* gps = new EdgePlatformLocPrior;
         gps->vertices()[0] = robot;
 
         if(Sampler::uniformRand(0.0, 1.0) > transition_prob){
           gps_degree = Sampler::uniformRand(-M_PI, M_PI);
         }
-        Eigen::Vector2d gps_noise =  Eigen::Vector2d(gps_std * cos(gps_degree), gps_std * sin(gps_degree));//  
+        Eigen::Vector2d gps_noise =  Eigen::Vector2d(gps_std * sqrt(2) * cos(gps_degree), gps_std * sqrt(2) * sin(gps_degree));//  
 
 
         Eigen::Matrix<double, 2, 2> cov;
@@ -167,7 +170,7 @@ int main() {
         cerr << "Noisy bearing: " << ((p.truePose*sensorOffsetTransf).toVector().head<2>() + gps_noise) << endl;
         gps->setMeasurement((p.truePose*sensorOffsetTransf).toVector().head<2>() + gps_noise);
         gps->setParameterId(0, sensorOffset->id());
-        auto rk = new g2o::ToggelableGNDKernel(2.0, 6, 1e-3, 2.0*2.0, &gndActive);
+        auto rk = new g2o::ToggelableGNDKernel(3.0, 6, 1e-3, 2.0*2.0, &gndActive);
         gps->setRobustKernel(rk);
         optimizer.addEdge(gps);
       }
@@ -215,7 +218,7 @@ int main() {
       landmarkObservation->setMeasurement(simEdge.simulatorMeas);
       landmarkObservation->setInformation(simEdge.information);
       landmarkObservation->setParameterId(0, sensorOffset->id());
-      auto rk = new g2o::ToggelableGNDKernel(1.1, 6, 1e-12, 2.0*2.0,&gndActive);
+      //auto rk = new g2o::ToggelableGNDKernel(1.1, 6, 1e-12, 2.0*2.0,&gndActive);
       //landmarkObservation->setRobustKernel(rk);
       optimizer.addEdge(landmarkObservation);
     }
@@ -236,7 +239,7 @@ int main() {
     optimizer.setVerbose(true);
 
     std::stringstream dirStream;
-    dirStream << "gnd_test_results/test_" << testIdx;
+    dirStream << "test_results/exp1_test_results_3/test_" << testIdx;
     std::string testDir = dirStream.str();
 
     // Ensure directory exists
@@ -245,11 +248,11 @@ int main() {
     cerr << "Optimizing" << endl;
     optimizer.initializeOptimization();
     gndActive = false;
-    optimizer.optimize(30);
+    optimizer.optimize(20);
     optimizer.save((testDir + "/twb_gauss.g2o").c_str());
     gndActive = true;
     optimizer.initializeOptimization();
-    optimizer.optimize(30);
+    optimizer.optimize(10);
     cerr << "done." << endl;
 
     optimizer.save((testDir + "/twb_gnd.g2o").c_str());
@@ -258,6 +261,8 @@ int main() {
 
     // freeing the graph memory
     optimizer.clear();
+
+    if(increment_gps_period) gps_period += 1;
   }
 
   return 0;

@@ -62,6 +62,8 @@ void ViewManager::renderLoop() {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+    glClearColor(1.0f, 1.0f, 1.0f, 1.0f);  // RGBA: white
+
     pangolin::OpenGlRenderState s_cam(
         //pangolin::ProjectionMatrix(800, 600, 500, 500, 400, 300, 0.1, 100),
         pangolin::ProjectionMatrix(projectionMatrix_[0], projectionMatrix_[1], projectionMatrix_[2], projectionMatrix_[3], projectionMatrix_[4], projectionMatrix_[5], projectionMatrix_[6], projectionMatrix_[7]),

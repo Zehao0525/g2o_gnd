@@ -36,7 +36,8 @@ namespace tutorial {
 static bool isValidInformationMatrix(const Eigen::Matrix<double,6,6>& info) {
   auto eig = info.selfadjointView<Eigen::Upper>().eigenvalues();
   if (!info.allFinite() || (eig.array() <= 0).any() ||
-    eig.maxCoeff() > 1e6){
+    eig.maxCoeff() > 1e10){
+      std::cout << "is Valid information failed, " << (!info.allFinite()) << (eig.array() <= 0) << (eig.maxCoeff() > 1e6) << std::endl;
       return false;
     }
   return true;
@@ -174,6 +175,7 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
     odometry->setMeasurement(event.value);
     //assert(odometry->information().rows() == 3);
     if(verbose_){std::cout << " - measurements set, setting information ..." << std::endl;}
+    assert(isValidInformationMatrix(event.information));
     odometry->setInformation((event.information));
     if(verbose_){std::cout << " - Adding edge to optimizer ..." << std::endl;}
     optimizer_->addEdge(odometry);
@@ -217,12 +219,12 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
     // place the id into the vertex id map
 
     // We add a vertex representing the pose frame transform between this robot and other bots. 
-    if (relativeTransforms_.find(event.vtxIdTo) == relativeTransforms_.end()) {
+    if (relativeTransforms_.find(event.robotIdTo) == relativeTransforms_.end()) {
       VertexSE3* v = new VertexSE3();
       // We assume that there's no more than 20000 vertecies in the map
-      v->setId(20000 + event.vtxIdTo);
+      v->setId(20000 + event.robotIdTo);
       v->setEstimate(Isometry3d::Identity());
-      relativeTransforms_[event.vtxIdTo] = v;
+      relativeTransforms_[event.robotIdTo] = v;
       optimizer_->addVertex(v);
     }
 
@@ -236,7 +238,7 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
 
       // Place in mapping
       externalVertices_[event.vtxIdTo] = observedVtx;
-      bool ok = optimizer_->addVertex(observedVtx);
+      //bool ok = optimizer_->addVertex(observedVtx);
 
        // Initialize Observed Prior Edge (uninitialized)
       if (!optimizer_->parameter(0)) {
@@ -246,15 +248,15 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
         optimizer_->addParameter(offset);
       }
       observationPrior = new EdgeSE3;
-      observationPrior->setVertex(0,relativeTransforms_[event.vtxIdTo]);
+      observationPrior->setVertex(0,relativeTransforms_[event.robotIdTo]);
       observationPrior->setVertex(1,observedVtx);
       observationPrior->setMeasurement(v0->estimate() * event.value);
       observationPrior->setInformation(Eigen::Matrix<double,6,6>::Identity());
       //observationPrior->setParameterId(0, 0);
-      bool ok2 = optimizer_->addEdge(observationPrior);
+      //bool ok2 = optimizer_->addEdge(observationPrior);
       // std::cout << "Registered types:\n";
       // g2o::Factory::instance()->printRegisteredTypes(std::cout);
-      if(verbose_){std::cout << " - Adding this prior: " << ok << ok2 << std::endl;}
+      //if(verbose_){std::cout << " - Adding this prior: " << ok << ok2 << std::endl;}
       //assert(false);
       // Attach a GND kernel
       auto rk = new g2o::ToggelableGNDKernel(2.0, 6, 1e-3, 2.0*2.0, &gndActive_);
@@ -421,10 +423,10 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
     }
 
     // Step 2: optimize our graph so that we have up-to-date estimates
-    if(graphChanged_){
+    if(graphChanged_ && false){
       if(verbose_){std::cout << "Optimizing before marginalization:\n";}
       optimizer_->initializeOptimization();
-      optimizer_->optimize(20);
+      optimizer_->optimize(10);
       graphChanged_ = false;
     }
 
@@ -432,22 +434,42 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
     // WARNING: no fail proofs
     
 
-    // compute marginals
+    //compute marginals
     // for (auto& [id, v] : externalVertices_) {
     //   if (v) {
     //     v->setFixed(true);
     //   }
     // }
-    if(verbose_){std::cout << "Marginalizing\n";}
+    for (auto* v : verticesToMarginalize) {
+      assert(v);
+      assert(!v->fixed());
+      if (v->hessianIndex() < 0) {
+        std::cerr << "[marg] skip v id=" << v->id()
+                  << " fixed=" << v->fixed()
+                  << " hIdx=" << v->hessianIndex() << "\n";
+      }
+      assert(v->hessianIndex() >= 0);
+
+    }
+    int numVertices = optimizer_->vertices().size();
+    int numEdges    = optimizer_->edges().size();
+    if(verbose_){std::cout << "Graph contains: " << (numVertices) << " verticies and " << numEdges << " edges\n";}
+    if(verbose_){std::cout << "Marginalizing " << size(verticesToMarginalize) << " verticies\n";}
     g2o::SparseBlockMatrix<Eigen::MatrixXd> margCov;
+    
+    //assert(false);
+    optimizer_->initializeOptimization();
+    optimizer_->optimize(10);
     bool margSuccess = optimizer_->computeMarginals(margCov, verticesToMarginalize);
     if(verbose_){std::cout << "Marginalization success: " << margSuccess << "\n";}
     if(!margSuccess){return ObsSyncMessage(robotId_, /*outGoing=*/false, {});}
+
     // for (auto& [id, v] : externalVertices_) {
     //   if (v) {
     //     v->setFixed(false);
     //   }
     // }
+
     // Step 4: fill in each ObsSyncRequest with measurement+information
     std::vector<FileSlamSystem::ObsSyncRequest> validResponses;
     validResponses.reserve(localRequests.size());
@@ -552,24 +574,24 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
 
             // Manual check for allVerticesValid()
             bool all_valid = true;
-            for (int i = 0; i < prior->vertices().size(); ++i) {
-                auto* v = prior->vertex(i);
-                if (!v) {
-                    std::cout << "Vertex " << i << " is nullptr\n";
-                    all_valid = false;
-                } else if (!optimizer_->vertex(v->id())) {
-                    std::cout << "Vertex " << i << " (ID=" << v->id() << ") NOT in optimizer\n";
-                    all_valid = false;
-                } else {
-                    std::cout << "Vertex " << i << " (ID=" << v->id() << ") OK\n";
-                }
-            }
+            // for (int i = 0; i < prior->vertices().size(); ++i) {
+            //     auto* v = prior->vertex(i);
+            //     if (!v) {
+            //         std::cout << "Vertex " << i << " is nullptr\n";
+            //         all_valid = false;
+            //     } else if (!optimizer_->vertex(v->id())) {
+            //         std::cout << "Vertex " << i << " (ID=" << v->id() << ") NOT in optimizer\n";
+            //         all_valid = false;
+            //     } else {
+            //         std::cout << "Vertex " << i << " (ID=" << v->id() << ") OK\n";
+            //     }
+            // }
 
-            if (!all_valid) {
-                std::cout << "→ allVerticesValid() would return FALSE.\n";
-            } else {
-                std::cout << "→ allVerticesValid() would return TRUE.\n";
-            }
+            // if (!all_valid) {
+            //     std::cout << "→ allVerticesValid() would return FALSE.\n";
+            // } else {
+            //     std::cout << "→ allVerticesValid() would return TRUE.\n";
+            // }
 
 
 
