@@ -230,7 +230,11 @@ int main() {
      ********************************************************************************/
 
     // dump initial state to the disk
-    optimizer.save("twb_before.g2o");
+      std::stringstream dirStream;
+    dirStream << "test_results/exp1_test_results_3/test_" << testIdx;
+    std::string testDir = dirStream.str();
+
+    optimizer.save((testDir + "/twb_before.g2o").c_str());
 
     // prepare and run the optimization
     // fix the first robot pose to account for gauge freedom
@@ -238,9 +242,7 @@ int main() {
     firstRobotPose->setFixed(true);
     optimizer.setVerbose(true);
 
-    std::stringstream dirStream;
-    dirStream << "test_results/exp1_test_results_3/test_" << testIdx;
-    std::string testDir = dirStream.str();
+
 
     // Ensure directory exists
     std::filesystem::create_directories(testDir);
