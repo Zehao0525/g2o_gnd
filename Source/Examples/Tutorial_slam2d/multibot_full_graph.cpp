@@ -3,7 +3,7 @@
 // using an Eigen linear solver, and writes the optimized graph back out.
 // 
 // Defaults:
-//   Input : test1_new_data/test1_new.g2o
+//   Input : test_data/test1_new_data/test1_new.g2o
 //   Output: test_results/multirobot/fullGraph.g2o
 //
 // Build (CMake):
@@ -60,7 +60,7 @@
 namespace fs = std::filesystem;
 
 int main(int argc, char** argv) {
-  std::string input_path  = "test1_new_data/test1_new_modified.g2o";
+  std::string input_path  = "test_data/test1_new_data/test1_new_modified.g2o";
   std::string output_path = "test_results/multirobot/fullGraph.g2o";
   int iters = 100;
 

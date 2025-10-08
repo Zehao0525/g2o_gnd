@@ -44,14 +44,14 @@ if __name__ == "__main__":
 
     choice = 2
     if choice == 0:
-        filename = "trajectory_est.g2o"
+        filename = "test_results/incsim/trajectory_est.g2o"
         se2_poses_after = read_se2_vertices(filename)
         
 
-        filename = "trajectory_before.g2o"
+        filename = "test_results/incsim/trajectory_before.g2o"
         se2_poses_before = read_se2_vertices(filename)
 
-        filename = "trajectory_gt.g2o"
+        filename = "test_results/incsim/trajectory_gt.g2o"
         se2_poses_gt = read_se2_vertices(filename)
 
         plt.figure(figsize=(8, 6))
@@ -67,21 +67,21 @@ if __name__ == "__main__":
         plt.legend()
         plt.show()
     if choice == 1:
-        filename = "cauchy_cauchy_after.g2o"
+        filename = "test_results/others/cauchy_cauchy_after.g2o"
         se2_kernel_poses_after = read_se2_vertices(filename)
 
-        filename = "cauchy_cauchy_back_after.g2o"
+        filename = "test_results/others/cauchy_cauchy_back_after.g2o"
         se2_kernel_clone_poses_after = read_se2_vertices(filename)
         
 
-        filename = "cauchy_gauss_after.g2o"
+        filename = "test_results/others/cauchy_gauss_after.g2o"
         se2_poses_after = read_se2_vertices(filename)
         
 
-        filename = "cauchy_gauss_before.g2o"
+        filename = "test_results/others/cauchy_gauss_before.g2o"
         se2_poses_before = read_se2_vertices(filename)
 
-        filename = "cauchy_gauss_gt.g2o"
+        filename = "test_results/others/cauchy_gauss_gt.g2o"
         se2_poses_gt = read_se2_vertices(filename)
     
 

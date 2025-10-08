@@ -50,12 +50,12 @@ if __name__ == "__main__":
 
 
 
-    filename = "test1_new_data/bot1/vertices.g2o"
+    filename = "test_data/test1_new_data/bot1/vertices.g2o"
     bot1_gt = read_se3_vertices_as_se2(filename, idbound=(0,4225))
     print("len(bot1_gt)", len(bot1_gt))
 
     # GT
-    filename = "test1_new_data/bot0/gt0.tum"
+    filename = "test_data/test1_new_data/bot0/gt0.tum"
     tum_gt_bot0 = read_tum_vertices_as_se2(filename)
     
 

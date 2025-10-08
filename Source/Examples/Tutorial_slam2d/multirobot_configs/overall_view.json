@@ -4,7 +4,7 @@
     "projection_matrix":[800, 600, 500, 500, 400, 300, 0.1, 100]
   },
   "num_robots":2,
-  "file_source":"test1_new_data",
+  "file_source":"test_data/test1_new_data",
   "loop_count":3000000,
   "frame_pause":50,
   "comms_interval":30000

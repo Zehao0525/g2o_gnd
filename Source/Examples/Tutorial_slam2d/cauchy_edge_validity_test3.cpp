@@ -68,7 +68,7 @@ int main() {
   optimizer.setAlgorithm(solver);
 
   // Step 2: Load the graph
-  std::ifstream ifs("cauchy_gauss_after.g2o");
+  std::ifstream ifs("test_results/others/cauchy_gauss_after.g2o");
   if (!ifs) {
     std::cerr << "Failed to open input file" << std::endl;
     return -1;
@@ -102,7 +102,7 @@ int main() {
   optimizer.optimize(30);
 
   // Step 6: Save result
-  optimizer.save("cauchy_cauchy_back_after.g2o");
+  optimizer.save("test_results/others/cauchy_cauchy_back_after.g2o");
   std::cout << "Saved optimized graph to cauchy_cauchy_back_after.g2o" << std::endl;
 
   return 0;

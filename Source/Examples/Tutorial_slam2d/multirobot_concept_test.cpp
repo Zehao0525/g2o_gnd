@@ -129,7 +129,7 @@ int main() {
 
 
   cerr << "Adding Simulator and visualizer for bot " << 0 << endl;
-  std::string datafilename = viewJson.value("file_source", "test1_new_data") + "/bot0";
+  std::string datafilename = viewJson.value("file_source", "test_data/test1_new_data") + "/bot0";
   filesim = std::make_shared<FileSimulator>(0, datafilename);
   std::string slamConfig = "Source/Examples/Tutorial_slam2d/multirobot_configs/slam_system_config.json";
   fileslamsystem = std::make_shared<FileSlamSystem>(0, slamConfig);
@@ -147,7 +147,7 @@ int main() {
 
 
 
-  std::filesystem::path folder("test1_new_data/bot1");
+  std::filesystem::path folder("test_data/test1_new_data/bot1");
 
   // 2) Build full paths for the two .g2o files
   auto vertPath = folder / "vertices.g2o";

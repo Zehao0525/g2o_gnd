@@ -168,11 +168,11 @@ if __name__ == "__main__":
 
 
 
-    filename = "test1_new_data/bot1/vertices.g2o"
+    filename = "test_data/test1_new_data/bot1/vertices.g2o"
     bot1_gt = read_se3_vertices_as_se2(filename)
     print("len(bot1_gt)", len(bot1_gt))
 
-    filename = "test1_new_data/gt.tum"
+    filename = "test_data/test1_new_data/gt.tum"
     tum_gt_bot0 = read_tum_vertices_as_se2(filename)
 
 

@@ -1,0 +1,13 @@
+Mutirobot simulator
+- Time-stamp / step based. 
+
+Agent Managers (Abstraction: Communication network & Simulation IO)
+- Holds a bunch of SLAM systems
+- IO: (Index, Event)
+- Comms: Event (Comms event)
+
+Event based Simulator (3D)
+- Different Events
+
+
+

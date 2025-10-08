@@ -153,7 +153,7 @@ int main() {
    ********************************************************************************/
 
   // dump initial state to the disk
-  optimizer.save("cauchy_cauchy_before.g2o");
+  optimizer.save("test_results/others/cauchy_cauchy_before.g2o");
 
   // prepare and run the optimization
   // fix the first robot pose to account for gauge freedom
@@ -166,9 +166,9 @@ int main() {
   optimizer.optimize(1000);
   cerr << "done." << endl;
 
-  optimizer.save("cauchy_cauchy_after.g2o");
+  optimizer.save("test_results/others/cauchy_cauchy_after.g2o");
 
-  simulator.saveGroundTruth("cauchy_cauchy_gt.g2o");
+  simulator.saveGroundTruth("test_results/others/cauchy_cauchy_gt.g2o");
 
   // freeing the graph memory
   optimizer.clear();

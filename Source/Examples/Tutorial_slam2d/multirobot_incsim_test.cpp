@@ -105,7 +105,7 @@ int main() {
   viz::ViewManager vizer = viz::ViewManager(viewFilenme);
   for(int i=0;i<num_bots;i++){
     cerr << "Adding Simulator and visualizer for bot " << i << endl;
-    std::string datafilename = viewJson.value("file_source", "test1_new_data") + "/bot" + std::to_string(i);
+    std::string datafilename = viewJson.value("file_source", "test_data/test1_new_data") + "/bot" + std::to_string(i);
     std::shared_ptr<FileSimulator> filesimPtr = std::make_shared<FileSimulator>(i, datafilename);
     std::string slamConfig = "Source/Examples/Tutorial_slam2d/multirobot_configs/slam_system_config.json";
     std::shared_ptr<FileSlamSystem> fileslamsystemPtr = std::make_shared<FileSlamSystem>(i, slamConfig);
