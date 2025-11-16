@@ -1,0 +1,214 @@
+{
+    "bots": {
+        "0": {
+            "path": [
+                [0, 0, 0],
+                [29, 29, 29]
+            ],
+            "lm_observer": {
+                "type": "range_bearing_bearing",
+                "active": false,
+                "frequency": 5,
+                "range": [
+                    [0, 5],
+                    [-45, 45],
+                    [-45, 45]
+                ],
+                "error_std": [0.4, 2.5, 2.5]
+            },
+            "bot_observer": {
+                "type": "range_bearing",
+                "active": true,
+                "frequency": 5,
+                "range": [
+                    [0, 5],
+                    [-45, 45],
+                    [-45, 45]
+                ],
+                "error_std": [0.4, 5, 5]
+            },
+            "gps": {
+                "type": "gps",
+                "active": true,
+                "frequency": 1,
+                "error_std": [2.5, 2.5, 1000]
+            },
+            "bearing": {
+                "type": "horizontal_bearing",
+                "active": true,
+                "frequency": 1,
+                "error_std": 10.0
+            }
+        },
+        "1": {
+            "path": [
+                [0, 0, 29],
+                [12, 19, 17],
+                [20, 25, 9],
+                [29, 29, 0]
+            ],
+            "lm_observer": {
+                "type": "range_bearing_bearing",
+                "active": false,
+                "frequency": 5,
+                "range": [
+                    [0, 5],
+                    [-45, 45],
+                    [-45, 45]
+                ],
+                "error_std": [0.4, 2.5, 2.5]
+            },
+            "bot_observer": {
+                "type": "range_bearing",
+                "active": true,
+                "frequency": 5,
+                "range": [
+                    [0, 5],
+                    [-45, 45],
+                    [-45, 45]
+                ],
+                "error_std": [0.4, 5, 5]
+            },
+            "gps": {
+                "type": "gps",
+                "active": true,
+                "frequency": 1,
+                "error_std": [2.5, 2.5, 1000]
+            },
+            "bearing": {
+                "type": "horizontal_bearing",
+                "active": true,
+                "frequency": 1,
+                "error_std": 10.0
+            }
+        },
+        "2": {
+            "path": [
+                [0, 29, 0],
+                [16, 18, 11],
+                [18, 18, 11],
+                [24, 11, 18],
+                [29, 0, 29]
+            ],
+            "lm_observer": {
+                "type": "range_bearing_bearing",
+                "active": false,
+                "frequency": 5,
+                "range": [
+                    [0, 5],
+                    [-45, 45],
+                    [-45, 45]
+                ],
+                "error_std": [0.4, 2.5, 2.5]
+            },
+            "bot_observer": {
+                "type": "range_bearing",
+                "active": true,
+                "frequency": 5,
+                "range": [
+                    [0, 5],
+                    [-45, 45],
+                    [-45, 45]
+                ],
+                "error_std": [0.4, 5, 5]
+            },
+            "gps": {
+                "type": "gps",
+                "active": true,
+                "frequency": 1,
+                "error_std": [2.5, 2.5, 1000]
+            },
+            "bearing": {
+                "type": "horizontal_bearing",
+                "active": true,
+                "frequency": 1,
+                "error_std": 10.0
+            }
+        },
+        "3": {
+            "path": [
+                [29, 0, 0],
+                [18, 11, 16],
+                [18, 11, 18],
+                [13, 16, 23],
+                [0, 29, 29]
+            ],
+            "lm_observer": {
+                "type": "range_bearing_bearing",
+                "active": false,
+                "frequency": 5,
+                "range": [
+                    [0, 5],
+                    [-45, 45],
+                    [-45, 45]
+                ],
+                "error_std": [0.4, 2.5, 2.5]
+            },
+            "bot_observer": {
+                "type": "range_bearing",
+                "active": true,
+                "frequency": 5,
+                "range": [
+                    [0, 5],
+                    [-45, 45],
+                    [-45, 45]
+                ],
+                "error_std": [0.4, 5, 5]
+            },
+            "gps": {
+                "type": "gps",
+                "active": true,
+                "frequency": 1,
+                "error_std": [2.5, 2.5, 1000]
+            },
+            "bearing": {
+                "type": "horizontal_bearing",
+                "active": true,
+                "frequency": 1,
+                "error_std": 10.0
+            }
+        },
+        "4": {
+            "path": [
+                [15, 0, 0],
+                [8, 2, 9],
+                [5, 5, 12],
+                [0, 15, 15]
+            ],
+            "lm_observer": {
+                "type": "range_bearing_bearing",
+                "active": false,
+                "frequency": 5,
+                "range": [
+                    [0, 5],
+                    [-45, 45],
+                    [-45, 45]
+                ],
+                "error_std": [0.4, 2.5, 2.5]
+            },
+            "bot_observer": {
+                "type": "range_bearing",
+                "active": true,
+                "frequency": 5,
+                "range": [
+                    [0, 5],
+                    [-45, 45],
+                    [-45, 45]
+                ],
+                "error_std": [0.4, 5, 5]
+            },
+            "gps": {
+                "type": "gps",
+                "active": true,
+                "frequency": 1,
+                "error_std": [2.5, 2.5, 1000]
+            },
+            "bearing": {
+                "type": "horizontal_bearing",
+                "active": true,
+                "frequency": 1,
+                "error_std": 10.0
+            }
+        }
+    }
+}

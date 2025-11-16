@@ -1,0 +1,265 @@
+{
+    "dt": 0.05,
+    "bots": {
+        "0": {
+            "path": [
+                [0, 0, 0],
+                [29, 29, 29]
+            ],
+            "sensors": {
+                "lm_observer": {
+                    "type": "range_bearing_bearing",
+                    "active": false,
+                    "frequency": 5,
+                    "range": [
+                        [0, 5],
+                        [-45, 45],
+                        [-45, 45]
+                    ],
+                    "error_std": [0.4, 2.5, 2.5]
+                },
+                "bot_observer": {
+                    "type": "relative_pose",
+                    "active": true,
+                    "frequency": 5,
+                    "range": [
+                        [0, 100],
+                        [-180, 180],
+                        [-180, 180]
+                    ],
+                    "error_std": [0.4, 0.4, 0.4, 5]
+                },
+                "gps": {
+                    "type": "gps",
+                    "active": false,
+                    "frequency": 1,
+                    "error_std": [2.5, 2.5, 1000]
+                },
+                "bearing": {
+                    "type": "horizontal_bearing",
+                    "active": false,
+                    "frequency": 1,
+                    "error_std": 10.0
+                }
+            },
+            "controller": {
+                "type": "quad_dron_controller_wih_yaw_control",
+                "frequency": 30,
+                "max_lin_vel": 3,
+                "max_lin_acc": 2,
+                "max_rot_vel": 90,
+                "max_rot_acc": 45
+            }
+        },
+        "1": {
+            "path": [
+                [0, 0, 29],
+                [12, 19, 17],
+                [20, 25, 9],
+                [29, 29, 0]
+            ],
+            "sensors": {
+                "lm_observer": {
+                    "type": "range_bearing_bearing",
+                    "active": false,
+                    "frequency": 5,
+                    "range": [
+                        [0, 5],
+                        [-45, 45],
+                        [-45, 45]
+                    ],
+                    "error_std": [0.4, 2.5, 2.5]
+                },
+                "bot_observer": {
+                    "type": "relative_pose",
+                    "active": true,
+                    "frequency": 5,
+                    "range": [
+                        [0, 100],
+                        [-180, 180],
+                        [-180, 180]
+                    ],
+                    "error_std": [0.4, 0.4, 0.4, 5]
+                },
+                "gps": {
+                    "type": "gps",
+                    "active": false,
+                    "frequency": 1,
+                    "error_std": [2.5, 2.5, 1000]
+                },
+                "bearing": {
+                    "type": "horizontal_bearing",
+                    "active": false,
+                    "frequency": 1,
+                    "error_std": 10.0
+                }
+            },
+            "controller": {
+                "type": "quad_dron_controller_wih_yaw_control",
+                "frequency": 30,
+                "max_lin_vel": 3,
+                "max_lin_acc": 2,
+                "max_rot_vel": 90,
+                "max_rot_acc": 45
+            }
+        },
+        "2": {
+            "path": [
+                [0, 29, 0],
+                [16, 18, 11],
+                [18, 18, 11],
+                [24, 11, 18],
+                [29, 0, 29]
+            ],
+            "sensors": {
+                "lm_observer": {
+                    "type": "range_bearing_bearing",
+                    "active": false,
+                    "frequency": 5,
+                    "range": [
+                        [0, 5],
+                        [-45, 45],
+                        [-45, 45]
+                    ],
+                    "error_std": [0.4, 2.5, 2.5]
+                },
+                "bot_observer": {
+                    "type": "relative_pose",
+                    "active": true,
+                    "frequency": 5,
+                    "range": [
+                        [0, 100],
+                        [-180, 180],
+                        [-180, 180]
+                    ],
+                    "error_std": [0.4, 0.4, 0.4, 5]
+                },
+                "gps": {
+                    "type": "gps",
+                    "active": false,
+                    "frequency": 1,
+                    "error_std": [2.5, 2.5, 1000]
+                },
+                "bearing": {
+                    "type": "horizontal_bearing",
+                    "active": false,
+                    "frequency": 1,
+                    "error_std": 10.0
+                }
+            },
+            "controller": {
+                "type": "quad_dron_controller_wih_yaw_control",
+                "frequency": 30,
+                "max_lin_vel": 3,
+                "max_lin_acc": 2,
+                "max_rot_vel": 90,
+                "max_rot_acc": 45
+            }
+        },
+        "3": {
+            "path": [
+                [29, 0, 0],
+                [18, 11, 16],
+                [18, 11, 18],
+                [13, 16, 23],
+                [0, 29, 29]
+            ],
+            "sensors": {
+                "lm_observer": {
+                    "type": "range_bearing_bearing",
+                    "active": false,
+                    "frequency": 5,
+                    "range": [
+                        [0, 5],
+                        [-45, 45],
+                        [-45, 45]
+                    ],
+                    "error_std": [0.4, 2.5, 2.5]
+                },
+                "bot_observer": {
+                    "type": "relative_pose",
+                    "active": true,
+                    "frequency": 5,
+                    "range": [
+                        [0, 100],
+                        [-180, 180],
+                        [-180, 180]
+                    ],
+                    "error_std": [0.4, 0.4, 0.4, 5]
+                },
+                "gps": {
+                    "type": "gps",
+                    "active": false,
+                    "frequency": 1,
+                    "error_std": [2.5, 2.5, 1000]
+                },
+                "bearing": {
+                    "type": "horizontal_bearing",
+                    "active": false,
+                    "frequency": 1,
+                    "error_std": 10.0
+                }
+            },
+            "controller": {
+                "type": "quad_dron_controller_wih_yaw_control",
+                "frequency": 30,
+                "max_lin_vel": 3,
+                "max_lin_acc": 2,
+                "max_rot_vel": 90,
+                "max_rot_acc": 45
+            }
+        },
+        "4": {
+            "path": [
+                [15, 0, 0],
+                [15, 7, 21],
+                [15, 13, 27],
+                [15, 29, 29]
+            ],
+            "sensors": {
+                "lm_observer": {
+                    "type": "range_bearing_bearing",
+                    "active": false,
+                    "frequency": 5,
+                    "range": [
+                        [0, 5],
+                        [-45, 45],
+                        [-45, 45]
+                    ],
+                    "error_std": [0.4, 2.5, 2.5]
+                },
+                "bot_observer": {
+                    "type": "relative_pose",
+                    "active": true,
+                    "frequency": 5,
+                    "range": [
+                        [0, 100],
+                        [-180, 180],
+                        [-180, 180]
+                    ],
+                    "error_std": [0.4, 0.4, 0.4, 5]
+                },
+                "gps": {
+                    "type": "gps",
+                    "active": false,
+                    "frequency": 1,
+                    "error_std": [2.5, 2.5, 1000]
+                },
+                "bearing": {
+                    "type": "horizontal_bearing",
+                    "active": false,
+                    "frequency": 1,
+                    "error_std": 10.0
+                }
+            },
+            "controller": {
+                "type": "quad_dron_controller_wih_yaw_control",
+                "frequency": 30,
+                "max_lin_vel": 3,
+                "max_lin_acc": 2,
+                "max_rot_vel": 90,
+                "max_rot_acc": 45
+            }
+        }
+    }
+}
