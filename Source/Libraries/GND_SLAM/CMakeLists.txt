@@ -18,4 +18,4 @@ add_subdirectory(Oneshot_Simulator)
 add_subdirectory(G2O_Graph)
 add_subdirectory(visualizer)
 add_subdirectory(Incremental_Simulator)
-
+add_subdirectory(Multidrone_Simulator)

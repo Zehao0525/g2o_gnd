@@ -28,7 +28,10 @@ namespace tutorial {
             FileInitialization,
             FileObservation,
             FileIntraObservation,
-            FileOdometry
+            FileOdometry,
+            DataInitialization,
+            DataObservation,
+            DataOdometry
         };
 
         Event(double t) : time(t) {};
@@ -165,6 +168,48 @@ namespace tutorial {
                         const Eigen::Matrix<double,6,6>& info): Event(eventTime), vtxIdFrom(vtxId0), vtxIdTo(vtxId1), value(pos), information(info) {  };
         EventType type() const override{return EventType::FileIntraObservation;};
     };
+
+
+
+
+
+    struct G2O_TUTORIAL_SLAM2D_API DataInitEvent : public Event {
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
+        Isometry3 value;
+        bool posFixed;
+        Eigen::Matrix<double,6,6> information;
+        DataInitEvent(const double eventTime,
+                      const bool fixed,
+                      const Isometry3& pos,
+                      const Eigen::Matrix<double,6,6>& info): Event(eventTime), posFixed(fixed), value(pos), information(info) {  };
+        EventType type() const override{return EventType::DataInitialization;};
+    };
+
+    struct G2O_TUTORIAL_SLAM2D_API DataOdomEvent : public Event {
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
+        Isometry3 value;
+        Eigen::Matrix<double,6,6> information;
+        DataOdomEvent(  const double eventTime,
+                        const Isometry3& pos,
+                        const Eigen::Matrix<double,6,6>& info): Event(eventTime), value(pos), information(info) {  };
+        EventType type() const override{return EventType::DataOdometry;};
+    };
+
+
+    struct G2O_TUTORIAL_SLAM2D_API DataObsEvent : public Event {
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
+        std::string robotIdTo;
+        Isometry3 value;
+        Eigen::Matrix<double,6,6> information;
+        DataObsEvent(   const double eventTime,
+                        const std::string robotId,
+                        const Isometry3& pos,
+                        const Eigen::Matrix<double,6,6>& info): Event(eventTime), 
+                        robotIdTo(robotId), value(pos), information(info) {  };
+        EventType type() const override{return EventType::DataObservation;};
+    };
+
+
 
 
     using EventPtr = std::shared_ptr<Event>;

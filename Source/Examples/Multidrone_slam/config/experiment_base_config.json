@@ -1,0 +1,7 @@
+{
+    "slam_config_path" : "Source/Examples/Multidrone_slam/config/slam_system_config.json",
+    "sim_config_path" : "python/multirobot_simulator/config/sim_config.json",
+    "input_path" : "test_data/multidrone",
+    "no_observaions" : false,
+    "verbose" : true
+}

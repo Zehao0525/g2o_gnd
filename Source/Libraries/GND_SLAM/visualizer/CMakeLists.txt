@@ -13,6 +13,10 @@ add_library(Incremental_Visualizer ${LIB_TYPE}
   file_simulator_view.cpp
   file_slam_system_view.h
   file_slam_system_view.cpp
+  multi_drone_slam_system_view.h
+  multi_drone_slam_system_view.cpp
+  data_based_simulation_view.h
+  data_based_simulation_view.cpp
 
   #viz_shape.h
 )
@@ -24,6 +28,7 @@ find_package(nlohmann_json REQUIRED)
 target_link_libraries(Incremental_Visualizer PRIVATE 
   G2O_Graph
   Incremental_Simulator
+  Multidrone_Simulator
 )
 target_include_directories(Incremental_Visualizer PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 

@@ -234,7 +234,7 @@ class G2O_TUTORIAL_SLAM2D_API SlamSystemBase {
    * @param events Input the events into the slam_system
    */
   void processEvents(EventPtrVector& events){
-    if(verbose_){std::cout << " - SlamSystem processEvents start ..." << std::endl;}
+    if(verbose_){std::cout << " - SlamSystemBase processEvents start ..." << std::endl;}
     for (const auto& event : events) {
       if (!event && verbose_) {
         std::cerr << "⚠️ Warning: Null event pointer encountered, skipping." << std::endl;
@@ -243,12 +243,13 @@ class G2O_TUTORIAL_SLAM2D_API SlamSystemBase {
     }
     // TODO improve this part
     //if(verbose_){std::cout<<"SLAM system Step: "<< stepNumber_ << ", " << lastOptStep_ << ", "<< optPeriod_  <<std::endl;        }
-    if(stepNumber_ == 0 || lastOptStep_ + optPeriod_ <= stepNumber_){
-      if(verbose_){std::cout << " - SlamSystem processEvents optimize ..." << std::endl;}
+    if(lastOptStep_ + optPeriod_ <= stepNumber_){
+      if(verbose_){std::cout << " - SlamSystemBase processEvents optimize ..." << std::endl;}
       optimize(optCountProcess_);
       lastOptStep_ = stepNumber_;
-      if(verbose_){std::cout << " - SlamSystem processEvents optimize complete ..." << std::endl;}
+      if(verbose_){std::cout << " - SlamSystemBase processEvents optimize complete ..." << std::endl;}
     }
+    if(verbose_){std::cout << " - SlamSystemBase processEvents end ..." << std::endl;}
   }
 
 

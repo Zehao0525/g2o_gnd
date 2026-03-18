@@ -12,27 +12,27 @@ bot_data = {
         "lm_observer": {
             "type" : "range_bearing_bearing",   # Range, Yaw, Pitch
             "active" : False,
-            "frequency" : 5,
+            "frequency" : 0.2,
             "range" : [[0,5],[-45,45], [-45,45]],
             "error_std" : [0.4, 2.5, 2.5]
         },
         "bot_observer": {
             "type" : "relative_pose",
             "active" : True,
-            "frequency" : 5,
+            "frequency" : 0.1,
             "range" : [[0,100],[-180,180], [-180,180]],
             "error_std" : [0.4, 0.4, 0.4, 5]
         }, 
         "gps":  {
             "type" : "gps",
             "active" : False,
-            "frequency" : 1,
+            "frequency" : 0.2,
             "error_std" : [2.5, 2.5, 1000]     # x, y, z
         }, 
         "bearing":  {
             "type" : "horizontal_bearing",
             "active" : False,
-            "frequency" : 1,
+            "frequency" : 0.2,
             "error_std" : 10.0
         }
     },
@@ -42,7 +42,13 @@ bot_data = {
         "max_lin_vel": 3,
         "max_lin_acc": 2,
         "max_rot_vel": 90,
-        "max_rot_acc": 45
+        "max_rot_acc": 45,
+        "odom_error_std": [0.000001, 0.000001, 0.000001]
+    },
+    "initialization": {
+        "default_init": False,
+        "fixed_init": True,
+        "init_error_std": [1, 1, 1]
     }
 }
 

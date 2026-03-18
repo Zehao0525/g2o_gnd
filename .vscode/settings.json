@@ -80,5 +80,6 @@
         "*.bak": "cpp",
         "*.bak2": "cpp",
         "*.hide": "cpp"
-    }
+    },
+    "cmake.sourceDirectory": "/home/zwang/UCL/Final_project/g2o_example/Source"
 }

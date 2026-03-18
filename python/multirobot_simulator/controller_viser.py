@@ -129,16 +129,16 @@ if __name__ == "__main__":
     DT = 0.02
     try:
 
-        ctrl = VelocityXZWaypointController.from_json('config/sim_config.json', '1', DT)
+        ctrl = VelocityXZWaypointController.from_json('python/multirobot_simulator/config/sim_config.json', '1', DT)
     except NameError:
         raise RuntimeError("Paste/import VelocityXZWaypointController and LimitsVel above.")
 
     # Initial state: at first waypoint, slight yaw
     yaw0 = np.deg2rad(10.0)
     sim = DroneSim('1', ctrl, world_sim = None, 
-                 msg_log_path = 'msg_log.txt',
-                 gt_log_path = 'gt_log.txt',
-                 config_path = 'config/sim_config.json',
+                 msg_log_path = 'python/multirobot_simulator/msg_log.txt',
+                 gt_log_path = 'python/multirobot_simulator/gt_log.txt',
+                 config_path = 'python/multirobot_simulator/config/sim_config.json',
                  dt = DT,
                  yaw0 = 0)
 

@@ -62,7 +62,7 @@ class WorldSim:
 
     @staticmethod
     def create(
-        config_path: str = "config/sim_config.json",
+        config_path: str = "python/multirobot_simulator/config/sim_config.json",
         trajectory_path: str = None,
         log_path: str = None,
         N_DRONES: int = None,
@@ -81,8 +81,8 @@ class WorldSim:
         ctrls = []
         sims = []
 
-        cur_path = Path(__file__).resolve().parent
-        config_path = os.path.join(cur_path, config_path)
+        # cur_path = Path(__file__).resolve().parent
+        # config_path = os.path.join(cur_path, config_path)
         path = Path(config_path)
         with path.open("r", encoding="utf-8") as f:
             cfg = json.load(f)
@@ -123,7 +123,7 @@ class WorldSim:
             msg_log_path=f"msg_log_{drone_id}.txt"
             gt_log_path=f"gt_log_{drone_id}.txt"
             if not log_path is None:
-                log_path = os.path.join(cur_path, log_path)
+                # log_path = os.path.join(cur_path, log_path)
                 os.makedirs(log_path, exist_ok=True)
                 msg_log_path = os.path.join(log_path,msg_log_path)
                 gt_log_path = os.path.join(log_path,gt_log_path)
@@ -169,6 +169,38 @@ class WorldSim:
         for d in self.drone_sims:
             if not d.reached_dest(): return False
         return True
+
+
+def _upper_triangle_6x6(m: np.ndarray) -> list:
+    """Return the 21 upper-triangle entries (row-major) of a 6x6 matrix."""
+    vals = []
+    for r in range(6):
+        for c in range(r, 6):
+            vals.append(float(m[r, c]))
+    return vals
+
+
+def _cov_from_error_std(std: list) -> np.ndarray:
+    """
+    Build a 6x6 covariance matrix from an error_std list.
+    Supported lengths:
+      - 3: [sx, sy, sz]            -> diag(x,y,z)
+      - 4: [sx, sy, sz, syaw]      -> diag(x,y,z,yaw)
+      - 6: [sx, sy, sz, srx, sry, srz] -> diag(x,y,z,roll,pitch,yaw)
+    """
+    s = np.asarray(std, dtype=float).flatten()
+    info = np.zeros((6, 6), dtype=float)
+    if s.size >= 3:
+        info[0, 0] = 1/s[0] ** 2
+        info[1, 1] = 1/s[1] ** 2
+        info[2, 2] = 1/s[2] ** 2
+    if s.size == 4:
+        info[5, 5] = 1/s[3] ** 2
+    elif s.size >= 6:
+        info[3, 3] = 1/s[3] ** 2
+        info[4, 4] = 1/s[4] ** 2
+        info[5, 5] = 1/s[5] ** 2
+    return info
 
 
 # ---------- Utility ----------
@@ -251,7 +283,7 @@ class SensorSimManager:
 
 # When activated, queries world sim for location of host
 class GPSSensor:
-    def __init__(self, drone_id:str, frequency, error_std:np.ndarray):
+    def __init__(self, drone_id:str, frequency:float, error_std:np.ndarray):
         self.period = 1/frequency
         self.error_std = error_std
         self.timer = 0
@@ -281,8 +313,9 @@ class GPSSensor:
 #   Gives the relative pose of the neighbour drones within a certain range
 # When activated, queries world sim for location of host
 class RelPosSensor:
-    def __init__(self, drone_id:str, frequency, error_std:np.ndarray, sensor_range:float, range_dependent_error = False):
+    def __init__(self, drone_id:str, frequency:float, error_std:np.ndarray, sensor_range:float, range_dependent_error = False):
         self.period = 1/frequency
+        print(self.period)
         self.drone_id = drone_id
         # This is 4 elements
         self.error_std = error_std
@@ -366,6 +399,19 @@ class DroneSim:
         bot_cfg = config["bots"][drone_id]
         self.bot_cfg = bot_cfg
 
+        # Odometry noise model (standard deviations) for logged odometry:
+        # Prefer bot_cfg["odom_error_std"], else allow sensors.odom.error_std, else default zeros.
+        odom_std = bot_cfg.get("odom_error_std")
+        if odom_std is None:
+            odom_std = bot_cfg.get("sensors", {}).get("odom", {}).get("error_std")
+        if odom_std is None:
+            odom_std = [0.0, 0.0, 0.0]
+        self.odom_error_std = np.asarray(odom_std, dtype=float).reshape(3,)
+
+        # Odometry noise std: [v_fwd, vz, omega] (3-element ndarray)
+        raw = bot_cfg["controller"].get("odom_error_std", [0.0, 0.0, 0.0])
+        self.odom_error_std = np.array(raw, dtype=float).reshape(3)
+
         # Align dt
         dt = config["dt"]
         self.dt = dt
@@ -381,6 +427,45 @@ class DroneSim:
         start_pose = self.ctrl.wp[0]
         x0 = np.array([start_pose[0], start_pose[1], start_pose[2], yaw_0, 0, 0, 0, 0])
         self.s = x0.astype(float)
+
+        # ---------- Initialization message (first log line) ----------
+        # Can be provided either globally (config["initialization"]) or per-bot (bot_cfg["initialization"]).
+        init_cfg = {}
+        if isinstance(config.get("initialization"), dict):
+            init_cfg.update(config["initialization"])
+        if isinstance(bot_cfg.get("initialization"), dict):
+            init_cfg.update(bot_cfg["initialization"])
+
+        default_init = bool(init_cfg.get("default_init", False))
+        fixed_init = bool(init_cfg.get("fixed_init", False))
+        init_error_std = init_cfg.get("init_error_std", [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1])
+
+        if default_init:
+            # Force initial pose to origin with identity quaternion, fixed=true, identity covariance.
+            self.s[:] = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1], dtype=float)
+            init_x, init_y, init_z, init_yaw = 0.0, 0.0, 0.0, 0.0
+            fixed = True
+            info = np.eye(6, dtype=float)
+        elif fixed_init:
+            # Use initial pose, fixed=true, identity covariance.
+            init_x, init_y, init_z, init_yaw = float(self.s[0]), float(self.s[1]), float(self.s[2]), float(self.s[3])
+            fixed = True
+            info = np.eye(6, dtype=float)
+        else:
+            # Use initial pose, fixed=false, covariance from error_std.
+            init_x, init_y, init_z, init_yaw = float(self.s[0]), float(self.s[1]), float(self.s[2]), float(self.s[3])
+            fixed = False
+            info = _cov_from_error_std(init_error_std)
+
+        quat_xyzw = yaw_to_quat_xyzw(init_yaw)  # [x,y,z,w]
+        info_ut = _upper_triangle_6x6(info)
+        fixed_str = "true" if fixed else "false"
+        init_line = (
+            f"init {self.drone_id} {init_x} {init_y} {init_z} "
+            f"{quat_xyzw[0]} {quat_xyzw[1]} {quat_xyzw[2]} {quat_xyzw[3]} "
+            f"{fixed_str} " + " ".join(map(str, info_ut)) + "\n"
+        )
+        self.message_writer.write_line(init_line)
 
         if not world_sim is None:
             self.sensor_manager = SensorSimManager(world_sim, self.drone_id, bot_cfg, self.message_writer)
@@ -405,6 +490,7 @@ class DroneSim:
         v_fwd  = u["v_fwd"]
         vz_cmd     = u["vz"]
         omega_cmd  = u["omega_yaw"]
+
 
         self.record_odom(v_fwd, vz_cmd, omega_cmd)
         
@@ -435,10 +521,22 @@ class DroneSim:
             self.sensor_manager.step(self.dt)
     
     def record_odom(self, vx, vy, r):
-        noise_vx = vx
-        noise_vy = vy
-        noise_r = r
-        line = f"{self.timer} odom {noise_vx} {noise_vy} {noise_r}\n"
+        # Add zero-mean Gaussian noise with std from config [v_fwd, vz, omega]
+        std_vx, std_vy, std_r = self.odom_error_std
+        noise_vx = float(vx + std_vx * np.random.standard_normal())
+        noise_vy = float(vy + std_vy * np.random.standard_normal())
+        noise_r = float(r + std_r * np.random.standard_normal())
+
+        # Append an information matrix (6x6 upper triangle) similar to relpos logs.
+        # Downstream consumers can ignore these extra fields if they only parse the first 3 numbers.
+        info = np.eye(6, dtype=float)
+        eps = 1e-12
+        info[0, 0] = 1.0 / max(std_vx * std_vx, eps)
+        info[2, 2] = 1.0 / max(std_vy * std_vy, eps)
+        info[5, 5] = 1.0 / max(std_r * std_r, eps)
+        info_ut = _upper_triangle_6x6(info)
+
+        line = f"{self.timer} odom {noise_vx} {noise_vy} {noise_r} " + " ".join(map(str, info_ut)) + "\n"
         self.message_writer.write_line(line)
 
     def reached_dest(self):

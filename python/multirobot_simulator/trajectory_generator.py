@@ -716,8 +716,8 @@ def trajectory_generation(
             )
 
     # --- Write world-space trajectories ---
-    cur_path = Path(__file__).resolve().parent
-    traj_path = os.path.join(cur_path, traj_path)
+    # cur_path = Path(__file__).resolve().parent
+    # traj_path = os.path.join(cur_path, traj_path)
     out_dir = os.path.dirname(traj_path)
     if out_dir:
         os.makedirs(out_dir, exist_ok=True)

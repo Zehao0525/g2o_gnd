@@ -89,7 +89,7 @@ def run_visualizer_3d_multi(ctrls, word_sim:WorldSim, T=30.0, dt=0.02, heading_l
         Y = np.concatenate(all_wp_y)
         Z = np.concatenate(all_wp_z)
     else:
-        init_states = np.array([sim.s[:3] for sim in sims])
+        init_states = np.array([sim.s[:3] for sim in word_sim.drone_sims])
         X, Y, Z = init_states[:, 0], init_states[:, 1], init_states[:, 2]
 
     set_equal_3d(ax3d, X, Y, Z, pad=2.0)
@@ -175,43 +175,18 @@ if __name__ == "__main__":
     DT = 0.02
     N_DRONES = 5  # set as needed
 
-    ctrls = []
-    sims = []
+    # Use WorldSim.create() so controllers load waypoints from trajectories.json.
+    # Use the returned world and ctrls for the visualizer so the animation runs from t=0.
+    config_path = "python/multirobot_simulator/config/sim_config.json"
+    trajectory_path = "python/multirobot_simulator/config/trajectories.json"
+    log_path = "python/multirobot_simulator/sample_data"
 
-    word_sim = WorldSim([])
+    word_sim, ctrls, sims = WorldSim.create(
+        config_path=config_path,
+        trajectory_path=trajectory_path,
+        log_path=log_path,
+    )
 
-    for drone_id in range(0, N_DRONES):
-        try:
-            # Assumes your JSON uses string keys "1", "2", ..., or similar per drone
-            ctrl = VelocityXZWaypointController.from_json(
-                'config/sim_config.json',
-                str(drone_id),
-                DT
-            )
-        except NameError:
-            raise RuntimeError(
-                "Paste/import VelocityXZWaypointController and LimitsVel above."
-            )
-
-        sim = DroneSim(
-            str(drone_id),
-            ctrl,
-            world_sim=word_sim,
-            msg_log_path=f'msg_log_{drone_id}.txt',
-            gt_log_path=f'gt_log_{drone_id}.txt',
-            config_path='config/sim_config.json',
-            dt=DT,
-            yaw0=0.0,
-        )
-        ctrls.append(ctrl)
-        sims.append(sim)
-
-    word_sim.set_drone_sims(sims)
-
-    word_sim, _, _ = WorldSim.create(trajectory_path='config/trajectories.json')
-
-    for k in range(10000):
-        word_sim.step()
-        if word_sim.reached_dest_all():
-            break
-    run_visualizer_3d_multi(ctrls, word_sim, T=35.0, dt=DT, heading_len=2.5, annimation_speed = 0.1, no_animation = False)
+    # Run visualizer: animation steps word_sim from the start so drones fly along trajectories.
+    # (Do not pre-run word_sim to completion, or the animation would show drones already at goal.)
+    run_visualizer_3d_multi(ctrls, word_sim, T=35.0, dt=DT, heading_len=2.5, annimation_speed=0.1, no_animation=False)

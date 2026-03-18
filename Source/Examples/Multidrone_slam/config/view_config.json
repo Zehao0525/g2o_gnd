@@ -1,0 +1,10 @@
+{
+  "camera_setting": {
+    "look_at": [15, 15, 55, 15, 15, 15],
+    "projection_matrix": [800, 600, 500, 500, 400, 300, 0.1, 1000]
+  },
+  "visualise_sim_path": true, 
+  "visualise_slam_path": true, 
+  "visualise_pose": true,
+  "step_pause": 0.1
+}
