@@ -3,6 +3,8 @@
 #include <cmath>
 #include <fstream>
 #include <stdexcept>
+#include <chrono>
+#include <thread>
 
 #include <pangolin/pangolin.h>
 
@@ -31,6 +33,17 @@ ViewManager3D::ViewManager3D(const std::string& filename) : ViewManager(filename
     initialize3DConfig(filename);
 }
 
+ViewManager3D::~ViewManager3D() {
+    // Ensure we never trigger std::terminate due to a still-joinable thread.
+    running_ = false;
+    if (renderThread_.joinable()) {
+        // Avoid self-join (shouldn't happen, but keep it safe).
+        if (renderThread_.get_id() != std::this_thread::get_id()) {
+            renderThread_.join();
+        }
+    }
+}
+
 void ViewManager3D::initialize3DConfig(const std::string& filename) {
     std::ifstream f(filename);
     if (!f) {
@@ -54,6 +67,9 @@ void ViewManager3D::initialize3DConfig(const std::string& filename) {
     }
 
     cameraUp_ = cs.value("camera_up", std::vector<double>{0.0, 0.0, 1.0});
+
+    finalRenderPauseSec_ = cs.value("final_render_pause_sec", 0.0);
+    finalPauseRequested_ = false;
 }
 
 void ViewManager3D::start() {
@@ -62,6 +78,7 @@ void ViewManager3D::start() {
 }
 
 void ViewManager3D::stop() {
+    finalPauseRequested_ = true;
     running_ = false;
     if (renderThread_.joinable()) {
         renderThread_.join();
@@ -138,6 +155,25 @@ void ViewManager3D::renderLoop() {
         }
 
         pangolin::FinishFrame();
+    }
+
+    // One last render after an explicit `stop()` so the last state is visible for a moment.
+    if (finalPauseRequested_ && finalRenderPauseSec_ > 1e-12 && !pangolin::ShouldQuit()) {
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        d_cam.Activate(s_cam);
+        for (auto& view : views_) {
+            switch (vizType_) {
+                case VizType::Path:
+                    view->renderRobotPath();
+                    break;
+                default:
+                    break;
+            }
+            view->renderScene();
+            view->renderMeasurmentViz();
+        }
+        pangolin::FinishFrame();
+        std::this_thread::sleep_for(std::chrono::duration<double>(finalRenderPauseSec_));
     }
 }
 

@@ -9,7 +9,7 @@ namespace viz {
 class ViewManager3D : public ViewManager {
 public:
     explicit ViewManager3D(const std::string& filename);
-    ~ViewManager3D() = default;
+    ~ViewManager3D() override;
 
     void start() override;
     void stop() override;
@@ -19,6 +19,8 @@ protected:
     void initialize3DConfig(const std::string& filename);
 
     std::vector<double> cameraUp_;
+    double finalRenderPauseSec_ = 0.0;
+    bool finalPauseRequested_ = false;
 };
 
 }}}

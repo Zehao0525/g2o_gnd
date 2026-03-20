@@ -401,11 +401,8 @@ class DroneSim:
 
         # Odometry noise std: [v_fwd, vz, omega] (3-element ndarray)
         raw = bot_cfg["controller"].get("odom_error_std", [0.0, 0.0, 0.0])
-        odom_noise_on = bot_cfg["controller"].get("odom_noise_on", True)
-        if odom_noise_on:
-            self.odom_error_std = np.array(raw, dtype=float).reshape(3)
-        else:
-            self.odom_error_std = np.array([0.0, 0.0, 0.0], dtype=float).reshape(3)
+        self.odom_error_std = np.array(raw, dtype=float).reshape(3)
+        self.odom_noise_flag = 1 if bot_cfg["controller"].get("odom_noise_on", True) else 0
 
         # Align dt
         dt = config["dt"]
@@ -521,9 +518,9 @@ class DroneSim:
         """Log body forward speed, world-up (+Z) speed, and yaw rate about +Z (matches C++ Z-up frame)."""
         # Noise std from config [v_fwd, v_up, omega] (same axis meaning as values)
         std_fwd, std_up, std_omega = self.odom_error_std
-        noise_fwd = float(v_fwd + std_fwd * np.random.standard_normal())
-        noise_up = float(v_up + std_up * np.random.standard_normal())
-        noise_omega = float(omega_yaw + std_omega * np.random.standard_normal())
+        noise_fwd = float(v_fwd + self.odom_noise_flag * std_fwd * np.random.standard_normal())
+        noise_up = float(v_up + self.odom_noise_flag * std_up * np.random.standard_normal())
+        noise_omega = float(omega_yaw + self.odom_noise_flag * std_omega * np.random.standard_normal())
 
         # Log odometry uncertainty as variances (NOT information).
         # C++ DataBasedSimulation will decode these variances into a 6x6 information matrix.

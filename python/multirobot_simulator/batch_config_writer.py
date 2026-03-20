@@ -43,7 +43,7 @@ bot_data = {
         "max_lin_acc": 2,
         "max_rot_vel": 90,
         "max_rot_acc": 45,
-        "odom_noise_on": False,
+        "odom_noise_on": True,
         "odom_error_std": [0.1, 0.02, 5 *3.14159/180.0]
     },
     "initialization": {

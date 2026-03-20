@@ -19,7 +19,7 @@ enum class VizType {
 class ViewManager {
 public:
     ViewManager(const std::string& filename);
-    ~ViewManager() = default;
+    virtual ~ViewManager() = default;
 
 
     virtual void addView(std::shared_ptr<View> view);

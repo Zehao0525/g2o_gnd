@@ -75,6 +75,7 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
 
 
   void MultiDroneSLAMSystem::stop(){
+    if(verbose_){std::cout << "Bot " << robotId_ << " stop start\n";}
     optimize(optCountStop_);
 
     //if (fixOlderPlatformVertices_ == true){
@@ -339,6 +340,7 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
 
   DSMessage MultiDroneSLAMSystem::broadcastDSMessage() const{
     // Pre-allocate the vector for efficiency
+    if(verbose_){std::cout << "Bot " << robotId_ << " broadcastDSMessage start\n";}
     std::vector<PoseStampEntry> syncReqs;
     syncReqs.reserve(observations_.size());
 
@@ -369,6 +371,7 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
     // We have an assumption here that querying the temporally "closest" vertex is good enough.
     // This holds in the experiment. But to generalise something need to be implemented. 
     // Something that runs a weighted average of the pose and covariance of the two closest vertex will do.
+    if(verbose_){std::cout << "Bot " << robotId_ << " handleObservationSyncRequest start\n";}
     std::vector<PoseStampEntry> localEntries;
     localEntries.reserve(msg.poseEntries.size());
     std::vector<g2o::OptimizableGraph::Vertex*> verticesToMarginalize;
@@ -402,7 +405,7 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
     }
 
     // Step 2: optimize our graph so that we have up-to-date estimates
-    if(graphChanged_ && false){
+    if(graphChanged_){
       if(verbose_){std::cout << "Optimizing before marginalization:\n";}
       optimizer_->initializeOptimization();
       optimizer_->optimize(10);
@@ -429,8 +432,7 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
     g2o::SparseBlockMatrix<Eigen::MatrixXd> margCov;
     
     //assert(false);
-    optimizer_->initializeOptimization();
-    optimizer_->optimize(10);
+    // We already initialized + optimized above so hessianIndex() is valid.
     bool margSuccess = optimizer_->computeMarginals(margCov, verticesToMarginalize);
     if(verbose_){std::cout << "Marginalization success: " << margSuccess << "\n";}
     if(!margSuccess){return DSMessage(robotId_, /*outGoing=*/false, {});}
@@ -479,7 +481,7 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
 
   void MultiDroneSLAMSystem::handleObservationSyncResponse(const DSMessage& message) {
     // 1) Update all matching SE3Prior edges from the external cache
-    if(verbose_){std::cout << "handleObservationSyncResponse Start\n";}
+    if(verbose_){std::cout << "Bot " << robotId_ << " handleObservationSyncResponse start\n";}
     for (const auto& pe : message.poseEntries) {
       // Only handle entries that belong to *this* robot's outstanding requests.
       // `PoseStampEntry.sourceId` is the robot that originated the query.
