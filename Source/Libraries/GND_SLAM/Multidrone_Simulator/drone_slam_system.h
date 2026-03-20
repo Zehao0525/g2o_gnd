@@ -241,6 +241,11 @@ protected:
 
   int obsCount_ = 0;
   bool graphChanged_;
+
+  // For velocity-based odometry decoding: convert event velocity to displacement
+  // using timestamp differences.
+  bool hasLastOdomTime_ = false;
+  double lastOdomTime_ = 0.0;
 };
 
 }

@@ -399,18 +399,13 @@ class DroneSim:
         bot_cfg = config["bots"][drone_id]
         self.bot_cfg = bot_cfg
 
-        # Odometry noise model (standard deviations) for logged odometry:
-        # Prefer bot_cfg["odom_error_std"], else allow sensors.odom.error_std, else default zeros.
-        odom_std = bot_cfg.get("odom_error_std")
-        if odom_std is None:
-            odom_std = bot_cfg.get("sensors", {}).get("odom", {}).get("error_std")
-        if odom_std is None:
-            odom_std = [0.0, 0.0, 0.0]
-        self.odom_error_std = np.asarray(odom_std, dtype=float).reshape(3,)
-
         # Odometry noise std: [v_fwd, vz, omega] (3-element ndarray)
         raw = bot_cfg["controller"].get("odom_error_std", [0.0, 0.0, 0.0])
-        self.odom_error_std = np.array(raw, dtype=float).reshape(3)
+        odom_noise_on = bot_cfg["controller"].get("odom_noise_on", True)
+        if odom_noise_on:
+            self.odom_error_std = np.array(raw, dtype=float).reshape(3)
+        else:
+            self.odom_error_std = np.array([0.0, 0.0, 0.0], dtype=float).reshape(3)
 
         # Align dt
         dt = config["dt"]
@@ -436,34 +431,36 @@ class DroneSim:
         if isinstance(bot_cfg.get("initialization"), dict):
             init_cfg.update(bot_cfg["initialization"])
 
-        default_init = bool(init_cfg.get("default_init", False))
+        # Default behavior (no initialization config at all):
+        #   fixed=true, pose=(0,0,0,yaw=0), covariance=I
+        default_init = bool(init_cfg.get("default_init", init_cfg == {}))
         fixed_init = bool(init_cfg.get("fixed_init", False))
-        init_error_std = init_cfg.get("init_error_std", [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1])
+        init_error_std = init_cfg.get("error_std", init_cfg.get("init_error_std", [1.0, 1.0, 1.0, 1.0]))
 
         if default_init:
-            # Force initial pose to origin with identity quaternion, fixed=true, identity covariance.
-            self.s[:] = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1], dtype=float)
+            # zeros initial pose, fixed=true, identity covariance.
+            self.s[:] = np.zeros(8, dtype=float)
             init_x, init_y, init_z, init_yaw = 0.0, 0.0, 0.0, 0.0
             fixed = True
-            info = np.eye(6, dtype=float)
+            cov = np.eye(6, dtype=float)
         elif fixed_init:
             # Use initial pose, fixed=true, identity covariance.
             init_x, init_y, init_z, init_yaw = float(self.s[0]), float(self.s[1]), float(self.s[2]), float(self.s[3])
             fixed = True
-            info = np.eye(6, dtype=float)
+            cov = np.eye(6, dtype=float)
         else:
             # Use initial pose, fixed=false, covariance from error_std.
             init_x, init_y, init_z, init_yaw = float(self.s[0]), float(self.s[1]), float(self.s[2]), float(self.s[3])
             fixed = False
-            info = _cov_from_error_std(init_error_std)
+            cov = _cov_from_error_std(init_error_std)
 
         quat_xyzw = yaw_to_quat_xyzw(init_yaw)  # [x,y,z,w]
-        info_ut = _upper_triangle_6x6(info)
+        cov_ut = _upper_triangle_6x6(cov)
         fixed_str = "true" if fixed else "false"
         init_line = (
             f"init {self.drone_id} {init_x} {init_y} {init_z} "
             f"{quat_xyzw[0]} {quat_xyzw[1]} {quat_xyzw[2]} {quat_xyzw[3]} "
-            f"{fixed_str} " + " ".join(map(str, info_ut)) + "\n"
+            f"{fixed_str} " + " ".join(map(str, cov_ut)) + "\n"
         )
         self.message_writer.write_line(init_line)
 
@@ -495,10 +492,10 @@ class DroneSim:
         self.record_odom(v_fwd, vz_cmd, omega_cmd)
         
 
-        # Body-x forward -> world x,z (yaw about +y)
+        # Body forward in horizontal plane (X–Y); world +Z up; yaw about +Z
         vx = v_fwd * np.cos(yaw)
         vy = v_fwd * np.sin(yaw)
-        vz = vz_cmd  # no y motion
+        vz = vz_cmd
 
         # Integrate pose
         x  += self.dt * vx
@@ -520,23 +517,25 @@ class DroneSim:
         if not self.sensor_manager is None:
             self.sensor_manager.step(self.dt)
     
-    def record_odom(self, vx, vy, r):
-        # Add zero-mean Gaussian noise with std from config [v_fwd, vz, omega]
-        std_vx, std_vy, std_r = self.odom_error_std
-        noise_vx = float(vx + std_vx * np.random.standard_normal())
-        noise_vy = float(vy + std_vy * np.random.standard_normal())
-        noise_r = float(r + std_r * np.random.standard_normal())
+    def record_odom(self, v_fwd, v_up, omega_yaw):
+        """Log body forward speed, world-up (+Z) speed, and yaw rate about +Z (matches C++ Z-up frame)."""
+        # Noise std from config [v_fwd, v_up, omega] (same axis meaning as values)
+        std_fwd, std_up, std_omega = self.odom_error_std
+        noise_fwd = float(v_fwd + std_fwd * np.random.standard_normal())
+        noise_up = float(v_up + std_up * np.random.standard_normal())
+        noise_omega = float(omega_yaw + std_omega * np.random.standard_normal())
 
-        # Append an information matrix (6x6 upper triangle) similar to relpos logs.
-        # Downstream consumers can ignore these extra fields if they only parse the first 3 numbers.
-        info = np.eye(6, dtype=float)
-        eps = 1e-12
-        info[0, 0] = 1.0 / max(std_vx * std_vx, eps)
-        info[2, 2] = 1.0 / max(std_vy * std_vy, eps)
-        info[5, 5] = 1.0 / max(std_r * std_r, eps)
-        info_ut = _upper_triangle_6x6(info)
+        # Log odometry uncertainty as variances (NOT information).
+        # C++ DataBasedSimulation will decode these variances into a 6x6 information matrix.
+        var_fwd = float(std_fwd * std_fwd)
+        var_up = float(std_up * std_up)
+        var_yaw = float(std_omega * std_omega)
 
-        line = f"{self.timer} odom {noise_vx} {noise_vy} {noise_r} " + " ".join(map(str, info_ut)) + "\n"
+        # Format: t odom v_fwd v_up omega var_fwd var_up var_yaw
+        line = (
+            f"{self.timer} odom {noise_fwd} {noise_up} {noise_omega} "
+            f"{var_fwd} {var_up} {var_yaw}\n"
+        )
         self.message_writer.write_line(line)
 
     def reached_dest(self):

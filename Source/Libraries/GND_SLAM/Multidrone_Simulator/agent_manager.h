@@ -64,15 +64,10 @@ public:
   void saveTrajectories(const std::string& output_dir, const std::string& format = "tum") const;
 
 protected:
-  /**
-   * @brief process a event
-   * @param events event to process
-   */
-  void getBroadcastQuery(const std::string& drone_id); // And also a message type
-
-  void sendBroadcastQuery(const std::string& drone_id); // And also a message type
-
-  void propagateMessages();
+  /// Perform topology-based communication between drones.
+  /// Broadcast queries, aggregate queries per neighbor set, answer them locally,
+  /// then deliver the responses back to connected drones.
+  void performCommunication();
 
 public:
   // Public so you can inspect/use it if you want
@@ -115,6 +110,12 @@ protected:
 
   // Time step from config (defaults to 0.05)
   double dt_ = 0.05;
+
+  // Communication config (from experiment config JSON)
+  bool communicationEnabled_ = true;
+  double communicationFrequencyHz_ = 0.0;
+  int communicationPeriodSteps_ = 1;   // run every N steps when enabled
+  int stepCount_ = 0;
 
   bool verbose_;
 

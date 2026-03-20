@@ -67,7 +67,10 @@ void MultiDroneSLAMSystemView::renderScene() const {
         glLineWidth(2.0f);
         glColor4f(color_[0], color_[1], color_[2], 0.4f);
         glBegin(GL_LINE_STRIP);
-        for (const auto& T : path3d_) {
+        // Draw all historical points, but force the final point to the current pose
+        // so the path endpoint is always attached to the current SLAM indicator.
+        for (size_t i = 0; i < path3d_.size(); ++i) {
+            const auto& T = (i + 1 == path3d_.size()) ? currentPose3d_ : path3d_[i];
             const auto& p = T.translation();
             glVertex3f(static_cast<float>(p.x()),
                        static_cast<float>(p.y()),

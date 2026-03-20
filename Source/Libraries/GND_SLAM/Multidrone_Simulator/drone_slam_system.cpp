@@ -156,6 +156,49 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
 
   void MultiDroneSLAMSystem::handleOdometryEvent(DataOdomEvent event){
     if(verbose_){std::cout << " - Bot " << robotId_ << " - SlamSystem handleOdometryEvent start ..." << std::endl;}
+    // Odom event carries velocity-like values. Convert to displacement using odom dt.
+    if (!hasLastOdomTime_) {
+      hasLastOdomTime_ = true;
+      lastOdomTime_ = event.time;
+      if (verbose_) {
+        std::cout << " - First odom event received, caching timestamp only." << std::endl;
+      }
+      return;
+    }
+    const double odomDt = event.time - lastOdomTime_;
+    lastOdomTime_ = event.time;
+    if (odomDt < 1e-6 || !std::isfinite(odomDt)) {
+      if (verbose_) {
+        std::cout << " - Odom dt too small/invalid (" << odomDt << "), skipping event." << std::endl;
+      }
+      return;
+    }
+
+    // Body frame (Z-up world, yaw about Z): translation x = v_fwd, y = 0, z = v_up (vertical).
+    const double vel_fw = event.value.translation().x();
+    const double vel_z = event.value.translation().z();
+    // Angular rate must come from the scalar field: value.linear() was wrongly used as R_z(ω),
+    // which only determines ω modulo 2π (e.g. ω=2π → identity matrix → zero rate after atan2).
+    const double omega = event.omegaZ;
+
+    Isometry3 delta = Isometry3::Identity();
+    delta.translation() = Eigen::Vector3d(vel_fw * odomDt, 0.0, vel_z * odomDt);
+    delta.linear() = Eigen::AngleAxisd(omega * odomDt, Eigen::Vector3d::UnitZ()).toRotationMatrix();
+
+    Eigen::Matrix<double, 6, 6> deltaInfo = event.information;
+    // Incoming information is in velocity space for (x,z,yaw). Convert only those
+    // diagonal terms to displacement space by scaling with 1/dt^2.
+    deltaInfo *= 1.0 / (odomDt * odomDt);
+    // Keep information bounded for solver stability and isValidInformationMatrix checks.
+    const double maxDiag = 9.0e9;
+    for (int i = 0; i < 6; ++i) {
+      if (!std::isfinite(deltaInfo(i, i)) || deltaInfo(i, i) <= 0.0) {
+        deltaInfo(i, i) = 1.0;
+      } else if (deltaInfo(i, i) > maxDiag) {
+        deltaInfo(i, i) = maxDiag;
+      }
+    }
+
     if(verbose_){std::cout << " - Creating vertex ..." << std::endl;}
     currentPlatformVertex_ = new VertexSE3();
 
@@ -177,14 +220,14 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
     OptimizableGraph::VertexSet fromSet;
     fromSet.insert(v0);
     //odometry->initialEstimate(fromSet, v0);
-    currentPlatformVertex_->setEstimate(v0->estimate() * event.value);
+    currentPlatformVertex_->setEstimate(v0->estimate() * delta);
 
     if(verbose_){std::cout << " - Vertex set, setting measurements ..." << std::endl;}
-    odometry->setMeasurement(event.value);
+    odometry->setMeasurement(delta);
     //assert(odometry->information().rows() == 3);
     if(verbose_){std::cout << " - measurements set, setting information ..." << std::endl;}
-    assert(isValidInformationMatrix(event.information));
-    odometry->setInformation((event.information));
+    assert(isValidInformationMatrix(deltaInfo));
+    odometry->setInformation((deltaInfo));
     if(verbose_){std::cout << " - Adding edge to optimizer ..." << std::endl;}
     optimizer_->addEdge(odometry);
 
@@ -199,17 +242,17 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
       std::cout << "Rotation matrix (3x3):\n" << v0Iso.rotation() << "\n\n";
       // Print translation
       std::cout << "Odom Edge Vertex\n";
-      std::cout << "Translation (x y z):\n" << event.value.translation().transpose() << "\n\n";
+      std::cout << "Translation (x y z):\n" << delta.translation().transpose() << "\n\n";
       // Print rotation matrix
-      std::cout << "Rotation matrix (3x3):\n" << event.value.rotation() << "\n\n";
+      std::cout << "Rotation matrix (3x3):\n" << delta.rotation() << "\n\n";
       // Print quaternion form
-      Quaterniond q(event.value.rotation());
+      Quaterniond q(delta.rotation());
       std::cout << "Quaternion (w x y z):\n" 
           << q.w() << " " << q.x() << " " << q.y() << " " << q.z() << "\n\n";
       // Print full isometry matrix
-      std::cout << "Isometry3 (4x4 homogeneous transformation):\n" << event.value.matrix() << "\n\n";
+      std::cout << "Isometry3 (4x4 homogeneous transformation):\n" << delta.matrix() << "\n\n";
       // Print 6x6 information matrix
-      std::cout << "Information matrix (6x6):\n" << event.information << "\n";
+      std::cout << "Information matrix (6x6):\n" << deltaInfo << "\n";
     }
 
 
@@ -438,8 +481,20 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
     // 1) Update all matching SE3Prior edges from the external cache
     if(verbose_){std::cout << "handleObservationSyncResponse Start\n";}
     for (const auto& pe : message.poseEntries) {
+      // Only handle entries that belong to *this* robot's outstanding requests.
+      // `PoseStampEntry.sourceId` is the robot that originated the query.
+      if (pe.sourceId != robotId_) {
+        continue;
+      }
+      // A response entry must refer to the robot pose we requested (the observed robot id)
       if (pe.observationId < 0 || pe.observationId >= static_cast<int>(observations_.size())) {
         std::cerr << "Invalid observationId: " << pe.observationId << std::endl;
+        continue;
+      }
+      if (observations_[pe.observationId].observedRobotId != pe.subjectId) {
+        std::cerr << "Mismatched subjectId for observationId " << pe.observationId
+                  << " (expected " << observations_[pe.observationId].observedRobotId
+                  << ", got " << pe.subjectId << ")\n";
         continue;
       }
       g2o::EdgeSE3* priorEdge = observations_[pe.observationId].observationPriorEdge;

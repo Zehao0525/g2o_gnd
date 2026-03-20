@@ -105,6 +105,7 @@ void SimulatorView::processEvents(EventPtrVector& events){
 
 
 void SimulatorView::renderScene() const{
+    renderRobotPose2D();
     // Draw landmarks as crosses
     glLineWidth(3.0f);  // or 3.0f, etc.
     glColor3f(lmColor_[0], lmColor_[1], lmColor_[2]);

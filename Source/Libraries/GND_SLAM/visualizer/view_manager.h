@@ -22,14 +22,14 @@ public:
     ~ViewManager() = default;
 
 
-    void addView(std::shared_ptr<View> view);
-    void setVizType(std::string typeKey);
-    void start();
-    void stop();
-    void pause();
+    virtual void addView(std::shared_ptr<View> view);
+    virtual void setVizType(std::string typeKey);
+    virtual void start();
+    virtual void stop();
+    virtual void pause();
 
-private:
-    void renderLoop();
+protected:
+    virtual void renderLoop();
 
     std::vector<std::shared_ptr<View>> views_;
     std::thread renderThread_;

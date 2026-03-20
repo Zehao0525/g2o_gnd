@@ -45,7 +45,11 @@ namespace tutorial {
 namespace multibotsim{
 
 
-//
+/// Replay simulator for multidrone logs (Python `simulator.py`).
+///
+/// **World / body convention (matches Python):** right-handed; **+Z is up**; horizontal motion is in
+/// the X–Y plane; **yaw** is a right-handed rotation about **+Z** (heading in the XY plane). Body-frame
+/// odometry uses **+X forward**, **+Y lateral** (unused / zero), **+Z up** for vertical velocity.
 class G2O_TUTORIAL_SLAM2D_API DataBasedSimulation {
 
 
@@ -193,6 +197,7 @@ protected:
     double time = 0.0;
     DataMsgType type = DataMsgType::None;
     Isometry3 odomPose = Isometry3::Identity();
+    double odomOmegaZ = 0.0;
     std::string targetRobotId;
     Isometry3 relPose = Isometry3::Identity();
     Eigen::Matrix<double, 6, 6> information = Eigen::Matrix<double, 6, 6>::Identity();
@@ -200,6 +205,10 @@ protected:
   
   bool gtHasMore_;
   bool dataHasMore_;
+
+  // Odom timestamps (for velocity->increment conversion)
+  bool hasPrevOdomTime_ = false;
+  double prevOdomTime_ = 0.0;
   
   // Internal helper methods
   bool readNextGT();

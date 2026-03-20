@@ -20,7 +20,7 @@ public:
     virtual void update() = 0;
 
     // Rendering logic
-    void renderRobotPose() const;
+    void renderRobotPose2D() const;
     void renderRobotPath() const;
     void renderMeasurmentViz();
     void renderCovariance(const CovarianceViz& viz);
@@ -37,6 +37,7 @@ public:
     void updateRobotPath(const std::vector<Eigen::Vector3d>& path);
     void appendToRobotPath(const Eigen::Vector3d& pose);
     void updateRobotPose(const Eigen::Vector3d& pose);
+    void setVisualisePose(bool enabled) { visualisePose_ = enabled; }
 
 protected:
     Eigen::Vector3f color_;
@@ -48,6 +49,7 @@ protected:
     std::vector<std::shared_ptr<MeasurmentViz>> measVizVertex_;
     Eigen::Vector3f measColor_;
     bool running_;
+    bool visualisePose_ = true;
 
     std::mutex dataMutex_;
 };

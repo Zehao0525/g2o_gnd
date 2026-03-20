@@ -5,6 +5,8 @@ add_library(Incremental_Visualizer ${LIB_TYPE}
   view.cpp
   view_manager.h
   view_manager.cpp
+  view_manager_3d.h
+  view_manager_3d.cpp
   simulator_view.h
   simulator_view.cpp
   slam_system_view.h

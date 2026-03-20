@@ -79,4 +79,9 @@ void SLAMSystemView::computeMarginals(){
     std::cout << " Complete Adding Covariance " << std::endl;
 }
 
+void SLAMSystemView::renderScene() const{
+    renderRobotPose2D();
+
+}
+
 }}}

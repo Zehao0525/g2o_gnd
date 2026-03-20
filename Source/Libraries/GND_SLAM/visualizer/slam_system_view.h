@@ -21,6 +21,8 @@ public:
 
     void pause() override;
 
+    void renderScene() const override;
+
     void computeMarginals();
 
 private:

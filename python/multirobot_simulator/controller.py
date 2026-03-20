@@ -25,14 +25,14 @@ class CState(Enum):
 
 class VelocityXZWaypointController:
     """
-    Velocity controller with two states (y-up, x-forward, z-right):
-      TURNING: output only omega_yaw (yaw about +y) to face waypoint in x–z; v_fwd=vy=0.
-      FLYING:  output only v_fwd (body-x) and vy (world-y) toward waypoint; omega_yaw=0.
+    Velocity controller with two states (Z-up world, X–Y horizontal, yaw about +Z):
+      TURNING: output only omega_yaw; v_fwd=vz=0.
+      FLYING:  output v_fwd (body forward in X–Y) and vz (world +Z); omega_yaw=0.
 
-    - Rotate in x–z (heading angle around +y).
-    - Translate only in x (forward) and y (vertical-up). No commanded lateral z motion.
+    - Heading/yaw is in the horizontal plane (rotation about +Z).
+    - Vertical motion is along world +Z (altitude).
     - Zero commanded velocity during state transitions.
-    - Waypoint considered reached by x–y proximity; then advance and return to TURNING.
+    - Waypoint considered reached by horizontal + vertical proximity; then advance and return to TURNING.
     - Fixed simulation step dt is provided at init (used for one-step velocity targets).
     """
 
@@ -120,12 +120,12 @@ class VelocityXZWaypointController:
     # -------- helpers --------
     def _body_axes(self, yaw: float):
         """
-        Body axes in world frame for yaw about +y:
-          body-x (forward) in x–z: [cos(yaw), 0, sin(yaw)]
-          body-y (up)     = world-y: [0, 1, 0]
+        Body axes in world frame (Z-up; yaw about +Z; horizontal plane is X–Y):
+          body-x (forward horizontal) = [cos(yaw), sin(yaw), 0]
+          world +Z = up (vertical velocity / altitude).
         """
-        x_hat = np.array([np.cos(yaw), np.sin(yaw), 0.0])  # forward in x–z
-        z_hat = np.array([0.0, 0.0, 1.0])                  # world/body y (up)
+        x_hat = np.array([np.cos(yaw), np.sin(yaw), 0.0])
+        z_hat = np.array([0.0, 0.0, 1.0])  # world up, for range along vertical
         return x_hat, z_hat
 
     # -------- main step --------

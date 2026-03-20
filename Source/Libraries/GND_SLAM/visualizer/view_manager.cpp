@@ -15,8 +15,12 @@ ViewManager::ViewManager(const std::string& filename) : running_(false), vizType
     f >> j;
 
     std::cout << "ViewManager_setup" <<std::endl;
-    cameraLookat_ = j["camera_setting"].value("look_at", std::vector<double>{25.0,25.0,60.0,25.0,25.0,0.0});
-    projectionMatrix_ = j["camera_setting"].value("projection_matrix", std::vector<double>{25.0,25.0,60.0,25.0,25.0,0.0});
+    cameraLookat_ = j["camera_setting"].value(
+        "look_at",
+        std::vector<double>{25.0, 25.0, 60.0, 25.0, 25.0, 0.0});
+    projectionMatrix_ = j["camera_setting"].value(
+        "projection_matrix",
+        std::vector<double>{25.0, 25.0, 60.0, 25.0, 25.0, 0.0});
 
 }
 
@@ -88,7 +92,8 @@ void ViewManager::renderLoop() {
                 default:
                     break;
             }
-            view->renderRobotPose();
+            // Robot body should be rendered by each concrete view's renderScene().
+            // Calling renderRobotPose() here duplicates indicators.
             view->renderScene();
             view->renderMeasurmentViz();
             

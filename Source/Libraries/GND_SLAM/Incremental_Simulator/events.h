@@ -187,12 +187,19 @@ namespace tutorial {
 
     struct G2O_TUTORIAL_SLAM2D_API DataOdomEvent : public Event {
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
+        /// Body-frame linear velocities in translation(): x = v_fwd, y = 0, z = v_z (rad/s is NOT stored here).
         Isometry3 value;
+        /// Yaw rate about +Z (rad/s). Must be explicit: encoding ω inside value.linear() as R_z(ω) loses ω
+        /// (only ω mod 2π is recoverable via atan2, e.g. ω=2π → identity → bogus zero rate).
+        double omegaZ{0.0};
         Eigen::Matrix<double,6,6> information;
-        DataOdomEvent(  const double eventTime,
-                        const Isometry3& pos,
-                        const Eigen::Matrix<double,6,6>& info): Event(eventTime), value(pos), information(info) {  };
-        EventType type() const override{return EventType::DataOdometry;};
+        DataOdomEvent(const double eventTime, const Isometry3& velBody,
+                      double omegaZ_rad_per_s, const Eigen::Matrix<double, 6, 6>& info)
+            : Event(eventTime),
+              value(velBody),
+              omegaZ(omegaZ_rad_per_s),
+              information(info) {}
+        EventType type() const override { return EventType::DataOdometry; }
     };
 
 
@@ -215,10 +222,32 @@ namespace tutorial {
     using EventPtr = std::shared_ptr<Event>;
     using EventPtrVector = std::vector<EventPtr>;
 
-    // Comparator: earlier time comes first
+    /// Stable ordering for events with the same timestamp (multiset needs strict weak ordering).
+    inline int dataEventPriority(Event::EventType t) {
+        switch (t) {
+            case Event::EventType::DataInitialization:
+                return 0;
+            case Event::EventType::DataOdometry:
+                return 1;
+            case Event::EventType::DataObservation:
+                return 2;
+            default:
+                return 100 + static_cast<int>(t);
+        }
+    }
+
+    // Comparator: earlier time comes first; tie-break so init → odom → obs for same t
     struct EventCompare {
         bool operator()(const EventPtr& a, const EventPtr& b) const {
-            return a->time < b->time;
+            if (a->time != b->time) {
+                return a->time < b->time;
+            }
+            const int pa = dataEventPriority(a->type());
+            const int pb = dataEventPriority(b->type());
+            if (pa != pb) {
+                return pa < pb;
+            }
+            return a.get() < b.get();
         }
     };
 

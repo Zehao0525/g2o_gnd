@@ -10,8 +10,10 @@ namespace viz {
 View::View(const Eigen::Vector3f& color) : color_(color), platformSize_(1.5), running_(true),
                                             pose_(Eigen::Vector3d()){}
 
-void View::renderRobotPose() const {
-    // Pose stored as (x, y, yaw) in world frame.
+void View::renderRobotPose2D() const {
+    if (!visualisePose_) {
+        return;
+    }
     double x = pose_[0], y = pose_[1], theta = pose_[2];
     const double size = platformSize_;
 
@@ -19,46 +21,15 @@ void View::renderRobotPose() const {
     glTranslated(x, y, 0.0);
     glRotated(theta * 180.0 / M_PI, 0.0, 0.0, 1.0);
 
-    // Draw a small pyramid (body) in the robot's local frame.
     glColor3f(color_[0], color_[1], color_[2]);
-    const double half = size * 0.3;
-    const double height = size * 0.6;
+    const double halfBase = size * 0.5;
+    const double tipX = size * 0.5;
+    const double baseX = tipX - size;
 
     glBegin(GL_TRIANGLES);
-    // Base -> apex faces
-    glVertex3d(-half, -half, 0.0);
-    glVertex3d( half, -half, 0.0);
-    glVertex3d( 0.0,  0.0,  height);
-
-    glVertex3d( half, -half, 0.0);
-    glVertex3d( half,  half, 0.0);
-    glVertex3d( 0.0,  0.0,  height);
-
-    glVertex3d( half,  half, 0.0);
-    glVertex3d(-half,  half, 0.0);
-    glVertex3d( 0.0,  0.0,  height);
-
-    glVertex3d(-half,  half, 0.0);
-    glVertex3d(-half, -half, 0.0);
-    glVertex3d( 0.0,  0.0,  height);
-    glEnd();
-
-    // Draw local XYZ axes inside the pyramid.
-    const double axisLen = size * 0.6;
-    glLineWidth(2.0f);
-    glBegin(GL_LINES);
-    // X axis - red
-    glColor3f(1.0f, 0.0f, 0.0f);
-    glVertex3f(0.0f, 0.0f, 0.0f);
-    glVertex3f(axisLen, 0.0f, 0.0f);
-    // Y axis - green
-    glColor3f(0.0f, 1.0f, 0.0f);
-    glVertex3f(0.0f, 0.0f, 0.0f);
-    glVertex3f(0.0f, axisLen, 0.0f);
-    // Z axis - blue
-    glColor3f(0.0f, 0.0f, 1.0f);
-    glVertex3f(0.0f, 0.0f, 0.0f);
-    glVertex3f(0.0f, 0.0f, axisLen);
+    glVertex2d(tipX, 0.0);
+    glVertex2d(baseX, halfBase);
+    glVertex2d(baseX, -halfBase);
     glEnd();
 
     glPopMatrix();

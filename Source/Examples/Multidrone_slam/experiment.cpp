@@ -14,6 +14,7 @@
 #include "messages.hpp"
 #include "events.h"
 #include "view_manager.h"
+#include "view_manager_3d.h"
 #include "multi_drone_slam_system_view.h"
 #include "data_based_simulation_view.h"
 
@@ -100,9 +101,10 @@ int main(int argc, char* argv[]) {
     // Extract visualisation settings
     bool visualise_slam_path = view_j.value("visualise_slam_path", true);
     bool visualise_sim_path = view_j.value("visualise_sim_path", true);
+    bool visualise_pose = view_j.value("visualise_pose", true);
 
     std::cout << "Setting up visualization..." << std::endl;
-    ViewManager viewManager(view_config_path);
+    ViewManager3D viewManager(view_config_path);
     if (step_pause_sec > 0.0) {
       std::cout << "  step_pause: " << step_pause_sec << " s" << std::endl;
     }
@@ -153,6 +155,7 @@ int main(int argc, char* argv[]) {
                 Eigen::Vector3f color = robotEstColors[i % robotEstColors.size()];
                 view = std::make_shared<MultiDroneSLAMSystemView>(slamSystem, color, visualise_slam_path);
             }
+            view->setVisualisePose(visualise_pose);
 
             viewManager.addView(view);
             slamViews.push_back(view);
@@ -162,6 +165,7 @@ int main(int argc, char* argv[]) {
         if (sim) {
             Eigen::Vector3f gtColor = gtColorFromRobot(robotGTColors[i % robotGTColors.size()]);
             auto gtView = std::make_shared<DataBasedSimulationView>(sim, gtColor, visualise_sim_path);
+            gtView->setVisualisePose(visualise_pose);
             viewManager.addView(gtView);
             gtViews.push_back(gtView);
             std::cout << "  Added ground-truth view for robot " << robotIds[i] << std::endl;

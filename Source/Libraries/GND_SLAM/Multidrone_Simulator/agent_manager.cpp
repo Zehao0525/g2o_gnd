@@ -5,6 +5,8 @@
 #include <stdexcept>
 #include <memory>
 #include <iomanip>
+#include <map>
+#include <set>
 
 #include <nlohmann/json.hpp>
 #include "events.h"
@@ -43,6 +45,33 @@ AgentManager::AgentManager(const std::string& config_path,
       if (verbose_) {
         std::cout << "AgentManager: verbose = true" << std::endl;
       }
+    }
+
+    // Communication config (defaults: enabled=true, frequency=0 -> every step)
+    if (j.contains("communication") && j["communication"].is_object()) {
+      const auto& c = j["communication"];
+      if (c.contains("enabled")) {
+        communicationEnabled_ = c["enabled"].get<bool>();
+      }
+      if (c.contains("frequency")) {
+        communicationFrequencyHz_ = c["frequency"].get<double>();
+      }
+    }
+
+    if (communicationEnabled_) {
+      if (communicationFrequencyHz_ > 0.0 && dt_ > 0.0) {
+        // frequency is in Hz; dt_ is seconds per step
+        const double stepsPerComm = 1.0 / (communicationFrequencyHz_ * dt_);
+        communicationPeriodSteps_ = std::max(1, static_cast<int>(std::lround(stepsPerComm)));
+      } else {
+        communicationPeriodSteps_ = 1;  // every step
+      }
+    }
+
+    if (verbose_) {
+      std::cout << "AgentManager: communication.enabled=" << (communicationEnabled_ ? "true" : "false")
+                << " frequency=" << communicationFrequencyHz_
+                << " periodSteps=" << communicationPeriodSteps_ << std::endl;
     }
   }
 
@@ -121,6 +150,7 @@ void AgentManager::start() {
  * @brief stop the SLAM system and finalize result accumulation
  */
 void AgentManager::stop() {
+  performCommunication();
   for (auto& sim : sims_) {
     sim->stop();
   }
@@ -166,10 +196,12 @@ void AgentManager::step(double dt) {
     std::cout << "AgentManager: stepped simulations and SlamSystems" << std::endl;
   }
 
-  // After sims and SLAM systems have processed their own data, we could
-  // propagate inter-robot messages here:
-  //
-  // propagateMessages();
+  // After all drones have processed their own data, perform communication if enabled/scheduled.
+  ++stepCount_;
+  if (communicationEnabled_ &&
+      (communicationPeriodSteps_ <= 1 || (stepCount_ % communicationPeriodSteps_ == 0))) {
+    performCommunication();
+  }
 }
 
 void AgentManager::setTopology(const std::vector<std::pair<std::string, std::string>>& topology) {
@@ -264,16 +296,64 @@ void AgentManager::saveTrajectories(const std::string& output_dir, const std::st
   std::cout << "Saved trajectories for " << slamSystems_.size() << " robots" << std::endl;
 }
 
-void AgentManager::getBroadcastQuery(const std::string& /*drone_id*/) {
-  // Leave this, incomplete for now.
-}
+void AgentManager::performCommunication() {
+  // Build adjacency from topology_ (already made bidirectional by setTopology()).
+  std::map<std::string, std::set<std::string>> neighbors;
+  for (const auto& id : robotIds_) {
+    neighbors[id];  // ensure key exists
+  }
+  for (const auto& e : topology_) {
+    neighbors[e.first].insert(e.second);
+  }
 
-void AgentManager::sendBroadcastQuery(const std::string& /*drone_id*/) {
-  // Leave this, incomplete for now.
-}
+  // 1) Each drone broadcasts its query message
+  std::map<std::string, DSMessage> broadcasts;
+  for (size_t i = 0; i < slamSystems_.size() && i < robotIds_.size(); ++i) {
+    broadcasts[robotIds_[i]] = slamSystems_[i]->broadcastDSMessage();
+  }
 
-void AgentManager::propagateMessages() {
-  // Leave this, incomplete for now.
+  // Helper: id -> index
+  std::map<std::string, size_t> idToIndex;
+  for (size_t i = 0; i < robotIds_.size(); ++i) {
+    idToIndex[robotIds_[i]] = i;
+  }
+
+  // 2) For each drone, aggregate neighbor queries, answer them locally,
+  //    then deliver the response to all connected drones.
+  for (size_t i = 0; i < slamSystems_.size() && i < robotIds_.size(); ++i) {
+    const std::string& receiverId = robotIds_[i];
+    auto* receiver = slamSystems_[i].get();
+
+    std::vector<PoseStampEntry> aggregated;
+
+    // Include self broadcast
+    if (auto it = broadcasts.find(receiverId); it != broadcasts.end()) {
+      const auto& entries = it->second.poseEntries;
+      aggregated.insert(aggregated.end(), entries.begin(), entries.end());
+    }
+
+    // Union in all neighbor broadcasts
+    for (const auto& n : neighbors[receiverId]) {
+      auto it = broadcasts.find(n);
+      if (it == broadcasts.end()) continue;
+      const auto& entries = it->second.poseEntries;
+      aggregated.insert(aggregated.end(), entries.begin(), entries.end());
+    }
+
+    DSMessage reqMsg(receiverId, /*loaded=*/false, std::move(aggregated));
+    DSMessage response = receiver->handleObservationSyncRequest(reqMsg);
+
+    // Deliver response to self and neighbors; recipients filter by PoseStampEntry.sourceId.
+    receiver->handleObservationSyncResponse(response);
+    for (const auto& n : neighbors[receiverId]) {
+      auto itIdx = idToIndex.find(n);
+      if (itIdx == idToIndex.end()) continue;
+      const size_t j = itIdx->second;
+      if (j < slamSystems_.size()) {
+        slamSystems_[j]->handleObservationSyncResponse(response);
+      }
+    }
+  }
 }
 
 } // namespace multibotsim

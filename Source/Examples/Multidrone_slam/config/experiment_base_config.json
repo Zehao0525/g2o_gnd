@@ -3,5 +3,10 @@
     "sim_config_path" : "python/multirobot_simulator/config/sim_config.json",
     "input_path" : "test_data/multidrone",
     "no_observaions" : false,
-    "verbose" : true
+    "verbose" : true,
+
+    "communication":{
+        "enabled": true,
+        "frequency": 0.0000002
+      }
 }

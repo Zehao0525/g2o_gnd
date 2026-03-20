@@ -57,7 +57,7 @@ void FileSlamSystemView::processEvents(EventPtrVector& events){
 
 
 void FileSlamSystemView::renderScene() const{
-
+    renderRobotPose2D();
 }
 
 }}}

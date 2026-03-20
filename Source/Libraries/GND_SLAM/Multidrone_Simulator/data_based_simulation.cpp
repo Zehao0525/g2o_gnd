@@ -6,6 +6,8 @@
 #include <sstream>
 #include <algorithm>
 #include <stdexcept>
+#include <cmath>
+#include <vector>
 
 #include <Eigen/Geometry>
 
@@ -37,6 +39,7 @@ struct DataBuffer {
 
   // For odom:
   Isometry3 odomPose = Isometry3::Identity();
+  double odomOmegaZ = 0.0;
 
   // For relpos:
   std::string targetRobotId;
@@ -83,15 +86,19 @@ static Isometry3 makeIsometryFromPosQuat(double px, double py, double pz,
   return T;
 }
 
-// Build a pure yaw rotation + simple translation from odom fields
-// odom format: time odom linear_fw linear_z yaw
-static Isometry3 makeIsometryFromOdom(double linear_fw, double linear_z,
-                                      double yaw) {
+// Python simulator.py logs: "t pose x y z yaw, vx, vy, vz, r" (yaw about +Z, planar motion).
+static Isometry3 makeIsometryFromPosYaw(double px, double py, double pz, double yaw) {
   Isometry3 T = Isometry3::Identity();
-  // Interpret linear_fw as x, linear_z as z in body frame for this step.
+  T.linear() = Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ()).toRotationMatrix();
+  T.translation() = Eigen::Vector3d(px, py, pz);
+  return T;
+}
+
+// Body-frame linear velocities only. Keep rotation = Identity: angular velocity (rad/s) is carried
+// separately on DataOdomEvent::omegaZ. Encoding ω as R_z(ω) would lose |ω| beyond 2π when decoded.
+static Isometry3 makeIsometryFromOdomVel(double linear_fw, double linear_z) {
+  Isometry3 T = Isometry3::Identity();
   T.translation() = Eigen::Vector3d(linear_fw, 0.0, linear_z);
-  Eigen::AngleAxisd yawRot(yaw, Eigen::Vector3d::UnitZ());
-  T.linear() = yawRot.toRotationMatrix();
   return T;
 }
 
@@ -170,13 +177,28 @@ bool DataBasedSimulation::readNextGT() {
     }
 
     double px, py, pz;
-    double qx, qy, qz, qw;
-    if (!(iss >> px >> py >> pz >> qx >> qy >> qz >> qw)) {
-      continue;  // malformed pose
+    if (!(iss >> px >> py >> pz)) {
+      continue;
+    }
+    std::vector<double> tail;
+    double v;
+    while (iss >> v) {
+      tail.push_back(v);
     }
 
     gtBuffer_.time = t;
-    gtBuffer_.pose = makeIsometryFromPosQuat(px, py, pz, qx, qy, qz, qw);
+    // Two formats:
+    // 1) Python simulator: "t pose x y z yaw vx vy vz r"  -> 5 numbers after xyz (yaw + velocities).
+    // 2) Legacy quaternion: "t pose x y z qx qy qz qw"    -> exactly 4 numbers after xyz.
+    if (tail.size() == 4) {
+      gtBuffer_.pose =
+          makeIsometryFromPosQuat(px, py, pz, tail[0], tail[1], tail[2], tail[3]);
+    } else if (tail.size() >= 5) {
+      const double yaw = tail[0];
+      gtBuffer_.pose = makeIsometryFromPosYaw(px, py, pz, yaw);
+    } else {
+      continue;
+    }
     gtBuffer_.valid = true;
     return true;
   }
@@ -203,23 +225,34 @@ bool DataBasedSimulation::readNextData() {
       // Initialization lines are handled in initialize(); skip if encountered later.
       continue;
     } else if (type == "odom") {
-      double linear_fw, linear_z, yaw;
-      if (!(iss >> linear_fw >> linear_z >> yaw)) {
+      // Odom log stores velocities (v_fwd, v_z, omega), not pose increments.
+      // Leave dt conversion to the SLAM system.
+      double vel_fw, vel_z, omega;
+      if (!(iss >> vel_fw >> vel_z >> omega)) {
         continue;
       }
 
       dataBuffer_.time = t;
       dataBuffer_.type = DataMsgType::Odom;
-      dataBuffer_.odomPose = makeIsometryFromOdom(linear_fw, linear_z, yaw);
+      dataBuffer_.odomPose = makeIsometryFromOdomVel(vel_fw, vel_z);
+      dataBuffer_.odomOmegaZ = omega;
 
-      // Optional: read appended 6x6 information (upper-triangle, 21 values)
+      // Optional: read appended uncertainty for odometry.
+      // New format (Python): 3 variances for (x, z, yaw) [var_x var_z var_yaw]
+      // Older format: 21 values for upper-triangle of 6x6 INFORMATION matrix.
       Eigen::Matrix<double, 6, 6> info = Eigen::Matrix<double, 6, 6>::Identity();
       std::vector<double> infoVals;
       double v;
       while (iss >> v) {
         infoVals.push_back(v);
       }
+
+      // Clamp information diagonal to satisfy isValidInformationMatrix limits.
+      const double maxDiag = 9.0e9;
+      const double eps = 1e-12;
+
       if (infoVals.size() >= 21) {
+        // Interpret as upper triangle of INFORMATION directly.
         size_t idx = 0;
         for (int r = 0; r < 6; ++r) {
           for (int c = r; c < 6; ++c) {
@@ -229,6 +262,27 @@ bool DataBasedSimulation::readNextData() {
             if (idx >= infoVals.size()) break;
           }
           if (idx >= infoVals.size()) break;
+        }
+      } else if (infoVals.size() >= 3) {
+        // Interpret first 3 values as velocity variances (v_fwd, v_z, omega).
+        // Conversion to displacement information is handled in the SLAM system using dt.
+        double var_x = infoVals[0];
+        double var_z = infoVals[1];
+        double var_yaw = infoVals[2];
+
+        var_x = std::max(var_x, eps);
+        var_z = std::max(var_z, eps);
+        var_yaw = std::max(var_yaw, eps);
+
+        info(0, 0) = 1.0 / var_x;
+        info(2, 2) = 1.0 / var_z;
+        info(5, 5) = 1.0 / var_yaw;
+      }
+
+      // Robustness: clamp extreme diagonal values to satisfy SLAM limits.
+      for (int i = 0; i < 6; ++i) {
+        if (std::isfinite(info(i, i)) && info(i, i) > maxDiag) {
+          info(i, i) = maxDiag;
         }
       }
       dataBuffer_.information = info;
@@ -322,10 +376,13 @@ void DataBasedSimulation::initialize() {
   // Defaults if no init line is found
   bool fixed = true;
   Isometry3 pose = Isometry3::Identity();
-  Eigen::Matrix<double, 6, 6> cov = Eigen::Matrix<double, 6, 6>::Identity();
+  // Convention: all logged matrices (relpos/odom/init) are upper-triangular entries
+  // of a 6x6 *information* matrix (not covariance). Keep it consistent.
+  Eigen::Matrix<double, 6, 6> info = Eigen::Matrix<double, 6, 6>::Identity();
+  bool foundInit = false;
 
   // Scan the data stream until we find an "init ..." line.
-  // Format (Python): "init {id} {x} {y} {z} qx qy qz qw {fixed} [upper triangle covariance]"
+  // Format (Python): "init {id} {x} {y} {z} qx qy qz qw {fixed} [upper triangle information]"
   // Note: no timestamp on init; we treat it as time=0.0 for the simulator.
   if (dataStream_.is_open()) {
     std::string line;
@@ -349,37 +406,46 @@ void DataBasedSimulation::initialize() {
       fixed = (fixedToken == "true" || fixedToken == "1" || fixedToken == "True");
       pose = makeIsometryFromPosQuat(x, y, z, qx, qy, qz, qw);
 
-      // Read remaining doubles as covariance upper triangle if present
-      std::vector<double> covVals;
+      // Read remaining doubles as information upper triangle if present
+      std::vector<double> infoVals;
       double v;
       while (iss >> v) {
-        covVals.push_back(v);
+        infoVals.push_back(v);
       }
-      if (covVals.size() >= 21) {
-        cov.setZero();
+      if (infoVals.size() >= 21) {
+        info.setZero();
         size_t idx = 0;
         for (int r = 0; r < 6; ++r) {
           for (int c = r; c < 6; ++c) {
-            cov(r, c) = covVals[idx];
-            cov(c, r) = covVals[idx];
+            info(r, c) = infoVals[idx];
+            info(c, r) = infoVals[idx];
             ++idx;
-            if (idx >= covVals.size()) break;
+            if (idx >= infoVals.size()) break;
           }
-          if (idx >= covVals.size()) break;
+          if (idx >= infoVals.size()) break;
         }
       }
 
+      foundInit = true;
       break;  // found init
     }
   }
 
-  // Convert covariance -> information (robustly). If fixed, info isn't used much, but still set.
-  Eigen::Matrix<double, 6, 6> info = Eigen::Matrix<double, 6, 6>::Identity();
-  if (cov.allFinite()) {
-    // Add tiny diagonal jitter to avoid singular matrices.
-    Eigen::Matrix<double, 6, 6> cov_reg = cov;
-    cov_reg.diagonal().array() += 1e-12;
-    info = cov_reg.inverse();
+  // If no init line was found (older logs), rewind the data stream so odom/relpos
+  // events are still available from the beginning.
+  if (!foundInit && dataStream_.is_open()) {
+    dataStream_.clear();
+    dataStream_.seekg(0);
+  }
+
+  // Optional robustness: tiny jitter and clamp extreme diagonal values
+  // to satisfy isValidInformationMatrix() limits in the SLAM system.
+  if (info.allFinite()) {
+    info.diagonal().array() += 1e-12;
+    const double maxDiag = 9.0e9;
+    for (int i = 0; i < 6; ++i) {
+      if (info(i, i) > maxDiag) info(i, i) = maxDiag;
+    }
   }
 
   // Update internal pose/time for history
@@ -427,7 +493,8 @@ void DataBasedSimulation::step(double dt) {
          dataBuffer_.time <= currentTime_) {
     if (dataBuffer_.type == DataMsgType::Odom) {
       auto evt = std::make_shared<DataOdomEvent>(
-          dataBuffer_.time, dataBuffer_.odomPose, dataBuffer_.information);
+          dataBuffer_.time, dataBuffer_.odomPose, dataBuffer_.odomOmegaZ,
+          dataBuffer_.information);
       eventQueue_.push(evt);
     } else if (dataBuffer_.type == DataMsgType::RelPos) {
       auto evt = std::make_shared<DataObsEvent>(

@@ -1,6 +1,8 @@
 {
   "camera_setting": {
     "look_at": [15, 15, 55, 15, 15, 15],
+    "camera_eye": [0, 0, 55],
+    "camera_target": [15, 15, 15],
     "projection_matrix": [800, 600, 500, 500, 400, 300, 0.1, 1000]
   },
   "visualise_sim_path": true, 

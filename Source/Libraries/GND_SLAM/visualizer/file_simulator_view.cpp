@@ -55,7 +55,7 @@ void FileSimulatorView::processEvents(EventPtrVector& events){
 
 
 void FileSimulatorView::renderScene() const{
-
+    renderRobotPose2D();
 }
 
 }}}
