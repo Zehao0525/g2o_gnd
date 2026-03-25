@@ -31,6 +31,7 @@ public:
    * @brief stop the SLAM system and finalize result accumulation
    */
   void stop();
+  void dumpPreOptTrajectories();
 
   /**
    * @brief trigger a request for data to line up observations
@@ -63,8 +64,7 @@ public:
    */
   void saveTrajectories(const std::string& output_dir, const std::string& format = "tum") const;
 
-protected:
-  /// Perform topology-based communication between drones.
+/// Perform topology-based communication between drones.
   /// Broadcast queries, aggregate queries per neighbor set, answer them locally,
   /// then deliver the responses back to connected drones.
   void performCommunication();
@@ -117,6 +117,8 @@ protected:
   int communicationPeriodSteps_ = 1;   // run every N steps when enabled
   int stepCount_ = 0;
 
+  std::string outputPath_ = "test_results/multidrone";
+  bool debugOutputs_ = false;
   bool verbose_;
 
 };

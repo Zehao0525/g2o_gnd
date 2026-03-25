@@ -1,5 +1,6 @@
 #include "agent_manager.h"
 
+#include <filesystem>
 #include <fstream>
 #include <sstream>
 #include <stdexcept>
@@ -45,6 +46,12 @@ AgentManager::AgentManager(const std::string& config_path,
       if (verbose_) {
         std::cout << "AgentManager: verbose = true" << std::endl;
       }
+    }
+    if (j.contains("output_path")) {
+      outputPath_ = j["output_path"].get<std::string>();
+    }
+    if (j.contains("debug_outputs")) {
+      debugOutputs_ = j["debug_outputs"].get<bool>();
     }
 
     // Communication config (defaults: enabled=true, frequency=0 -> every step)
@@ -102,6 +109,8 @@ AgentManager::AgentManager(const std::string& config_path,
 
     sims_.push_back(std::make_unique<DataBasedSimulation>(id, data_path, gt_path));
     slamSystems_.push_back(std::make_unique<MultiDroneSLAMSystem>(id, slam_config_path));
+    slamSystems_.back()->setPreOptTrajectoryDumpEnabled(debugOutputs_);
+    slamSystems_.back()->setPreOptTrajectoryOutputDir(outputPath_ + "/pre_opt_trajectories");
 
     if (verbose_) {
       std::cout << "AgentManager: created simulation and SlamSystem for robot " << id << std::endl;
@@ -159,6 +168,15 @@ void AgentManager::stop() {
   }
   if (verbose_) {
     std::cout << "AgentManager: stopped simulations and SlamSystems" << std::endl;
+  }
+}
+
+void AgentManager::dumpPreOptTrajectories() {
+  if (!debugOutputs_) {
+    return;
+  }
+  for (auto& slam : slamSystems_) {
+    slam->dumpPreOptTrajectory();
   }
 }
 
@@ -267,8 +285,16 @@ void AgentManager::getPoses(std::vector<std::vector<double>>& poses) {
 
 //NOTE: Worth taking another look
 void AgentManager::saveTrajectories(const std::string& output_dir, const std::string& format) const {
-  // Ensure output directory ends with /
-  std::string dir = output_dir;
+  std::filesystem::path dir_path(output_dir);
+  std::error_code mkdir_ec;
+  std::filesystem::create_directories(dir_path, mkdir_ec);
+  if (mkdir_ec) {
+    throw std::runtime_error(
+        "Cannot create trajectory output directory '" + output_dir + "': " + mkdir_ec.message());
+  }
+
+  // Ensure output directory string ends with / for concatenation below
+  std::string dir = dir_path.string();
   if (!dir.empty() && dir.back() != '/') {
     dir += "/";
   }

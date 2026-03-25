@@ -68,7 +68,7 @@ void ViewManager3D::initialize3DConfig(const std::string& filename) {
 
     cameraUp_ = cs.value("camera_up", std::vector<double>{0.0, 0.0, 1.0});
 
-    finalRenderPauseSec_ = cs.value("final_render_pause_sec", 0.0);
+    finalRenderPauseSec_ = j.value("final_render_pause_sec", 0.0);
     finalPauseRequested_ = false;
 }
 

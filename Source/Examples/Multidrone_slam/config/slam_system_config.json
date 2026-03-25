@@ -6,8 +6,8 @@
   "optimization_algorithm": "LevenbergMarquardt",
 
   "optimize_count":{
-    "process":5,
-    "stop": 10,
-    "stop_fixed": 10
+    "process":10,
+    "stop": 60,
+    "stop_fixed": 60
   }
 }

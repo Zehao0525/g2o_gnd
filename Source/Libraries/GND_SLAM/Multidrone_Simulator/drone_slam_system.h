@@ -148,6 +148,8 @@ public:
    * @param filename Output file path
    */
   void saveTrajectoryTUM(const std::string& filename) const;
+  void setPreOptTrajectoryOutputDir(const std::string& output_dir);
+  void setPreOptTrajectoryDumpEnabled(bool enabled);
 
   
   /**
@@ -173,6 +175,8 @@ public:
 
 
   DSMessage handleObservationSyncRequest(DSMessage& msg);
+
+  void dumpPreOptTrajectory();
 
 
 protected:
@@ -235,9 +239,9 @@ protected:
   // (Transform to bot_i's frame) * (pose in bot_i's frame) == (Transform to observation source) * (noiseless observation measurement)
   std::map<std::string, VertexSE3*> relativeTransforms_;
   
-  // Mapping from string robot IDs to consecutive integers starting from 0
-  std::map<std::string, int> robotIdToIntMap_;
-  int nextRobotIdInt_ = 0;
+  // For g2o we still need integer vertex ids; we assign them sequentially
+  // per SLAM system when new relative-transform vertices are created.
+  int nextRelativeTransformVtxId_ = 0;
 
   int obsCount_ = 0;
   bool graphChanged_;
@@ -246,6 +250,12 @@ protected:
   // using timestamp differences.
   bool hasLastOdomTime_ = false;
   double lastOdomTime_ = 0.0;
+  std::string preOptTrajectoryOutputDir_;
+  bool preOptTrajectoryDumpEnabled_ = false;
+
+  // Throttle debug constraint-check prints (to avoid terminal spam).
+  int se3PriorDiagPrinted_ = 0;
+  static constexpr int kSe3PriorDiagPrintMax = 8;
 };
 
 }

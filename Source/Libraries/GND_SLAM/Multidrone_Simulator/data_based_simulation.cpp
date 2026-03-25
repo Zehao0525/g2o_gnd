@@ -313,16 +313,27 @@ bool DataBasedSimulation::readNextData() {
         covVals.push_back(v);
       }
       if (covVals.size() >= 21) {
-        // fill symmetric 6x6 from upper triangle
-        size_t idx = 0;
-        for (int r = 0; r < 6; ++r) {
-          for (int c = r; c < 6; ++c) {
-            info(r, c) = covVals[idx];
-            info(c, r) = covVals[idx];
-            ++idx;
-            if (idx >= covVals.size()) break;
+        // Fast path: diagonal-only.
+        // IMPORTANT: Python's relpos sensor logs `error_std` values directly into
+        // the 21 "matrix" entries (and uses them as std dev when generating noise).
+        // Therefore those diagonal entries are STD, not VAR/COV.
+        // Convert to information as: info = 1/var = 1/(std^2).
+        //
+        // Upper-triangle indexing for diagonal entries in a 6x6 matrix:
+        // (0,0)->0, (1,1)->6, (2,2)->11, (3,3)->15, (4,4)->18, (5,5)->20
+        static constexpr size_t kDiagIdx[6] = {0, 6, 11, 15, 18, 20};
+        info.setZero();
+        const double eps = 1e-12;
+        const double maxDiag = 9.0e9;
+        for (int i = 0; i < 6; ++i) {
+          const double std_ii = covVals[kDiagIdx[i]];
+          double info_ii = 1.0;
+          if (std::isfinite(std_ii) && std_ii > eps) {
+            const double var_ii = std_ii * std_ii;
+            info_ii = 1.0 / var_ii;
           }
-          if (idx >= covVals.size()) break;
+          if (info_ii > maxDiag) info_ii = maxDiag;
+          info(i, i) = info_ii;
         }
       }
       dataBuffer_.information = info;

@@ -21,13 +21,13 @@
                 "bot_observer": {
                     "type": "relative_pose",
                     "active": true,
-                    "frequency": 0.1,
+                    "frequency": 2,
                     "range": [
                         [0, 100],
                         [-180, 180],
                         [-180, 180]
                     ],
-                    "error_std": [0.4, 0.4, 0.4, 5]
+                    "error_std": [0.004, 0.004, 0.004, 0.05]
                 },
                 "gps": {
                     "type": "gps",
@@ -49,8 +49,8 @@
                 "max_lin_acc": 2,
                 "max_rot_vel": 90,
                 "max_rot_acc": 45,
-                "odom_noise_on": true,
-                "odom_error_std": [0.1, 0.02, 0.0872663888888889]
+                "odom_noise_on": false,
+                "odom_error_std": [0.0001, 2e-05, 8.726638888888888e-05]
             },
             "initialization": {
                 "default_init": false,
@@ -80,13 +80,13 @@
                 "bot_observer": {
                     "type": "relative_pose",
                     "active": true,
-                    "frequency": 0.1,
+                    "frequency": 2,
                     "range": [
                         [0, 100],
                         [-180, 180],
                         [-180, 180]
                     ],
-                    "error_std": [0.4, 0.4, 0.4, 5]
+                    "error_std": [0.004, 0.004, 0.004, 0.05]
                 },
                 "gps": {
                     "type": "gps",
@@ -108,8 +108,8 @@
                 "max_lin_acc": 2,
                 "max_rot_vel": 90,
                 "max_rot_acc": 45,
-                "odom_noise_on": true,
-                "odom_error_std": [0.1, 0.02, 0.0872663888888889]
+                "odom_noise_on": false,
+                "odom_error_std": [0.0001, 2e-05, 8.726638888888888e-05]
             },
             "initialization": {
                 "default_init": false,
@@ -140,13 +140,13 @@
                 "bot_observer": {
                     "type": "relative_pose",
                     "active": true,
-                    "frequency": 0.1,
+                    "frequency": 2,
                     "range": [
                         [0, 100],
                         [-180, 180],
                         [-180, 180]
                     ],
-                    "error_std": [0.4, 0.4, 0.4, 5]
+                    "error_std": [0.004, 0.004, 0.004, 0.05]
                 },
                 "gps": {
                     "type": "gps",
@@ -168,8 +168,8 @@
                 "max_lin_acc": 2,
                 "max_rot_vel": 90,
                 "max_rot_acc": 45,
-                "odom_noise_on": true,
-                "odom_error_std": [0.1, 0.02, 0.0872663888888889]
+                "odom_noise_on": false,
+                "odom_error_std": [0.0001, 2e-05, 8.726638888888888e-05]
             },
             "initialization": {
                 "default_init": false,
@@ -200,13 +200,13 @@
                 "bot_observer": {
                     "type": "relative_pose",
                     "active": true,
-                    "frequency": 0.1,
+                    "frequency": 2,
                     "range": [
                         [0, 100],
                         [-180, 180],
                         [-180, 180]
                     ],
-                    "error_std": [0.4, 0.4, 0.4, 5]
+                    "error_std": [0.004, 0.004, 0.004, 0.05]
                 },
                 "gps": {
                     "type": "gps",
@@ -228,8 +228,8 @@
                 "max_lin_acc": 2,
                 "max_rot_vel": 90,
                 "max_rot_acc": 45,
-                "odom_noise_on": true,
-                "odom_error_std": [0.1, 0.02, 0.0872663888888889]
+                "odom_noise_on": false,
+                "odom_error_std": [0.0001, 2e-05, 8.726638888888888e-05]
             },
             "initialization": {
                 "default_init": false,
@@ -259,13 +259,13 @@
                 "bot_observer": {
                     "type": "relative_pose",
                     "active": true,
-                    "frequency": 0.1,
+                    "frequency": 2,
                     "range": [
                         [0, 100],
                         [-180, 180],
                         [-180, 180]
                     ],
-                    "error_std": [0.4, 0.4, 0.4, 5]
+                    "error_std": [0.004, 0.004, 0.004, 0.05]
                 },
                 "gps": {
                     "type": "gps",
@@ -288,7 +288,7 @@
                 "max_rot_vel": 90,
                 "max_rot_acc": 45,
                 "odom_noise_on": true,
-                "odom_error_std": [0.1, 0.02, 0.0872663888888889]
+                "odom_error_std": [0.1, 2e-02, 8.726638888888888e-02]
             },
             "initialization": {
                 "default_init": false,

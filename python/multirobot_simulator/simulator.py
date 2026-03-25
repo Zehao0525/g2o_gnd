@@ -461,6 +461,17 @@ class DroneSim:
         )
         self.message_writer.write_line(init_line)
 
+        # Log initial GT pose at t=0.0 so GT and SLAM trajectories start aligned.
+        # GT line format matches what the SLAM side expects in DataBasedSimulation::readNextGT():
+        #   t pose x y z yaw, vx, vy, vz, r
+        x0, y0, z0, yaw0_log = float(self.s[0]), float(self.s[1]), float(self.s[2]), float(self.s[3])
+        vx0, vy0, vz0, r0 = float(self.s[4]), float(self.s[5]), float(self.s[6]), float(self.s[7])
+        gt_line0 = (
+            f"{self.timer} pose {x0} {y0} {z0} {yaw0_log}, "
+            f"{vx0}, {vy0}, {vz0}, {r0}\n"
+        )
+        self.gt_writer.write_line(gt_line0)
+
         if not world_sim is None:
             self.sensor_manager = SensorSimManager(world_sim, self.drone_id, bot_cfg, self.message_writer)
         else:

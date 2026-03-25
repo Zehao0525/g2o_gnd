@@ -30,6 +30,7 @@
 #include <vector>
 #include <fstream>
 #include <iomanip>
+#include <filesystem>
 
 #include <nlohmann/json.hpp>
 #include <Eigen/Geometry>
@@ -76,8 +77,9 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
 
   void MultiDroneSLAMSystem::stop(){
     if(verbose_){std::cout << "Bot " << robotId_ << " stop start\n";}
+    
     optimize(optCountStop_);
-
+    gndActive_ = true;
     //if (fixOlderPlatformVertices_ == true){
     // TODO We are doing id = 0 for now.
     for (const auto& vertex : optimizer_->vertices()) {
@@ -85,13 +87,69 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
     }
     optimize(optCountStopFix_);
 
-    for (size_t i = 0; i < observations_.size(); ++i) {
-      const auto& obs = observations_[i];
-      std::cout << "Observation[" << i << "] (observationId " << obs.observationId
-                << ") initialized? " << (obs.initialized ? "Yes" : "No") << std::endl;
+    // Debug: dump relative-transform vertices (should be near identity if everything is consistent).
+    if (preOptTrajectoryDumpEnabled_) {
+      std::cout << "\n[Bot " << robotId_ << "] relativeTransforms_ dump @ stop()\n";
+      if (relativeTransforms_.empty()) {
+        std::cout << "  (none)\n";
+      } else {
+        for (const auto& kv : relativeTransforms_) {
+          const std::string& observedRobotKey = kv.first;
+          const VertexSE3* v = kv.second;
+          if (!v) continue;
+          const Isometry3d T = v->estimate();
+          const Eigen::Vector3d t = T.translation();
+          const double rotAngle = Eigen::AngleAxisd(T.rotation()).angle();
+          std::cout << "  observedRobotId=" << observedRobotKey
+                    << " | t=(" << t.transpose() << ")"
+                    << " | rotAngle(rad)=" << rotAngle << "\n";
+        }
+      }
+      std::cout << std::endl;
+    }
+
+    if (preOptTrajectoryDumpEnabled_) {
+      size_t initializedCount = 0;
+      for (const auto& obs : observations_) {
+        initializedCount += obs.initialized ? 1 : 0;
+      }
+      std::cout << "  observations_: " << observations_.size()
+                << " | initialized=" << initializedCount << std::endl;
+
+      // Optionally print a small prefix to spot issues without spamming.
+      const size_t maxPrint = 8;
+      for (size_t i = 0; i < observations_.size() && i < maxPrint; ++i) {
+        const auto& obs = observations_[i];
+        std::cout << "  Observation[" << i << "] (obsId " << obs.observationId
+                  << ") initialized=" << (obs.initialized ? "Yes" : "No") << std::endl;
+      }
     }
 
       // std::cout << "Number of intra: " << intraRobotCount_ << std::endl;  // Commented out - variable not defined
+  }
+
+  void MultiDroneSLAMSystem::setPreOptTrajectoryOutputDir(const std::string& output_dir) {
+    preOptTrajectoryOutputDir_ = output_dir;
+  }
+
+  void MultiDroneSLAMSystem::setPreOptTrajectoryDumpEnabled(bool enabled) {
+    preOptTrajectoryDumpEnabled_ = enabled;
+  }
+
+  void MultiDroneSLAMSystem::dumpPreOptTrajectory() {
+    if (preOptTrajectoryDumpEnabled_ && !preOptTrajectoryOutputDir_.empty()) {
+      std::filesystem::path out_dir(preOptTrajectoryOutputDir_);
+      std::error_code mkdir_ec;
+      std::filesystem::create_directories(out_dir, mkdir_ec);
+      if (mkdir_ec) {
+        throw std::runtime_error(
+            "Cannot create pre-opt trajectory directory '" + preOptTrajectoryOutputDir_ +
+            "': " + mkdir_ec.message());
+      }
+      const std::string filename =
+          (out_dir / ("trajectory_" + robotId_ + ".txt")).string();
+      saveTrajectoryTUM(filename);
+    }
   }
 
   void MultiDroneSLAMSystem::processEvent(Event& event){
@@ -270,20 +328,23 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
     // place the id into the vertex id map
 
     // We add a vertex representing the pose frame transform between this robot and other bots. 
-    if (relativeTransforms_.find(event.robotIdTo) == relativeTransforms_.end()) {
-      // Assign a consecutive integer to this robot ID if not already assigned
-      if (robotIdToIntMap_.find(event.robotIdTo) == robotIdToIntMap_.end()) {
-        robotIdToIntMap_[event.robotIdTo] = nextRobotIdInt_;
-        nextRobotIdInt_++;
-      }
-      int robotIdInt = robotIdToIntMap_[event.robotIdTo];
-      
+    // Create (or fetch) a single relative-transform vertex per observed robot id.
+    const std::string& observedRobotKey = event.robotIdTo;
+    if (relativeTransforms_.find(observedRobotKey) == relativeTransforms_.end()) {
       VertexSE3* v = new VertexSE3();
-      // We assume that there's no more than 20000 vertices in the map
-      // TODO Change
-      v->setId(200000 + robotIdInt);
+      v->setId(200000 + nextRelativeTransformVtxId_);
       v->setEstimate(Isometry3d::Identity());
-      relativeTransforms_[event.robotIdTo] = v;
+
+      // Debug isolation: optionally fix relative transforms to identity so the
+      // optimizer cannot "explain away" comm errors by moving these vertices.
+      // This is gated by `preOptTrajectoryDumpEnabled_` (i.e., `debug_outputs`).
+      // Note: This is not a good idea for production systems.
+      if (preOptTrajectoryDumpEnabled_) {
+        v->setFixed(true);
+      }
+
+      relativeTransforms_[observedRobotKey] = v;
+      ++nextRelativeTransformVtxId_;
       optimizer_->addVertex(v);
     }
 
@@ -310,9 +371,9 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
       optimizer_->addParameter(offset);
     }
     observationPrior = new EdgeSE3;
-    observationPrior->setVertex(0,relativeTransforms_[event.robotIdTo]);
+    observationPrior->setVertex(0, relativeTransforms_[event.robotIdTo]);
     observationPrior->setVertex(1,observedVtx);
-    observationPrior->setMeasurement(v0->estimate() * event.value);
+    observationPrior->setMeasurement(event.value);
     observationPrior->setInformation(Eigen::Matrix<double,6,6>::Identity());
     auto rk = new g2o::ToggelableGNDKernel(2.0, 6, 1e-3, 2.0*2.0, &gndActive_);
     observationPrior->setRobustKernel(rk);
@@ -505,6 +566,7 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
       // // WARNING: This does not check information validity. It assumes the information is valid.
       priorEdge->setMeasurement(pe.pose);
       priorEdge->setInformation(pe.information / 4);
+      graphChanged_ = true;
     }
 
     if(verbose_){std::cout << "step 2 Start\n";}
@@ -518,7 +580,14 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
           auto wasUpdated = std::any_of(
             message.poseEntries.begin(), message.poseEntries.end(),
             [&](auto const& req) {
-              return req.observationId == i;
+              // Important: `observationId` is local to *this* robot.
+              // The response may contain entries coming from multiple robots,
+              // so we must also match the query origin (`sourceId`) and the subject (`subjectId`).
+              // Otherwise different robots can collide on the same numeric `observationId`,
+              // causing us to add the wrong edges with stale/incorrect priors.
+              return req.observationId == static_cast<int>(i) &&
+                     req.sourceId == robotId_ &&
+                     req.subjectId == observations_[i].observedRobotId;
             }
           );
           if (wasUpdated) {
@@ -541,11 +610,35 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
             // assert(optimizer_->vertex(obs.observationEdge->vertices()[1]->id()) != nullptr);
             // assert(optimizer_->vertex(obs.observationPriorEdge->vertices()[0]->id()) != nullptr);
 
+            // EdgeSE3 constraint uses: from^{-1} * to = Z(measurement).
+            // Here, `prior` connects:
+            //   prior->vertices()[0] = relativeTransforms_* vertex (from)
+            //   prior->vertices()[1] = observedVtx (to)
+            // We check how far (from^{-1}*to) is from measurement Z.
+            // if (verbose_) {
+            //   const Isometry3 Tfrom = prior->vertices()[0]->estimate();
+            //   const Isometry3 Tto = prior->vertices()[1]->estimate();
+            //   const Isometry3 Z = prior->measurement();
+            //   const Isometry3 T_expected = Tfrom.inverse() * Tto;
+            //   const Eigen::Vector3d dTrans = T_expected.translation() - Z.translation();
+            //   const Eigen::Matrix3d Rerr = Z.rotation().transpose() * T_expected.rotation();
+            //   const double dRotRad = Eigen::AngleAxisd(Rerr).angle();
+            //   if (i < 3) {
+            //     std::cout << "[obsPrior SE3 check bot " << robotId_
+            //               << " obsIdx=" << i
+            //               << "] |dTrans|=" << dTrans.norm()
+            //               << " dRot(rad)=" << dRotRad << std::endl;
+            //   }
+            // }
+
             //bool ok2 = false;
             bool ok2 = optimizer_->addEdge(observations_[i].observationPriorEdge);
             bool ok3 = optimizer_->addEdge(observations_[i].observationEdge);
-            std::cout << "AddVertex, AddPrior, AddObservation " << ok << " " << ok2 << " " << ok3 << std::endl;
-            std::cout << "obs.observationVertex->id(): " << observations_[i].observationVertex->id() << std::endl;
+            if (preOptTrajectoryDumpEnabled_ && se3PriorDiagPrinted_ < kSe3PriorDiagPrintMax) {
+              std::cout << "AddVertex, AddPrior, AddObservation " << ok << " " << ok2 << " " << ok3 << std::endl;
+              std::cout << "obs.observationVertex->id(): " << observations_[i].observationVertex->id() << std::endl;
+              ++se3PriorDiagPrinted_;
+            }
             observations_[i].initialized = true;
           } else {
             // still have at least one uninitialized left

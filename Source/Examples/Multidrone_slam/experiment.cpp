@@ -29,6 +29,7 @@ int main(int argc, char* argv[]) {
 
     std::string slam_config_path;
     std::string input_path;
+    std::string output_path = "test_results/multidrone";
     std::string topology_path = "Source/Examples/Multidrone_slam/config/topology.json";
 
     // Read in base config data
@@ -64,6 +65,9 @@ int main(int argc, char* argv[]) {
     if (j.contains("topology_path")) {
       topology_path = j["topology_path"].get<std::string>();
     }
+    if (j.contains("output_path")) {
+      output_path = j["output_path"].get<std::string>();
+    }
 
     // Extract verbose
     bool verbose = false;
@@ -78,6 +82,7 @@ int main(int argc, char* argv[]) {
     std::cout << "  Config path: " << config_path << std::endl;
     std::cout << "  SLAM config path: " << slam_config_path << std::endl;
     std::cout << "  Input path: " << input_path << std::endl;
+    std::cout << "  Output path: " << output_path << std::endl;
     std::cout << "  Topology path: " << topology_path << std::endl;
 
     // Create AgentManager
@@ -220,13 +225,24 @@ int main(int argc, char* argv[]) {
       std::cout << "  Maximum steps (" << max_steps << ") reached, stopping..." << std::endl;
     }
 
+    // Optional debug dump right before stop-time optimization.
+    manager.dumpPreOptTrajectories();
+
     // Stop the simulation and finalize
     std::cout << "Stopping simulation..." << std::endl;
+    manager.performCommunication();
+    //manager.performCommunication();
     manager.stop();
+    for (auto& view : slamViews) {
+      view->update();
+    }
+    for (auto& view : gtViews) {
+      view->update();
+    }
 
     // Save trajectories
     std::cout << "Saving trajectories..." << std::endl;
-    std::string trajectory_output_dir = "test_results/multidrone/trajectories";
+    std::string trajectory_output_dir = output_path + "/trajectories";
     manager.saveTrajectories(trajectory_output_dir, "tum");
 
     // Stop visualization

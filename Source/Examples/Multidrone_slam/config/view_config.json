@@ -8,6 +8,6 @@
   "visualise_sim_path": true, 
   "visualise_slam_path": true, 
   "visualise_pose": true,
-  "step_pause": 0.1,
-  "final_render_pause_sec": 100.0
+  "step_pause": 0.00001,
+  "final_render_pause_sec": 0.0
 }

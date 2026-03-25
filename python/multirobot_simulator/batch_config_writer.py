@@ -19,9 +19,9 @@ bot_data = {
         "bot_observer": {
             "type" : "relative_pose",
             "active" : True,
-            "frequency" : 0.1,
+            "frequency" : 2,
             "range" : [[0,100],[-180,180], [-180,180]],
-            "error_std" : [0.4, 0.4, 0.4, 5]
+            "error_std" : [0.004, 0.004, 0.004, 0.05]
         }, 
         "gps":  {
             "type" : "gps",
