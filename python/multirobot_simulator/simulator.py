@@ -1,4 +1,11 @@
-from controller import *
+try:
+    # Preferred when running as module:
+    #   python -m multirobot_simulator.simulator
+    from multirobot_simulator.controller import *
+except ModuleNotFoundError:
+    # Fallback when running as a file:
+    #   python python/multirobot_simulator/simulator.py
+    from controller import *
 
 import numpy as np
 import matplotlib.pyplot as plt

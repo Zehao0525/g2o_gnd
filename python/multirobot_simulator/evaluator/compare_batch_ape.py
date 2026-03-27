@@ -14,7 +14,15 @@ from typing import Iterable, List, Tuple
 
 import numpy as np
 
-from plot_trajectory_comparison import compute_ape, read_gt_trajectory, read_tum_trajectory
+try:
+    from multirobot_simulator.evaluator.plot_trajectory_comparison import (
+        compute_ape,
+        read_gt_trajectory,
+        read_tum_trajectory,
+    )
+except ModuleNotFoundError:
+    # Allow direct execution: python .../evaluator/compare_batch_ape.py
+    from plot_trajectory_comparison import compute_ape, read_gt_trajectory, read_tum_trajectory
 
 try:
     from scipy import stats as scipy_stats

@@ -16,8 +16,13 @@ import json
 import os
 from pathlib import Path
 
-from simulator import WorldSim
-from trajectory_generator import trajectory_generation
+try:
+    from multirobot_simulator.simulator import WorldSim
+    from multirobot_simulator.trajectory_generator import trajectory_generation
+except ModuleNotFoundError:
+    # Allow direct execution: python .../generate_batch_multidrone_data.py
+    from simulator import WorldSim
+    from trajectory_generator import trajectory_generation
 
 DEFAULT_CONFIG_PATH = "python/multirobot_simulator/config/sim_config.json"
 DEFAULT_BATCH_ROOT = "test_data/multidrone/batch_f1"

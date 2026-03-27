@@ -1,5 +1,14 @@
-from controller import *
-from simulator import *
+try:
+    from multirobot_simulator.controller import *
+    from multirobot_simulator.simulator import *
+except ModuleNotFoundError:
+    import sys
+    from pathlib import Path
+
+    # Allow direct execution: python .../visualizer/controller_viser.py
+    sys.path.append(str(Path(__file__).resolve().parents[1]))
+    from controller import *
+    from simulator import *
 
 import matplotlib
 matplotlib.use("TkAgg")

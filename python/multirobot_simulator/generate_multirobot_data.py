@@ -6,9 +6,15 @@
 
 import os
 
-from controller import *
-from trajectory_generator import *
-from simulator import *
+try:
+    from multirobot_simulator.controller import *
+    from multirobot_simulator.trajectory_generator import *
+    from multirobot_simulator.simulator import *
+except ModuleNotFoundError:
+    # Allow direct execution: python .../generate_multirobot_data.py
+    from controller import *
+    from trajectory_generator import *
+    from simulator import *
 
 config_path = "python/multirobot_simulator/config/sim_config.json"
 traj_path = "python/multirobot_simulator/config/trajectories.json"
