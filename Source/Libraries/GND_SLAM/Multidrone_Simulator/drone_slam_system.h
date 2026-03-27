@@ -151,6 +151,15 @@ public:
   void setPreOptTrajectoryOutputDir(const std::string& output_dir);
   void setPreOptTrajectoryDumpEnabled(bool enabled);
 
+  /// Next run index for `./pre_opt_trajectories/<idx>/` (shared across all bots in one AgentManager).
+  static void resetPreOptTrajectoryBatchCounter();
+  static int takeNextPreOptTrajectoryBatchIndex();
+
+  /**
+   * @brief Write this robot's current trajectory under `run_directory` (must exist or be creatable).
+   */
+  void dumpPreOptTrajectory(const std::string& run_directory);
+
   
   /**
    * @brief Initialize and start the SLAM system.
@@ -175,9 +184,6 @@ public:
 
 
   DSMessage handleObservationSyncRequest(DSMessage& msg);
-
-  void dumpPreOptTrajectory();
-
 
 protected:
   /**
@@ -220,6 +226,15 @@ public:
   bool gndActive_;
 
 protected:
+  /// Loaded from `slam_system_config.json` key `"gndActive_"` (default true).
+  /// If false, `gndActive_` is never forced true in `stop()` and kernels stay off after the first opt retarget.
+  bool gndActiveConfig_ = true;
+
+  // After a prior edge has been optimized once, switch its GND kernel
+  // bool pointer from `gndActiveAlwaysFalse_` to this system's `gndActive_`.
+  void onAfterOptimize() override;
+  bool gndActiveAlwaysFalse_ = false;
+  std::vector<EdgeSE3*> pendingGndPriorEdges_;
 
   // This mapping maps the vertex of the platform to platform vertices
   // This also maps the observed vertex to its location in "observations_"
@@ -252,6 +267,7 @@ protected:
   double lastOdomTime_ = 0.0;
   std::string preOptTrajectoryOutputDir_;
   bool preOptTrajectoryDumpEnabled_ = false;
+  static int preOptTrajectoryBatchCounter_;
 
   // Throttle debug constraint-check prints (to avoid terminal spam).
   int se3PriorDiagPrinted_ = 0;

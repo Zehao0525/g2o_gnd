@@ -7,7 +7,7 @@ from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 - activates 3D projection
 
 import os, json, copy
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional, List, Dict
 
 
 DT = 0.5
@@ -66,7 +66,8 @@ class WorldSim:
         trajectory_path: str = None,
         log_path: str = None,
         N_DRONES: int = None,
-        yaw0 = 0
+        yaw0 = 0,
+        verbose = False
     ):
         # TODO get rid of yaw0
         """
@@ -94,10 +95,10 @@ class WorldSim:
         dids = list(bots.keys())
 
         if N_DRONES is None:
-            print("Creating simulation for ", len(dids), " Drones")
+            if verbose: print("Creating simulation for ", len(dids), " Drones")
             N_DRONES = len(dids)
         elif N_DRONES > len(dids):
-            print("N_DRONES too large, setting to len(dids) = ", len(dids))
+            if verbose:print("N_DRONES too large, setting to len(dids) = ", len(dids))
             N_DRONES = len(dids)
 
         for i in range(N_DRONES):
@@ -217,13 +218,22 @@ def yaw_to_quat_xyzw(yaw: float) -> np.ndarray:
 # Holds all the sensor simulators
 # Calls them in sequence
 class SensorSimManager:
-    def __init__(self, world_sim, drone_id:str, config:dict, writer:LineWriter):
+    def __init__(
+        self,
+        world_sim,
+        drone_id: str,
+        config: dict,
+        writer: LineWriter,
+        landmarks: Dict[str, np.ndarray] | None = None,
+    ):
         self.drone_id = drone_id
         self.config = config
         self.world_sim = world_sim
         self.gps_sensor = None
         self.rel_pose_sensor = None
+        self.lm_rel_pos_sensor = None
         self.writer = writer
+        self.landmarks = landmarks if landmarks is not None else {}
 
         sensors_cfg = config["sensors"]
 
@@ -257,6 +267,21 @@ class SensorSimManager:
                 range_dependent_error=False  # could come from cfg if you add it
             )
 
+        # --- Landmark relative-position observer ---
+        lm_obs_cfg = sensors_cfg.get("lm_observer")
+        if lm_obs_cfg and lm_obs_cfg.get("active", False):
+            max_range = lm_obs_cfg["range"][0][1]  # [0, R] -> take R
+            # For landmark relative-position sensor we use [sx, sy, sz].
+            lm_err_std = np.array(lm_obs_cfg.get("error_std", [0.0, 0.0, 0.0])[:3], dtype=float)
+            self.lm_rel_pos_sensor = LandmarkRelPosSensor(
+                drone_id=drone_id,
+                frequency=float(lm_obs_cfg["frequency"]),
+                error_std=lm_err_std,
+                sensor_range=float(max_range),
+                landmarks=self.landmarks,
+                range_dependent_error=False,
+            )
+
     def close(self):
         self.writer = None
         self.world_sim = None
@@ -279,6 +304,12 @@ class SensorSimManager:
             if rel_msg:
                 #print("write write")
                 self.writer.write_line(rel_msg)
+
+        # Landmark relative position
+        if self.lm_rel_pos_sensor:
+            lm_msg = self.lm_rel_pos_sensor.step(dt, positions)
+            if lm_msg:
+                self.writer.write_line(lm_msg)
 
 
 # When activated, queries world sim for location of host
@@ -315,7 +346,6 @@ class GPSSensor:
 class RelPosSensor:
     def __init__(self, drone_id:str, frequency:float, error_std:np.ndarray, sensor_range:float, range_dependent_error = False):
         self.period = 1/frequency
-        print(self.period)
         self.drone_id = drone_id
         # This is 4 elements
         self.error_std = error_std
@@ -359,6 +389,71 @@ class RelPosSensor:
         quat_val =yaw_to_quat_xyzw(io_vals[3])
         # TODO So far we are just uing 1.0 for error etd for ro and pitch. Drone never turn in these directions so these numbers should be just fine
         return f"""{self.timer} relpos {did} {io_vals[0]} {io_vals[1]} {io_vals[2]} {quat_val[0]} {quat_val[1]} {quat_val[2]} {quat_val[3]} {e[0]} 0.0 0.0 0.0 0.0 0.0 {e[1]} 0.0 0.0 0.0 0.0 {e[2]} 0.0 0.0 0.0 1.0 0.0 0.0 1.0 0.0 {e[3]}\n"""
+
+
+class LandmarkRelPosSensor:
+    """
+    Landmark relative-position observer.
+    Emits message type:
+      t lmobs_rp landmark_id rel_x rel_y rel_z std_x std_y std_z
+    where relative position is in observer body frame (yaw-only rotation).
+    """
+
+    def __init__(
+        self,
+        drone_id: str,
+        frequency: float,
+        error_std: np.ndarray,
+        sensor_range: float,
+        landmarks: Dict[str, np.ndarray],
+        range_dependent_error: bool = False,
+    ):
+        self.period = 1 / frequency
+        self.drone_id = drone_id
+        self.error_std = np.asarray(error_std, dtype=float).reshape(3)
+        self.range_dependent_error = range_dependent_error
+        self.sensor_range = sensor_range
+        self.sensor_range_sqr = sensor_range ** 2
+        self.landmarks = landmarks
+        self.timer = 0.0
+        self.last_io = 0.0
+
+    def step(self, dt, positions):
+        io = None
+        self.timer += dt
+        if self.timer > self.period + self.last_io:
+            io = ""
+            sx, sy, sz, syaw, _, _, _, _ = positions[self.drone_id]
+            for lm_id, lm_pos in self.landmarks.items():
+                wc_rel_pos = np.asarray(lm_pos, dtype=float) - np.array([sx, sy, sz], dtype=float)
+                dist_sqr = float(np.sum(wc_rel_pos ** 2))
+                if dist_sqr > self.sensor_range_sqr:
+                    continue
+                dist = np.sqrt(dist_sqr)
+                rel_pos = np.array(
+                    [
+                        wc_rel_pos[0] * np.cos(-syaw) - wc_rel_pos[1] * np.sin(-syaw),
+                        wc_rel_pos[0] * np.sin(-syaw) + wc_rel_pos[1] * np.cos(-syaw),
+                        wc_rel_pos[2],
+                    ],
+                    dtype=float,
+                )
+                terr = self.error_std.copy()
+                if self.range_dependent_error:
+                    terr *= 2 * dist / self.sensor_range
+                noisy_reading = rel_pos + terr * np.random.standard_normal(3)
+                io = io + self.generate_io(lm_id, noisy_reading, terr)
+            self.last_io += self.period
+        return io
+
+    def generate_io(self, lm_id: str, io_vals: np.ndarray, e: np.ndarray):
+        if io_vals is None:
+            return None
+        return (
+            f"{self.timer} lmobs_rp {lm_id} "
+            f"{io_vals[0]} {io_vals[1]} {io_vals[2]} "
+            f"{e[0]} {e[1]} {e[2]}\n"
+        )
 
 
 
@@ -472,8 +567,37 @@ class DroneSim:
         )
         self.gt_writer.write_line(gt_line0)
 
+        # Landmarks can be provided inline as config["landmarks"] = {id: [x,y,z], ...}
+        # or as a json file via config["landmark_path"].
+        landmarks: Dict[str, np.ndarray] = {}
+        if isinstance(config.get("landmarks"), dict):
+            for lm_id, xyz in config["landmarks"].items():
+                try:
+                    arr = np.asarray(xyz, dtype=float).reshape(3)
+                    landmarks[str(lm_id)] = arr
+                except Exception:
+                    continue
+        elif "landmark_path" in config:
+            lm_path = Path(str(config["landmark_path"]))
+            if lm_path.exists():
+                with lm_path.open("r", encoding="utf-8") as lf:
+                    lm_cfg = json.load(lf)
+                if isinstance(lm_cfg, dict):
+                    for lm_id, xyz in lm_cfg.items():
+                        try:
+                            arr = np.asarray(xyz, dtype=float).reshape(3)
+                            landmarks[str(lm_id)] = arr
+                        except Exception:
+                            continue
+
         if not world_sim is None:
-            self.sensor_manager = SensorSimManager(world_sim, self.drone_id, bot_cfg, self.message_writer)
+            self.sensor_manager = SensorSimManager(
+                world_sim,
+                self.drone_id,
+                bot_cfg,
+                self.message_writer,
+                landmarks=landmarks,
+            )
         else:
             self.sensor_manager = None
 

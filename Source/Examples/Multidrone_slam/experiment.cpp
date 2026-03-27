@@ -230,8 +230,8 @@ int main(int argc, char* argv[]) {
 
     // Stop the simulation and finalize
     std::cout << "Stopping simulation..." << std::endl;
-    manager.performCommunication();
-    //manager.performCommunication();
+    // Final communication rounds are handled inside AgentManager::stop(),
+    // controlled by `communication.end_rounds` in experiment config JSON.
     manager.stop();
     for (auto& view : slamViews) {
       view->update();

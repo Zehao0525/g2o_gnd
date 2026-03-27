@@ -37,9 +37,23 @@
 
 
 
+#include "g2o/core/optimization_algorithm_with_hessian.h"
+
 namespace g2o {
 namespace tutorial {
 namespace multibotsim{
+
+using json = nlohmann::json;
+
+int MultiDroneSLAMSystem::preOptTrajectoryBatchCounter_ = 0;
+
+void MultiDroneSLAMSystem::resetPreOptTrajectoryBatchCounter() {
+  preOptTrajectoryBatchCounter_ = 0;
+}
+
+int MultiDroneSLAMSystem::takeNextPreOptTrajectoryBatchIndex() {
+  return preOptTrajectoryBatchCounter_++;
+}
 
 static bool isValidInformationMatrix(const Eigen::Matrix<double,6,6>& info) {
   auto eig = info.selfadjointView<Eigen::Upper>().eigenvalues();
@@ -58,8 +72,20 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
 
 
   MultiDroneSLAMSystem::MultiDroneSLAMSystem(const std::string& id, const std::string& filename)
-    :SlamSystemBase<VertexSE3, EdgeSE3>(filename), robotId_(id), gndActive_(false), haveUninitializedObs_(false){
-
+    : SlamSystemBase<VertexSE3, EdgeSE3>(filename),
+      robotId_(id),
+      exVtxCount_(0),
+      gndActive_(false),
+      haveUninitializedObs_(false),
+      graphChanged_(false) {
+    std::ifstream f(filename);
+    if (!f) {
+      throw std::runtime_error("MultiDroneSLAMSystem: cannot open SLAM config: " + filename);
+    }
+    json j;
+    f >> j;
+    gndActiveConfig_ = j.value("gndActive_", true);
+    gndActive_ = gndActiveConfig_;
   }
 
   MultiDroneSLAMSystem::~MultiDroneSLAMSystem()=default;
@@ -79,7 +105,9 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
     if(verbose_){std::cout << "Bot " << robotId_ << " stop start\n";}
     
     optimize(optCountStop_);
-    gndActive_ = true;
+    if (gndActiveConfig_) {
+      gndActive_ = true;
+    }
     //if (fixOlderPlatformVertices_ == true){
     // TODO We are doing id = 0 for now.
     for (const auto& vertex : optimizer_->vertices()) {
@@ -128,6 +156,27 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
       // std::cout << "Number of intra: " << intraRobotCount_ << std::endl;  // Commented out - variable not defined
   }
 
+  void MultiDroneSLAMSystem::onAfterOptimize() {
+    if (pendingGndPriorEdges_.empty()) {
+      return;
+    }
+
+    // First time each pending prior edge participates in an optimization, we
+    // switch its GND kernel from always-active to "follow this system's gndActive_".
+    for (auto* e : pendingGndPriorEdges_) {
+      if (!e) continue;
+
+      auto* rk = dynamic_cast<g2o::ToggelableGNDKernel*>(e->robustKernel());
+      if (rk) {
+        rk->setBoolPointer(&gndActive_);
+      } else if (verbose_) {
+        std::cerr << "[GND] Pending prior edge has no ToggelableGNDKernel; id="
+                  << e->id() << std::endl;
+      }
+    }
+    pendingGndPriorEdges_.clear();
+  }
+
   void MultiDroneSLAMSystem::setPreOptTrajectoryOutputDir(const std::string& output_dir) {
     preOptTrajectoryOutputDir_ = output_dir;
   }
@@ -136,14 +185,14 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
     preOptTrajectoryDumpEnabled_ = enabled;
   }
 
-  void MultiDroneSLAMSystem::dumpPreOptTrajectory() {
-    if (preOptTrajectoryDumpEnabled_ && !preOptTrajectoryOutputDir_.empty()) {
-      std::filesystem::path out_dir(preOptTrajectoryOutputDir_);
+  void MultiDroneSLAMSystem::dumpPreOptTrajectory(const std::string& run_directory) {
+    if (preOptTrajectoryDumpEnabled_ && !run_directory.empty()) {
+      std::filesystem::path out_dir(run_directory);
       std::error_code mkdir_ec;
       std::filesystem::create_directories(out_dir, mkdir_ec);
       if (mkdir_ec) {
         throw std::runtime_error(
-            "Cannot create pre-opt trajectory directory '" + preOptTrajectoryOutputDir_ +
+            "Cannot create pre-opt trajectory directory '" + run_directory +
             "': " + mkdir_ec.message());
       }
       const std::string filename =
@@ -375,7 +424,10 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
     observationPrior->setVertex(1,observedVtx);
     observationPrior->setMeasurement(event.value);
     observationPrior->setInformation(Eigen::Matrix<double,6,6>::Identity());
-    auto rk = new g2o::ToggelableGNDKernel(2.0, 6, 1e-3, 2.0*2.0, &gndActive_);
+    // Initially keep the GND kernel inactive for new prior edges.
+    // After the edge has been optimized once, we switch its kernel to follow
+    // this system's `gndActive_` via `onAfterOptimize()`.
+    auto rk = new g2o::ToggelableGNDKernel(2.0, 6, 1e-3, 2.0*2.0, &gndActiveAlwaysFalse_);
     observationPrior->setRobustKernel(rk);
 
     assert(v0 && "platform vertex lookup failed for vtxIdFrom");
@@ -468,8 +520,8 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
     // Step 2: optimize our graph so that we have up-to-date estimates
     if(graphChanged_){
       if(verbose_){std::cout << "Optimizing before marginalization:\n";}
-      optimizer_->initializeOptimization();
-      optimizer_->optimize(10);
+      // Use SlamSystemBase::optimize() so we can hook robust-kernel switching.
+      optimize(10);
       graphChanged_ = false;
     }
 
@@ -494,7 +546,25 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
     
     //assert(false);
     // We already initialized + optimized above so hessianIndex() is valid.
+
+    // Marginalization: do NOT remove kernels (can segfault depending on build).
+    // Instead, disable GND robust kernel behavior by forcing gndActive_=false
+    // (ToggelableGNDKernel reads this via pointer).
+    const bool oldGndActive = gndActive_;
+    gndActive_ = false;
+
+    // Rebuild linear system at the exact moment we changed gndActive_.
+    optimizer_->initializeOptimization();
+    optimizer_->computeActiveErrors();
+    if (const auto* algoConst =
+            dynamic_cast<const g2o::OptimizationAlgorithmWithHessian*>(optimizer_->algorithm())) {
+      auto* algo = const_cast<g2o::OptimizationAlgorithmWithHessian*>(algoConst);
+      algo->updateLinearSystem();
+    }
+
     bool margSuccess = optimizer_->computeMarginals(margCov, verticesToMarginalize);
+
+    gndActive_ = oldGndActive;
     if(verbose_){std::cout << "Marginalization success: " << margSuccess << "\n";}
     if(!margSuccess){return DSMessage(robotId_, /*outGoing=*/false, {});}
 
@@ -634,6 +704,9 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
             //bool ok2 = false;
             bool ok2 = optimizer_->addEdge(observations_[i].observationPriorEdge);
             bool ok3 = optimizer_->addEdge(observations_[i].observationEdge);
+            if (ok2) {
+              pendingGndPriorEdges_.push_back(observations_[i].observationPriorEdge);
+            }
             if (preOptTrajectoryDumpEnabled_ && se3PriorDiagPrinted_ < kSe3PriorDiagPrintMax) {
               std::cout << "AddVertex, AddPrior, AddObservation " << ok << " " << ok2 << " " << ok3 << std::endl;
               std::cout << "obs.observationVertex->id(): " << observations_[i].observationVertex->id() << std::endl;

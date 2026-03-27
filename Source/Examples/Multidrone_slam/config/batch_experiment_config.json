@@ -1,0 +1,7 @@
+{
+    "input_path" : "test_data/multidrone/batch_f1",
+    "output_path" : "test_results/multidrone/batch_f1",
+    "experiment_base_config" : "Source/Examples/Multidrone_slam/config/experiment_base_config.json",
+    "verbose" : false,
+    "enable_visualization" : false
+}

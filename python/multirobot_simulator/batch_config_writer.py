@@ -10,18 +10,18 @@ config_pth = os.path.join(file_path,"config","sim_config.json")
 bot_data = {
     "sensors" : {
         "lm_observer": {
-            "type" : "range_bearing_bearing",   # Range, Yaw, Pitch
+            "type" : "relative_pose",   # relative_pose: x,y,z ,, range_bearing_bearing: Range, Yaw, Pitch
             "active" : False,
             "frequency" : 0.2,
             "range" : [[0,5],[-45,45], [-45,45]],
-            "error_std" : [0.4, 2.5, 2.5]
+            "error_std" : [0.4, 0.4, 0.4]
         },
         "bot_observer": {
             "type" : "relative_pose",
             "active" : True,
-            "frequency" : 2,
+            "frequency" : 1,
             "range" : [[0,100],[-180,180], [-180,180]],
-            "error_std" : [0.004, 0.004, 0.004, 0.05]
+            "error_std" : [0.4, 0.4, 0.4, 5 * 3.1415926/180.0]    # x, y, z, yaw
         }, 
         "gps":  {
             "type" : "gps",

@@ -80,6 +80,23 @@ def compute_ape(ref_t: np.ndarray, ref_xyz: np.ndarray, est_t: np.ndarray, est_x
     return float(np.mean(dist)), float(np.sqrt(np.mean(dist * dist))), int(len(dist))
 
 
+def latest_pre_opt_run_dir(pre_root: Path) -> Path:
+    """
+    If `pre_root` contains subdirectories named with non-negative integers (0, 1, 2, …),
+    return the one with the largest index (most recent dump batch). Otherwise return
+    `pre_root` for a flat legacy layout (trajectory_*.txt directly under pre_root).
+    """
+    if not pre_root.is_dir():
+        return pre_root
+    numeric_runs: List[Tuple[int, Path]] = []
+    for p in pre_root.iterdir():
+        if p.is_dir() and p.name.isdigit():
+            numeric_runs.append((int(p.name), p))
+    if not numeric_runs:
+        return pre_root
+    return max(numeric_runs, key=lambda t: t[0])[1]
+
+
 def detect_drone_ids(gt_dir: Path, pre_dir: Path, post_dir: Path) -> List[str]:
     gt_ids = {p.stem.replace("gt_log_", "") for p in gt_dir.glob("gt_log_*.txt")}
     pre_ids = {p.stem.replace("trajectory_", "") for p in pre_dir.glob("trajectory_*.txt")}
@@ -94,6 +111,11 @@ def main(
     drone_ids: List[str] | None = None,
     xy_only: bool = False,
 ) -> None:
+    pre_root = pre_dir
+    pre_dir = latest_pre_opt_run_dir(pre_dir)
+    if pre_dir != pre_root:
+        print(f"pre-opt: using latest run directory {pre_dir} (under {pre_root})")
+
     if drone_ids is None:
         drone_ids = detect_drone_ids(gt_dir, pre_dir, post_dir)
 
@@ -287,6 +309,7 @@ def main(
 
 if __name__ == "__main__":
     # Edit these directly when you want to change paths quickly.
+    # `pre_dir` is the pre_opt_trajectories root; the latest numeric subfolder (e.g. …/2/) is picked automatically.
     main(
         gt_dir=Path("test_data/multidrone"),
         pre_dir=Path("test_results/multidrone/pre_opt_trajectories"),

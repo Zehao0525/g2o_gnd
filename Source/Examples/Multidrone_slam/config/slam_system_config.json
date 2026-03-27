@@ -1,13 +1,14 @@
 {
   "verbose": true,
   "debug_verbose": true,
+  "gndActive_": true,
   "optimization_period": 10000,
   "sensor_offset": [0.0, 0.0, 0.0],
   "optimization_algorithm": "LevenbergMarquardt",
 
   "optimize_count":{
     "process":10,
-    "stop": 60,
-    "stop_fixed": 60
+    "stop": 30,
+    "stop_fixed": 30
   }
 }

@@ -115,6 +115,7 @@ protected:
   bool communicationEnabled_ = true;
   double communicationFrequencyHz_ = 0.0;
   int communicationPeriodSteps_ = 1;   // run every N steps when enabled
+  int communicationEndRounds_ = 1;     // run this many rounds right before shutdown
   int stepCount_ = 0;
 
   std::string outputPath_ = "test_results/multidrone";

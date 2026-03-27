@@ -133,6 +133,9 @@ class G2O_TUTORIAL_SLAM2D_API SlamSystemBase {
       std::cout << "Number of vertices: " << optimizer_->vertices().size() << std::endl;
       std::cout << "Number of edges: " << optimizer_->edges().size() << std::endl;
     }
+    // Allow derived classes to do book-keeping after each optimization pass
+    // (e.g., switching robust-kernel parameters based on which edges were optimized).
+    onAfterOptimize();
     return numIterations;
     // Add performance data?
   }
@@ -335,6 +338,14 @@ protected:
 
 
 protected:
+  /**
+   * @brief Hook called after every successful/attempted optimization pass
+   *        executed via SlamSystemBase::optimize().
+   *
+   * Default: no-op. Derived classes can override.
+   */
+  virtual void onAfterOptimize() {}
+
   bool verbose_;
 
   int stepNumber_;

@@ -63,6 +63,10 @@ AgentManager::AgentManager(const std::string& config_path,
       if (c.contains("frequency")) {
         communicationFrequencyHz_ = c["frequency"].get<double>();
       }
+      if (c.contains("end_rounds")) {
+        // How many additional communication rounds to run immediately before shutdown.
+        communicationEndRounds_ = std::max(0, c["end_rounds"].get<int>());
+      }
     }
 
     if (communicationEnabled_) {
@@ -144,6 +148,22 @@ void AgentManager::platformEstimate(Eigen::Isometry3d& x,
  * @brief Initialize and start the SLAM system.
  */
 void AgentManager::start() {
+  {
+    std::filesystem::path pre_root = std::filesystem::path(outputPath_) / "pre_opt_trajectories";
+    std::error_code ec;
+    std::filesystem::remove_all(pre_root, ec);
+    if (ec && verbose_) {
+      std::cerr << "AgentManager: warning clearing pre_opt_trajectories: " << ec.message() << "\n";
+    }
+    std::filesystem::create_directories(pre_root, ec);
+    if (ec) {
+      throw std::runtime_error(
+          "AgentManager: cannot recreate pre_opt_trajectories at '" + pre_root.string() + "': " +
+          ec.message());
+    }
+    MultiDroneSLAMSystem::resetPreOptTrajectoryBatchCounter();
+  }
+
   for (auto& sim : sims_) {
     sim->start();
   }
@@ -159,7 +179,12 @@ void AgentManager::start() {
  * @brief stop the SLAM system and finalize result accumulation
  */
 void AgentManager::stop() {
-  performCommunication();
+  if (communicationEnabled_) {
+    const int rounds = std::max(0, communicationEndRounds_);
+    for (int r = 0; r < rounds; ++r) {
+      performCommunication();
+    }
+  }
   for (auto& sim : sims_) {
     sim->stop();
   }
@@ -175,8 +200,18 @@ void AgentManager::dumpPreOptTrajectories() {
   if (!debugOutputs_) {
     return;
   }
+  const int batch = MultiDroneSLAMSystem::takeNextPreOptTrajectoryBatchIndex();
+  std::filesystem::path run_dir =
+      std::filesystem::path(outputPath_) / "pre_opt_trajectories" / std::to_string(batch);
+  std::error_code mkdir_ec;
+  std::filesystem::create_directories(run_dir, mkdir_ec);
+  if (mkdir_ec) {
+    throw std::runtime_error(
+        "Cannot create pre-opt run directory '" + run_dir.string() + "': " + mkdir_ec.message());
+  }
+  const std::string run_str = run_dir.string();
   for (auto& slam : slamSystems_) {
-    slam->dumpPreOptTrajectory();
+    slam->dumpPreOptTrajectory(run_str);
   }
 }
 
