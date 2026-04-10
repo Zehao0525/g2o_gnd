@@ -11,6 +11,7 @@ def landmark_generation(
     X: int,
     top_corner: Tuple[float, float, float] = (30, 30, 30),
     bottom_corner: Tuple[float, float, float] = (0, 0, 0),
+    seed: int | None = None,
 ) -> Dict[str, List[float]]:
     """
     Generate X random 3D landmark coordinates in the axis-aligned cube
@@ -22,6 +23,9 @@ def landmark_generation(
     """
     if X < 0:
         raise ValueError("X must be non-negative")
+
+    if seed is not None:
+        random.seed(seed)
 
     b = tuple(float(v) for v in bottom_corner)
     t = tuple(float(v) for v in top_corner)

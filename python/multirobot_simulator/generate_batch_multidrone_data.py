@@ -24,8 +24,8 @@ except ModuleNotFoundError:
     from simulator import WorldSim
     from trajectory_generator import trajectory_generation
 
-DEFAULT_CONFIG_PATH = "python/multirobot_simulator/config/sim_config.json"
-DEFAULT_BATCH_ROOT = "test_data/multidrone/batch_f1"
+DEFAULT_CONFIG_PATH = "python/multirobot_simulator/config/sim_config_batch.json"
+DEFAULT_BATCH_ROOT = "test_data/multidrone/batch_f4_bounded"
 DEFAULT_MAX_STEPS = 10000
 
 
@@ -34,6 +34,13 @@ def _get_bot_ids(config_path: str) -> list[str]:
     with path.open("r", encoding="utf-8") as f:
         cfg = json.load(f)
     return list(cfg["bots"].keys())
+
+
+def _get_n_trajectory_midpoints(config_path: str) -> int:
+    path = Path(config_path)
+    with path.open("r", encoding="utf-8") as f:
+        cfg = json.load(f)
+    return int(cfg.get("n_trajectory_midpoints", 0))
 
 
 def _write_bot_ids_txt(log_dir: str, bot_ids: list[str]) -> None:
@@ -55,11 +62,13 @@ def _run_single_simulation(
 ) -> None:
     """Mirror generate_multirobot_data.py: new trajectories + WorldSim + step loop."""
     bot_ids = _get_bot_ids(config_path)
+    n_mid = _get_n_trajectory_midpoints(config_path)
     trajectory_generation(
         bot_ids,
         trajectories_path,
         visualize=False,
         seed=trajectory_seed,
+        n_trajectory_midpoints=n_mid,
     )
     world_sim, _, _ = WorldSim.create(
         config_path=config_path,

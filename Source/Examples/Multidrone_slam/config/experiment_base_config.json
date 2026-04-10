@@ -9,7 +9,8 @@
 
     "communication":{
         "enabled": true,
-        "frequency": 0.0000002,
+        "frequency": 0.0000000002,
         "end_rounds": 3
-      }
+      },
+    "lm_query": true
 }

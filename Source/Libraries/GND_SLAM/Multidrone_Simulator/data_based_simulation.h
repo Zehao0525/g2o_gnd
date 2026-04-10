@@ -26,15 +26,17 @@
 
 #pragma once
 
+#include <cstdint>
+#include <fstream>
 #include <map>
 #include <vector>
-#include <fstream>
 
 #include <nlohmann/json.hpp>
 #include <Eigen/Core>
 
 #include "g2o_tutorial_slam2d_api.h"
 #include "ordered_event_queue.hpp"
+#include "md_events.h"
 
 #include "g2o/core/hyper_graph.h"
 #include "g2o/types/slam3d/edge_se3.h"
@@ -189,7 +191,8 @@ protected:
   enum class DataMsgType {
     None,
     Odom,
-    RelPos
+    RelPos,
+    LmObs
   };
   
   struct DataBuffer {
@@ -200,6 +203,9 @@ protected:
     double odomOmegaZ = 0.0;
     std::string targetRobotId;
     Isometry3 relPose = Isometry3::Identity();
+    int landmarkId = -1;
+    Eigen::Vector3d relLmPos = Eigen::Vector3d::Zero();
+    Eigen::Matrix3d lmInformation = Eigen::Matrix3d::Identity();
     Eigen::Matrix<double, 6, 6> information = Eigen::Matrix<double, 6, 6>::Identity();
   } dataBuffer_;
   
@@ -213,7 +219,11 @@ protected:
   // Internal helper methods
   bool readNextGT();
   bool readNextData();
-  
+
+  /// Assigns monotonic `tieOrder` then pushes (stable order for same time + priority).
+  void pushEvent(EventPtr e);
+
+  std::uint64_t nextEventTieOrder_{0};
 };
 
 }

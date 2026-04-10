@@ -1,0 +1,15 @@
+{
+  "camera_setting": {
+    "look_at": [5, 5, 10, 5, 5, 0],
+    "camera_eye": [5, 5, 10],
+    "camera_target": [5, 5, 0],
+    "camera_up": [0, 1, 0],
+    "projection_matrix": [800, 600, 500, 500, 400, 300, 0.1, 1000]
+  },
+  "visualise_sim_path": true, 
+  "visualise_slam_path": true, 
+  "visualise_pose": true,
+  "platform_size": 0.3,
+  "step_pause": 0.04,
+  "final_render_pause_sec": 0.0
+}

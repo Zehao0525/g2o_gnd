@@ -28,8 +28,16 @@ def get_ids(conf_path):
     return list(bots.keys())
 
 
+def get_n_trajectory_midpoints(conf_path):
+    path = Path(conf_path)
+    with path.open("r", encoding="utf-8") as f:
+        cfg = json.load(f)
+    return int(cfg.get("n_trajectory_midpoints", 0))
+
+
 bot_ids = get_ids(config_path)
-trajectory_generation(bot_ids, traj_path, visualize=False)
+n_mid = get_n_trajectory_midpoints(config_path)
+trajectory_generation(bot_ids, traj_path, visualize=False, n_trajectory_midpoints=n_mid)
 word_sim, _, _ = WorldSim.create(trajectory_path=traj_path, log_path=log_path)
 
 # Write bot_ids.txt for C++ AgentManager (one robot ID per line)

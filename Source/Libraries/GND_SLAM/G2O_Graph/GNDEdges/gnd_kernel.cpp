@@ -35,6 +35,8 @@ namespace g2o {
 // For an unscaled information matrix, the flat reigion will roughly end at 1 std. 
 // The errScale marks roughly how many stds (covariance sqrts) you want the bound to be at.
 // _delta set to 100 by default: you should never be 10 stds off. But if you are, well, enjoy the gaussianess I guess.
+
+// Bound: 2 stds, power: 8, lnc: 1e-3, tailPenaltyStd: 9
 GNDKernel::GNDKernel():GNDKernel(2,8){}
 GNDKernel::GNDKernel(double bound, double power):GNDKernel(bound, power, 1e-3){}
 GNDKernel::GNDKernel(double bound, double power, double lnc):GNDKernel(bound, power, lnc, 9){}

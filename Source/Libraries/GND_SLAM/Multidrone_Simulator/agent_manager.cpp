@@ -54,6 +54,10 @@ AgentManager::AgentManager(const std::string& config_path,
       debugOutputs_ = j["debug_outputs"].get<bool>();
     }
 
+    // Communication: landmark query toggle.
+    // Forwarded into DSMessage.lm_query and consumed by MultiDroneSLAMSystem.
+    lmQueryEnabled_ = j.value("lm_query", true);
+
     // Communication config (defaults: enabled=true, frequency=0 -> every step)
     if (j.contains("communication") && j["communication"].is_object()) {
       const auto& c = j["communication"];
@@ -113,6 +117,7 @@ AgentManager::AgentManager(const std::string& config_path,
 
     sims_.push_back(std::make_unique<DataBasedSimulation>(id, data_path, gt_path));
     slamSystems_.push_back(std::make_unique<MultiDroneSLAMSystem>(id, slam_config_path));
+    slamSystems_.back()->setLmQueryEnabled(lmQueryEnabled_);
     slamSystems_.back()->setPreOptTrajectoryDumpEnabled(debugOutputs_);
     slamSystems_.back()->setPreOptTrajectoryOutputDir(outputPath_ + "/pre_opt_trajectories");
 
@@ -386,11 +391,13 @@ void AgentManager::performCommunication() {
     auto* receiver = slamSystems_[i].get();
 
     std::vector<PoseStampEntry> aggregated;
+    bool lm_query = false;
 
     // Include self broadcast
     if (auto it = broadcasts.find(receiverId); it != broadcasts.end()) {
       const auto& entries = it->second.poseEntries;
       aggregated.insert(aggregated.end(), entries.begin(), entries.end());
+      lm_query = lm_query || it->second.lm_query;
     }
 
     // Union in all neighbor broadcasts
@@ -399,9 +406,10 @@ void AgentManager::performCommunication() {
       if (it == broadcasts.end()) continue;
       const auto& entries = it->second.poseEntries;
       aggregated.insert(aggregated.end(), entries.begin(), entries.end());
+      lm_query = lm_query || it->second.lm_query;
     }
 
-    DSMessage reqMsg(receiverId, /*loaded=*/false, std::move(aggregated));
+    DSMessage reqMsg(receiverId, /*loaded=*/false, lm_query, std::move(aggregated));
     DSMessage response = receiver->handleObservationSyncRequest(reqMsg);
 
     // Deliver response to self and neighbors; recipients filter by PoseStampEntry.sourceId.

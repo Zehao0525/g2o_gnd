@@ -122,6 +122,9 @@ protected:
   bool debugOutputs_ = false;
   bool verbose_;
 
+  // Whether DS queries should request landmark marginalization / priors.
+  bool lmQueryEnabled_ = true;
+
 };
 
 } // namespace multibotsim

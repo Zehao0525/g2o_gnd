@@ -19,6 +19,8 @@ add_library(Incremental_Visualizer ${LIB_TYPE}
   multi_drone_slam_system_view.cpp
   data_based_simulation_view.h
   data_based_simulation_view.cpp
+  utisa_example_views.h
+  utisa_example_views.cpp
 
   #viz_shape.h
 )
@@ -31,6 +33,7 @@ target_link_libraries(Incremental_Visualizer PRIVATE
   G2O_Graph
   Incremental_Simulator
   Multidrone_Simulator
+  UTISA_Simulator
 )
 target_include_directories(Incremental_Visualizer PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 

@@ -1,15 +1,10 @@
 #pragma once
 
-#include <map>
-#include <vector>
-#include <memory>
-#include <set>
 #include <string>
-#include <cstdint>
+#include <vector>
 
 #include "g2o_tutorial_slam2d_api.h"
 #include "sensor_data.h"
-
 
 #include "g2o/types/slam3d/se3quat.h"
 
@@ -17,7 +12,7 @@ namespace g2o {
 namespace tutorial {
 namespace multibotsim{
 
-// Time-stamped pose
+// Time-stamped pose (robot–robot sync)
 struct PoseStampEntry {
     double time;                 // timestamp we care about
     std::string sourceId;        // who originated this query
@@ -33,22 +28,45 @@ struct PoseStampEntry {
         time(t), sourceId(sid), observationId(oid), subjectId(suid), hasPose(false){}
 };
 
-enum class MessageKind : uint8_t {
-    PoseQuery,
-    PoseAnswer,
-    // ...
+/// Landmark pose entry (e.g. for sync messages involving landmark IDs).
+struct LMPoseEntry {
+    int landmarkId = -1;
+    std::string observerId;
+    bool hasPose = false;
+    Isometry3 pose = Isometry3::Identity();
+    Eigen::Matrix<double, 6, 6> information = Eigen::Matrix<double, 6, 6>::Identity();
+
+    LMPoseEntry(int lmId, std::string oid)
+        : landmarkId(lmId),
+          observerId(std::move(oid)),
+          hasPose(false) {}
 };
-
-
 
 struct DSMessage {
     std::string sourceId;
     bool loaded;
+    bool lm_query;
     std::vector<PoseStampEntry> poseEntries;
-    DSMessage(): sourceId(""), loaded(false), poseEntries({}){}
-    DSMessage(std::string sender, bool loaded, std::vector<PoseStampEntry> pe): sourceId(sender), loaded(loaded), poseEntries(pe){}
-  };
+    std::vector<LMPoseEntry> lmEntries;
 
+    DSMessage()
+        : sourceId(""),
+          loaded(false),
+          lm_query(true),
+          poseEntries(),
+          lmEntries() {}
+
+    /// Pass only pose entries, only landmark entries, or both (omit unused side with `{}`).
+    DSMessage(std::string sender,
+              bool loaded_,
+              bool lm_query = true,
+              std::vector<PoseStampEntry> pe = {},
+              std::vector<LMPoseEntry> lm = {})
+        : sourceId(std::move(sender)),
+          loaded(loaded_),
+          poseEntries(std::move(pe)),
+          lmEntries(std::move(lm)) {}
+};
 
 };
 }

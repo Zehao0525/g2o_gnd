@@ -37,6 +37,7 @@ public:
     void updateRobotPath(const std::vector<Eigen::Vector3d>& path);
     void appendToRobotPath(const Eigen::Vector3d& pose);
     void updateRobotPose(const Eigen::Vector3d& pose);
+    void setPlatformSize(double size) { platformSize_ = size; }
     void setVisualisePose(bool enabled) { visualisePose_ = enabled; }
 
 protected:

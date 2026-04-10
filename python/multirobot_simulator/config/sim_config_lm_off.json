@@ -1,0 +1,347 @@
+{
+    "bots": {
+        "0": {
+            "path": [
+                [0, 0, 0],
+                [29, 29, 29]
+            ],
+            "sensors": {
+                "lm_observer": {
+                    "type": "relative_pose",
+                    "active": false,
+                    "frequency": 1,
+                    "range": [
+                        [0, 10],
+                        [-90, 90],
+                        [-90, 90]
+                    ],
+                    "error_std": [0.4, 0.4, 0.4],
+                    "noise_on": false,
+                    "bounded_noise": false
+                },
+                "bot_observer": {
+                    "type": "relative_pose",
+                    "active": true,
+                    "frequency": 1,
+                    "range": [
+                        [0, 100],
+                        [-180, 180],
+                        [-180, 180]
+                    ],
+                    "error_std": [0.4, 0.4, 0.4, 0.08726646111111111],
+                    "noise_on": true,
+                    "bounded_noise": false
+                },
+                "gps": {
+                    "type": "gps",
+                    "active": false,
+                    "frequency": 0.2,
+                    "error_std": [2.5, 2.5, 1000],
+                    "noise_on": true,
+                    "bounded_noise": false
+                },
+                "bearing": {
+                    "type": "horizontal_bearing",
+                    "active": false,
+                    "frequency": 0.2,
+                    "error_std": 10.0,
+                    "noise_on": true,
+                    "bounded_noise": false
+                }
+            },
+            "controller": {
+                "type": "quad_dron_controller_wih_yaw_control",
+                "frequency": 30,
+                "max_lin_vel": 3,
+                "max_lin_acc": 2,
+                "max_rot_vel": 90,
+                "max_rot_acc": 45,
+                "odom_noise_on": true,
+                "bounded_noise": false,
+                "odom_error_std": [0.1, 0.02, 0.0872663888888889]
+            },
+            "initialization": {
+                "default_init": false,
+                "fixed_init": true,
+                "init_error_std": [1, 1, 1, 1, 1, 1]
+            }
+        },
+        "1": {
+            "path": [
+                [0, 0, 29],
+                [12, 19, 17],
+                [20, 25, 9],
+                [29, 29, 0]
+            ],
+            "sensors": {
+                "lm_observer": {
+                    "type": "relative_pose",
+                    "active": false,
+                    "frequency": 1,
+                    "range": [
+                        [0, 10],
+                        [-90, 90],
+                        [-90, 90]
+                    ],
+                    "error_std": [0.4, 0.4, 0.4],
+                    "noise_on": false,
+                    "bounded_noise": false
+                },
+                "bot_observer": {
+                    "type": "relative_pose",
+                    "active": true,
+                    "frequency": 1,
+                    "range": [
+                        [0, 100],
+                        [-180, 180],
+                        [-180, 180]
+                    ],
+                    "error_std": [0.4, 0.4, 0.4, 0.08726646111111111],
+                    "noise_on": true,
+                    "bounded_noise": false
+                },
+                "gps": {
+                    "type": "gps",
+                    "active": false,
+                    "frequency": 0.2,
+                    "error_std": [2.5, 2.5, 1000],
+                    "noise_on": true,
+                    "bounded_noise": false
+                },
+                "bearing": {
+                    "type": "horizontal_bearing",
+                    "active": false,
+                    "frequency": 0.2,
+                    "error_std": 10.0,
+                    "noise_on": true,
+                    "bounded_noise": false
+                }
+            },
+            "controller": {
+                "type": "quad_dron_controller_wih_yaw_control",
+                "frequency": 30,
+                "max_lin_vel": 3,
+                "max_lin_acc": 2,
+                "max_rot_vel": 90,
+                "max_rot_acc": 45,
+                "odom_noise_on": true,
+                "bounded_noise": false,
+                "odom_error_std": [0.1, 0.02, 0.0872663888888889]
+            },
+            "initialization": {
+                "default_init": false,
+                "fixed_init": true,
+                "init_error_std": [1, 1, 1, 1, 1, 1]
+            }
+        },
+        "2": {
+            "path": [
+                [0, 29, 0],
+                [16, 18, 11],
+                [18, 18, 11],
+                [24, 11, 18],
+                [29, 0, 29]
+            ],
+            "sensors": {
+                "lm_observer": {
+                    "type": "relative_pose",
+                    "active": false,
+                    "frequency": 1,
+                    "range": [
+                        [0, 10],
+                        [-90, 90],
+                        [-90, 90]
+                    ],
+                    "error_std": [0.4, 0.4, 0.4],
+                    "noise_on": false,
+                    "bounded_noise": false
+                },
+                "bot_observer": {
+                    "type": "relative_pose",
+                    "active": true,
+                    "frequency": 1,
+                    "range": [
+                        [0, 100],
+                        [-180, 180],
+                        [-180, 180]
+                    ],
+                    "error_std": [0.4, 0.4, 0.4, 0.08726646111111111],
+                    "noise_on": true,
+                    "bounded_noise": false
+                },
+                "gps": {
+                    "type": "gps",
+                    "active": false,
+                    "frequency": 0.2,
+                    "error_std": [2.5, 2.5, 1000],
+                    "noise_on": true,
+                    "bounded_noise": false
+                },
+                "bearing": {
+                    "type": "horizontal_bearing",
+                    "active": false,
+                    "frequency": 0.2,
+                    "error_std": 10.0,
+                    "noise_on": true,
+                    "bounded_noise": false
+                }
+            },
+            "controller": {
+                "type": "quad_dron_controller_wih_yaw_control",
+                "frequency": 30,
+                "max_lin_vel": 3,
+                "max_lin_acc": 2,
+                "max_rot_vel": 90,
+                "max_rot_acc": 45,
+                "odom_noise_on": true,
+                "bounded_noise": false,
+                "odom_error_std": [0.1, 0.02, 0.0872663888888889]
+            },
+            "initialization": {
+                "default_init": false,
+                "fixed_init": true,
+                "init_error_std": [1, 1, 1, 1, 1, 1]
+            }
+        },
+        "3": {
+            "path": [
+                [29, 0, 0],
+                [18, 11, 16],
+                [18, 11, 18],
+                [13, 16, 23],
+                [0, 29, 29]
+            ],
+            "sensors": {
+                "lm_observer": {
+                    "type": "relative_pose",
+                    "active": false,
+                    "frequency": 1,
+                    "range": [
+                        [0, 10],
+                        [-90, 90],
+                        [-90, 90]
+                    ],
+                    "error_std": [0.4, 0.4, 0.4],
+                    "noise_on": false,
+                    "bounded_noise": false
+                },
+                "bot_observer": {
+                    "type": "relative_pose",
+                    "active": true,
+                    "frequency": 1,
+                    "range": [
+                        [0, 100],
+                        [-180, 180],
+                        [-180, 180]
+                    ],
+                    "error_std": [0.4, 0.4, 0.4, 0.08726646111111111],
+                    "noise_on": true,
+                    "bounded_noise": false
+                },
+                "gps": {
+                    "type": "gps",
+                    "active": false,
+                    "frequency": 0.2,
+                    "error_std": [2.5, 2.5, 1000],
+                    "noise_on": true,
+                    "bounded_noise": false
+                },
+                "bearing": {
+                    "type": "horizontal_bearing",
+                    "active": false,
+                    "frequency": 0.2,
+                    "error_std": 10.0,
+                    "noise_on": true,
+                    "bounded_noise": false
+                }
+            },
+            "controller": {
+                "type": "quad_dron_controller_wih_yaw_control",
+                "frequency": 30,
+                "max_lin_vel": 3,
+                "max_lin_acc": 2,
+                "max_rot_vel": 90,
+                "max_rot_acc": 45,
+                "odom_noise_on": true,
+                "bounded_noise": false,
+                "odom_error_std": [0.1, 0.02, 0.0872663888888889]
+            },
+            "initialization": {
+                "default_init": false,
+                "fixed_init": true,
+                "init_error_std": [1, 1, 1, 1, 1, 1]
+            }
+        },
+        "4": {
+            "path": [
+                [15, 0, 0],
+                [15, 7, 21],
+                [15, 13, 27],
+                [15, 29, 29]
+            ],
+            "sensors": {
+                "lm_observer": {
+                    "type": "relative_pose",
+                    "active": false,
+                    "frequency": 1,
+                    "range": [
+                        [0, 10],
+                        [-90, 90],
+                        [-90, 90]
+                    ],
+                    "error_std": [0.4, 0.4, 0.4],
+                    "noise_on": false,
+                    "bounded_noise": false
+                },
+                "bot_observer": {
+                    "type": "relative_pose",
+                    "active": true,
+                    "frequency": 1,
+                    "range": [
+                        [0, 100],
+                        [-180, 180],
+                        [-180, 180]
+                    ],
+                    "error_std": [0.4, 0.4, 0.4, 0.08726646111111111],
+                    "noise_on": true,
+                    "bounded_noise": false
+                },
+                "gps": {
+                    "type": "gps",
+                    "active": false,
+                    "frequency": 0.2,
+                    "error_std": [2.5, 2.5, 1000],
+                    "noise_on": true,
+                    "bounded_noise": false
+                },
+                "bearing": {
+                    "type": "horizontal_bearing",
+                    "active": false,
+                    "frequency": 0.2,
+                    "error_std": 10.0,
+                    "noise_on": true,
+                    "bounded_noise": false
+                }
+            },
+            "controller": {
+                "type": "quad_dron_controller_wih_yaw_control",
+                "frequency": 30,
+                "max_lin_vel": 3,
+                "max_lin_acc": 2,
+                "max_rot_vel": 90,
+                "max_rot_acc": 45,
+                "odom_noise_on": true,
+                "bounded_noise": false,
+                "odom_error_std": [0.1, 0.02, 0.0872663888888889]
+            },
+            "initialization": {
+                "default_init": false,
+                "fixed_init": true,
+                "init_error_std": [1, 1, 1, 1, 1, 1]
+            }
+        }
+    },
+    "dt": 0.05,
+    "n_landmarks": 20,
+    "n_trajectory_midpoints": 0
+}

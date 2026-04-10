@@ -14,10 +14,103 @@ from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 - activates 3D projection
 
 import os, json, copy
 from pathlib import Path
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Mapping, Any
 
 
 DT = 0.5
+
+
+def normalize_landmarks_mapping(m: Mapping[Any, Any]) -> Dict[int, np.ndarray]:
+    """
+    Build landmark_id -> xyz with integer ids (log format: t lmobs_rp <int> ...).
+    Json/config keys may be strings; values are length-3 positions.
+    """
+    out: Dict[int, np.ndarray] = {}
+    for lm_id, xyz in m.items():
+        try:
+            ik = int(lm_id)
+        except (TypeError, ValueError):
+            continue
+        try:
+            arr = np.asarray(xyz, dtype=float).reshape(3)
+        except Exception:
+            continue
+        out[ik] = arr
+    return out
+
+
+
+def bounded_rv(mu=0.0, sigma=1.0, n_samples=1, seed=None, rng: Optional[np.random.Generator] = None):
+    """
+    Sample a 1D bounded random variable by:
+      - sampling uniformly in a 2D disk
+      - projecting onto the x-axis
+
+    Result:
+      mean = mu
+      variance = sigma^2
+      support = [mu - 2*sigma, mu + 2*sigma]
+    """
+    if rng is None:
+        rng = np.random.default_rng(seed)
+
+    R = 2.0 * sigma
+
+    # Uniform angle
+    theta = rng.uniform(0.0, 2.0 * np.pi, size=n_samples)
+
+    # Correct radial distribution for uniform-in-area disk
+    rho = R * np.sqrt(rng.uniform(0.0, 1.0, size=n_samples))
+
+    # x-projection
+    x = rho * np.cos(theta)
+
+    # shift to desired mean
+    return mu + x
+
+
+def sample_additive_noise_zero_mean(
+    std: np.ndarray,
+    noise_on: bool,
+    bounded_noise: bool,
+    rng: np.random.Generator,
+) -> np.ndarray:
+    """
+    Independent zero-mean additive noise with per-component std `std`.
+
+    - noise_on False: no perturbation (zeros).
+    - noise_on True, bounded_noise False: Gaussian N(0, sigma^2) per axis.
+    - noise_on True, bounded_noise True: bounded disk-projection noise per axis
+      (support ±2*sigma, variance sigma^2).
+    """
+    std_arr = np.asarray(std, dtype=float)
+    out_shape = std_arr.shape
+    flat = std_arr.reshape(-1)
+    n = flat.size
+    if not noise_on:
+        return np.zeros(n, dtype=float).reshape(out_shape)
+    if not bounded_noise:
+        return (flat * rng.standard_normal(n)).reshape(out_shape)
+    out = np.zeros(n, dtype=float)
+    for i in range(n):
+        if flat[i] <= 0.0:
+            continue
+        R = 2.0 * flat[i]
+        theta = float(rng.uniform(0.0, 2.0 * np.pi))
+        rho = R * float(np.sqrt(rng.uniform(0.0, 1.0)))
+        out[i] = rho * np.cos(theta)
+    return out.reshape(out_shape)
+
+
+def _make_rng(drone_id: str, salt: str = "") -> np.random.Generator:
+    """Stable seed from drone id + salt (for reproducible noise streams per component)."""
+    try:
+        d = int(str(drone_id))
+    except ValueError:
+        d = sum(ord(c) for c in str(drone_id))
+    h = sum(ord(c) for c in salt)
+    seed = (d * 1_000_003 + h) % (2**32)
+    return np.random.default_rng(seed)
 
 
 # ---- Object that writes messages to txt files -----
@@ -74,7 +167,8 @@ class WorldSim:
         log_path: str = None,
         N_DRONES: int = None,
         yaw0 = 0,
-        verbose = False
+        verbose = False,
+        landmark_path: Optional[str] = None,
     ):
         # TODO get rid of yaw0
         """
@@ -145,6 +239,7 @@ class WorldSim:
                 config_path=config_path,
                 dt=dt,
                 yaw0=yaw0,
+                landmark_path=landmark_path,
             )
 
             ctrls.append(ctrl)
@@ -169,9 +264,21 @@ class WorldSim:
         return self.drone_positions
     
     def step(self):
+        # Invalidate the pose cache so each drone's sensors see an up-to-date `self` pose.
+        #
+        # Bug we avoid: previously only the first drone (e.g. "0") rebuilt the cache after
+        # integrating; later drones hit synced=True and reused a snapshot where their own
+        # entry was still the *pre-step* state. That makes lmobs_rp / relpos inconsistent
+        # with the GT trajectory (and looks like "only drone 0 is correct").
+        #
+        # Note: within one world step, robots with a higher sort order than the observer
+        # still have not integrated yet, so inter-robot relative pose can be off by one dt
+        # toward those neighbors; fixing that fully would require a two-phase step
+        # (integrate all, then run all sensors once).
+        self.synced = False
         for d in self.drone_sims:
             d.step()
-        self.synced = False
+            self.synced = False
     
     def reached_dest_all(self):
         for d in self.drone_sims:
@@ -231,7 +338,8 @@ class SensorSimManager:
         drone_id: str,
         config: dict,
         writer: LineWriter,
-        landmarks: Dict[str, np.ndarray] | None = None,
+        landmarks: Dict[int, np.ndarray] | None = None,
+        rng: Optional[np.random.Generator] = None,
     ):
         self.drone_id = drone_id
         self.config = config
@@ -241,6 +349,7 @@ class SensorSimManager:
         self.lm_rel_pos_sensor = None
         self.writer = writer
         self.landmarks = landmarks if landmarks is not None else {}
+        self.rng = rng if rng is not None else _make_rng(drone_id, "sensors")
 
         sensors_cfg = config["sensors"]
 
@@ -249,10 +358,15 @@ class SensorSimManager:
         if gps_cfg and gps_cfg.get("active", False):
             # gps.error_std is [σx, σz, ?] in config. We only use first 2.
             gps_err_std = np.array(gps_cfg["error_std"][:2], dtype=float)
+            gps_noise_on = bool(gps_cfg.get("noise_on", True))
+            gps_bounded = bool(gps_cfg.get("bounded_noise", False))
             self.gps_sensor = GPSSensor(
                 drone_id=drone_id,
                 frequency=float(gps_cfg["frequency"]),
-                error_std=gps_err_std
+                error_std=gps_err_std,
+                noise_on=gps_noise_on,
+                bounded_noise=gps_bounded,
+                rng=self.rng,
             )
 
         # --- Relative pose / bot observer ---
@@ -260,6 +374,8 @@ class SensorSimManager:
         if bot_obs_cfg and bot_obs_cfg.get("active", False):
             max_range = bot_obs_cfg["range"][0][1]  # [0, R] -> take R
             err_std_arr = np.array(bot_obs_cfg["error_std"], dtype=float)
+            bot_noise_on = bool(bot_obs_cfg.get("noise_on", True))
+            bot_bounded = bool(bot_obs_cfg.get("bounded_noise", False))
 
             # TODO for later
             # Pad to 4 elems [σx,σy,σz,σyaw] (config gives you 3)
@@ -271,7 +387,10 @@ class SensorSimManager:
                 frequency=float(bot_obs_cfg["frequency"]),
                 error_std=err_std_arr,
                 sensor_range=float(max_range),
-                range_dependent_error=False  # could come from cfg if you add it
+                range_dependent_error=False,  # could come from cfg if you add it
+                noise_on=bot_noise_on,
+                bounded_noise=bot_bounded,
+                rng=self.rng,
             )
 
         # --- Landmark relative-position observer ---
@@ -280,6 +399,8 @@ class SensorSimManager:
             max_range = lm_obs_cfg["range"][0][1]  # [0, R] -> take R
             # For landmark relative-position sensor we use [sx, sy, sz].
             lm_err_std = np.array(lm_obs_cfg.get("error_std", [0.0, 0.0, 0.0])[:3], dtype=float)
+            lm_noise_on = bool(lm_obs_cfg.get("noise_on", True))
+            lm_bounded = bool(lm_obs_cfg.get("bounded_noise", False))
             self.lm_rel_pos_sensor = LandmarkRelPosSensor(
                 drone_id=drone_id,
                 frequency=float(lm_obs_cfg["frequency"]),
@@ -287,6 +408,9 @@ class SensorSimManager:
                 sensor_range=float(max_range),
                 landmarks=self.landmarks,
                 range_dependent_error=False,
+                noise_on=lm_noise_on,
+                bounded_noise=lm_bounded,
+                rng=self.rng,
             )
 
     def close(self):
@@ -321,21 +445,33 @@ class SensorSimManager:
 
 # When activated, queries world sim for location of host
 class GPSSensor:
-    def __init__(self, drone_id:str, frequency:float, error_std:np.ndarray):
-        self.period = 1/frequency
+    def __init__(
+        self,
+        drone_id: str,
+        frequency: float,
+        error_std: np.ndarray,
+        noise_on: bool = True,
+        bounded_noise: bool = False,
+        rng: Optional[np.random.Generator] = None,
+    ):
+        self.period = 1 / frequency
         self.error_std = error_std
+        self.noise_on = noise_on
+        self.bounded_noise = bounded_noise
+        self.rng = rng if rng is not None else np.random.default_rng()
         self.timer = 0
         self.last_io = 0
         self.drone_id = drone_id
-
-    # TODO Add config
 
     def step(self, dt, positions):
         io = None
         self.timer += dt
         if self.timer > self.period + self.last_io:
             real_pos = np.array([positions[self.drone_id][0], positions[self.drone_id][1]])
-            noisy_pos = real_pos + self.error_std * np.random.standard_normal(2)
+            noise = sample_additive_noise_zero_mean(
+                self.error_std, self.noise_on, self.bounded_noise, self.rng
+            ).reshape(2)
+            noisy_pos = real_pos + noise
             io = noisy_pos
             self.last_io += self.period
         return self.generate_io(io)
@@ -351,12 +487,25 @@ class GPSSensor:
 #   Gives the relative pose of the neighbour drones within a certain range
 # When activated, queries world sim for location of host
 class RelPosSensor:
-    def __init__(self, drone_id:str, frequency:float, error_std:np.ndarray, sensor_range:float, range_dependent_error = False):
-        self.period = 1/frequency
+    def __init__(
+        self,
+        drone_id: str,
+        frequency: float,
+        error_std: np.ndarray,
+        sensor_range: float,
+        range_dependent_error=False,
+        noise_on: bool = True,
+        bounded_noise: bool = False,
+        rng: Optional[np.random.Generator] = None,
+    ):
+        self.period = 1 / frequency
         self.drone_id = drone_id
         # This is 4 elements
         self.error_std = error_std
         self.range_dependent_error = range_dependent_error
+        self.noise_on = noise_on
+        self.bounded_noise = bounded_noise
+        self.rng = rng if rng is not None else np.random.default_rng()
         self.sensor_range = sensor_range
         self.sensor_range_sqr = sensor_range**2
         self.timer = 0
@@ -381,10 +530,16 @@ class RelPosSensor:
                                      wc_rel_pose[0] * np.sin(-syaw) + wc_rel_pose[1] * np.cos(-syaw),
                                      wc_rel_pose[2],
                                      yaw_diff])
-                terr = self.error_std
+                es = np.asarray(self.error_std, dtype=float).ravel()
+                if es.size < 4:
+                    es = np.pad(es, (0, 4 - int(es.size)))
+                terr = es[:4].copy()
                 if self.range_dependent_error:
-                    terr *= 2 * dist / self.sensor_range
-                noisy_reading = rel_pose + terr * np.random.standard_normal(4)
+                    terr = terr * (2 * dist / self.sensor_range)
+                noise = sample_additive_noise_zero_mean(
+                    terr, self.noise_on, self.bounded_noise, self.rng
+                ).reshape(4)
+                noisy_reading = rel_pose + noise
                 io = io + self.generate_io(did, noisy_reading, terr)
                 #print('ioed', end = '')
             #print()
@@ -412,13 +567,19 @@ class LandmarkRelPosSensor:
         frequency: float,
         error_std: np.ndarray,
         sensor_range: float,
-        landmarks: Dict[str, np.ndarray],
+        landmarks: Dict[int, np.ndarray],
         range_dependent_error: bool = False,
+        noise_on: bool = True,
+        bounded_noise: bool = False,
+        rng: Optional[np.random.Generator] = None,
     ):
         self.period = 1 / frequency
         self.drone_id = drone_id
         self.error_std = np.asarray(error_std, dtype=float).reshape(3)
         self.range_dependent_error = range_dependent_error
+        self.noise_on = noise_on
+        self.bounded_noise = bounded_noise
+        self.rng = rng if rng is not None else np.random.default_rng()
         self.sensor_range = sensor_range
         self.sensor_range_sqr = sensor_range ** 2
         self.landmarks = landmarks
@@ -448,16 +609,19 @@ class LandmarkRelPosSensor:
                 terr = self.error_std.copy()
                 if self.range_dependent_error:
                     terr *= 2 * dist / self.sensor_range
-                noisy_reading = rel_pos + terr * np.random.standard_normal(3)
+                noise = sample_additive_noise_zero_mean(
+                    terr, self.noise_on, self.bounded_noise, self.rng
+                ).reshape(3)
+                noisy_reading = rel_pos + noise
                 io = io + self.generate_io(lm_id, noisy_reading, terr)
             self.last_io += self.period
         return io
 
-    def generate_io(self, lm_id: str, io_vals: np.ndarray, e: np.ndarray):
+    def generate_io(self, lm_id: int, io_vals: np.ndarray, e: np.ndarray):
         if io_vals is None:
             return None
         return (
-            f"{self.timer} lmobs_rp {lm_id} "
+            f"{self.timer} lmobs_rp {int(lm_id)} "
             f"{io_vals[0]} {io_vals[1]} {io_vals[2]} "
             f"{e[0]} {e[1]} {e[2]}\n"
         )
@@ -486,7 +650,8 @@ class DroneSim:
                  gt_log_path : str = 'gt_log.txt',
                  config_path : str = 'config/sim_config',
                  dt = DT, 
-                 yaw0 = None):
+                 yaw0 = None,
+                 landmark_path: Optional[str] = None):
         self.drone_id = drone_id
 
         self.ctrl = controller
@@ -501,10 +666,15 @@ class DroneSim:
         bot_cfg = config["bots"][drone_id]
         self.bot_cfg = bot_cfg
 
+        # Shared RNG for odometry noise and sensors (order: record_odom, then sensor_manager.step)
+        self._rng = _make_rng(drone_id, "drone")
+
         # Odometry noise std: [v_fwd, vz, omega] (3-element ndarray)
-        raw = bot_cfg["controller"].get("odom_error_std", [0.0, 0.0, 0.0])
+        ctrl_cfg = bot_cfg["controller"]
+        raw = ctrl_cfg.get("odom_error_std", [0.0, 0.0, 0.0])
         self.odom_error_std = np.array(raw, dtype=float).reshape(3)
-        self.odom_noise_flag = 1 if bot_cfg["controller"].get("odom_noise_on", True) else 0
+        self.odom_noise_on = bool(ctrl_cfg.get("odom_noise_on", True))
+        self.odom_bounded_noise = bool(ctrl_cfg.get("bounded_noise", False))
 
         # Align dt
         dt = config["dt"]
@@ -574,28 +744,25 @@ class DroneSim:
         )
         self.gt_writer.write_line(gt_line0)
 
-        # Landmarks can be provided inline as config["landmarks"] = {id: [x,y,z], ...}
-        # or as a json file via config["landmark_path"].
-        landmarks: Dict[str, np.ndarray] = {}
-        if isinstance(config.get("landmarks"), dict):
-            for lm_id, xyz in config["landmarks"].items():
-                try:
-                    arr = np.asarray(xyz, dtype=float).reshape(3)
-                    landmarks[str(lm_id)] = arr
-                except Exception:
-                    continue
+        # Landmarks: optional override path (e.g. batch run dir landmarks.json), then
+        # inline config["landmarks"], then config["landmark_path"].
+        # IDs are always int in memory and in msg_log as decimal integers.
+        landmarks: Dict[int, np.ndarray] = {}
+        lm_override = Path(landmark_path) if landmark_path else None
+        if lm_override is not None and lm_override.exists():
+            with lm_override.open("r", encoding="utf-8") as lf:
+                lm_cfg = json.load(lf)
+            if isinstance(lm_cfg, dict):
+                landmarks = normalize_landmarks_mapping(lm_cfg)
+        elif isinstance(config.get("landmarks"), dict):
+            landmarks = normalize_landmarks_mapping(config["landmarks"])
         elif "landmark_path" in config:
             lm_path = Path(str(config["landmark_path"]))
             if lm_path.exists():
                 with lm_path.open("r", encoding="utf-8") as lf:
                     lm_cfg = json.load(lf)
                 if isinstance(lm_cfg, dict):
-                    for lm_id, xyz in lm_cfg.items():
-                        try:
-                            arr = np.asarray(xyz, dtype=float).reshape(3)
-                            landmarks[str(lm_id)] = arr
-                        except Exception:
-                            continue
+                    landmarks = normalize_landmarks_mapping(lm_cfg)
 
         if not world_sim is None:
             self.sensor_manager = SensorSimManager(
@@ -604,6 +771,7 @@ class DroneSim:
                 bot_cfg,
                 self.message_writer,
                 landmarks=landmarks,
+                rng=self._rng,
             )
         else:
             self.sensor_manager = None
@@ -615,6 +783,8 @@ class DroneSim:
 
     def step(self):
         x, y, z, yaw, vx, vy, vz, r = self.s
+
+        self.timer  += self.dt
 
         # controller inputs
         pos  = np.array([x, y, z])
@@ -647,23 +817,29 @@ class DroneSim:
         yaw = (yaw + np.pi) % (2*np.pi) - np.pi
 
         # log
-        self.timer  += self.dt
 
         self.s[:] = [x, y, z, yaw, vx, vy, vz, r]
         line = f"{self.timer} pose {x} {y} {z} {yaw}, {vx}, {vy}, {vz}, {r}\n"
         self.gt_writer.write_line(line)
 
+        # need to watch out, floating point problems. 
         if not self.sensor_manager is None:
             self.sensor_manager.step(self.dt)
     
     def record_odom(self, v_fwd, v_up, omega_yaw):
         """Log body forward speed, world-up (+Z) speed, and yaw rate about +Z (matches C++ Z-up frame)."""
-        # Noise std from config [v_fwd, v_up, omega] (same axis meaning as values)
-        std_fwd, std_up, std_omega = self.odom_error_std
-        noise_fwd = float(v_fwd + self.odom_noise_flag * std_fwd * np.random.standard_normal())
-        noise_up = float(v_up + self.odom_noise_flag * std_up * np.random.standard_normal())
-        noise_omega = float(omega_yaw + self.odom_noise_flag * std_omega * np.random.standard_normal())
+        # odom_noise_on: whether to perturb logged odom; bounded_noise: Gaussian vs bounded when on.
+        nvec = sample_additive_noise_zero_mean(
+            self.odom_error_std,
+            self.odom_noise_on,
+            self.odom_bounded_noise,
+            self._rng,
+        ).reshape(3)
+        noise_fwd = float(v_fwd + nvec[0])
+        noise_up = float(v_up + nvec[1])
+        noise_omega = float(omega_yaw + nvec[2])
 
+        std_fwd, std_up, std_omega = self.odom_error_std
         # Log odometry uncertainty as variances (NOT information).
         # C++ DataBasedSimulation will decode these variances into a 6x6 information matrix.
         var_fwd = float(std_fwd * std_fwd)

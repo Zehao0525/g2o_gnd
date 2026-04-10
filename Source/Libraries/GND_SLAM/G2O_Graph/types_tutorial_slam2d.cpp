@@ -25,6 +25,7 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "types_tutorial_slam2d.h"
+#include "edge_range_bearing.h"
 #include "edge_se2_pointxy.h"
 
 #include <iostream>
@@ -53,5 +54,6 @@ G2O_REGISTER_TYPE_NAME("TUTORIAL_CACHE_SE2_OFFSET", CacheSE2Offset);
 
 G2O_REGISTER_TYPE_NAME("TUTORIAL_EDGE_SE2", EdgeSE2);
 G2O_REGISTER_TYPE_NAME("TUTORIAL_EDGE_SE2_POINT_XY", EdgeSE2PointXY);
+G2O_REGISTER_TYPE_NAME("TUTORIAL_EDGE_RANGE_BEARING", EdgeRangeBearing);
 }  // namespace tutorial
 }  // namespace g2o

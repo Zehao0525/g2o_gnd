@@ -94,7 +94,7 @@ def latest_pre_opt_run_dir(pre_root: Path) -> Path:
             numeric_runs.append((int(p.name), p))
     if not numeric_runs:
         return pre_root
-    return max(numeric_runs, key=lambda t: t[0])[1]
+    return min(numeric_runs, key=lambda t: t[0])[1]
 
 
 def detect_drone_ids(gt_dir: Path, pre_dir: Path, post_dir: Path) -> List[str]:
@@ -112,7 +112,7 @@ def main(
     xy_only: bool = False,
 ) -> None:
     pre_root = pre_dir
-    pre_dir = latest_pre_opt_run_dir(pre_dir)
+    pre_dir = pre_dir
     if pre_dir != pre_root:
         print(f"pre-opt: using latest run directory {pre_dir} (under {pre_root})")
 
@@ -311,9 +311,9 @@ if __name__ == "__main__":
     # Edit these directly when you want to change paths quickly.
     # `pre_dir` is the pre_opt_trajectories root; the latest numeric subfolder (e.g. …/2/) is picked automatically.
     main(
-        gt_dir=Path("test_data/multidrone"),
-        pre_dir=Path("test_results/multidrone/pre_opt_trajectories"),
-        post_dir=Path("test_results/multidrone/trajectories"),
+        gt_dir=Path("test_data/multidrone2/long_traj/30_20lm_2midpoint/1"),
+        pre_dir=Path("test_results/multidrone2/long_traj/30_20lm_2midpoint_lmf1_of1/1/pre_opt_trajectories/0"),
+        post_dir=Path("test_results/multidrone2/long_traj/30_20lm_2midpoint_lmf1_of1/1/trajectories"),
         drone_ids=["0", "1", "2", "3", "4"],
         xy_only=False,
     )

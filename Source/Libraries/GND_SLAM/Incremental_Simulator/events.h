@@ -1,10 +1,11 @@
 #ifndef G2O_INCSIN2D_EVENTS_H
 #define G2O_INCSIN2D_EVENTS_H
 
+#include <cstdint>
 #include <map>
-#include <vector>
 #include <memory>
 #include <set>
+#include <vector>
 
 #include "g2o_tutorial_slam2d_api.h"
 #include "se2.h"
@@ -18,6 +19,8 @@ namespace tutorial {
 
     struct G2O_TUTORIAL_SLAM2D_API Event {
         double time;
+        /// Monotonic sequence for stable ordering when time and priority tie (e.g. file order).
+        std::uint64_t tieOrder{0};
         enum class EventType {
             HeartBeat,
             LMRangeBearingObservations,
@@ -29,15 +32,14 @@ namespace tutorial {
             FileObservation,
             FileIntraObservation,
             FileOdometry,
-            DataInitialization,
-            DataObservation,
-            DataOdometry
+            Other
         };
 
-        Event(double t) : time(t) {};
+        Event(double t) : time(t) {}
         virtual ~Event() = default;
         virtual EventType type() const = 0;
-        
+        /// Lower runs first when timestamps are equal (see `EventCompare`).
+        virtual int sortPriority() const { return 100; }
     };
 
     struct G2O_TUTORIAL_SLAM2D_API HeartBeat : public Event{
@@ -168,84 +170,24 @@ namespace tutorial {
                         const Eigen::Matrix<double,6,6>& info): Event(eventTime), vtxIdFrom(vtxId0), vtxIdTo(vtxId1), value(pos), information(info) {  };
         EventType type() const override{return EventType::FileIntraObservation;};
     };
-
-
-
-
-
-    struct G2O_TUTORIAL_SLAM2D_API DataInitEvent : public Event {
-        EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
-        Isometry3 value;
-        bool posFixed;
-        Eigen::Matrix<double,6,6> information;
-        DataInitEvent(const double eventTime,
-                      const bool fixed,
-                      const Isometry3& pos,
-                      const Eigen::Matrix<double,6,6>& info): Event(eventTime), posFixed(fixed), value(pos), information(info) {  };
-        EventType type() const override{return EventType::DataInitialization;};
-    };
-
-    struct G2O_TUTORIAL_SLAM2D_API DataOdomEvent : public Event {
-        EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
-        /// Body-frame linear velocities in translation(): x = v_fwd, y = 0, z = v_z (rad/s is NOT stored here).
-        Isometry3 value;
-        /// Yaw rate about +Z (rad/s). Must be explicit: encoding ω inside value.linear() as R_z(ω) loses ω
-        /// (only ω mod 2π is recoverable via atan2, e.g. ω=2π → identity → bogus zero rate).
-        double omegaZ{0.0};
-        Eigen::Matrix<double,6,6> information;
-        DataOdomEvent(const double eventTime, const Isometry3& velBody,
-                      double omegaZ_rad_per_s, const Eigen::Matrix<double, 6, 6>& info)
-            : Event(eventTime),
-              value(velBody),
-              omegaZ(omegaZ_rad_per_s),
-              information(info) {}
-        EventType type() const override { return EventType::DataOdometry; }
-    };
-
-
-    struct G2O_TUTORIAL_SLAM2D_API DataObsEvent : public Event {
-        EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
-        std::string robotIdTo;
-        Isometry3 value;
-        Eigen::Matrix<double,6,6> information;
-        DataObsEvent(   const double eventTime,
-                        const std::string robotId,
-                        const Isometry3& pos,
-                        const Eigen::Matrix<double,6,6>& info): Event(eventTime), 
-                        robotIdTo(robotId), value(pos), information(info) {  };
-        EventType type() const override{return EventType::DataObservation;};
-    };
-
-
-
-
     using EventPtr = std::shared_ptr<Event>;
     using EventPtrVector = std::vector<EventPtr>;
 
-    /// Stable ordering for events with the same timestamp (multiset needs strict weak ordering).
-    inline int dataEventPriority(Event::EventType t) {
-        switch (t) {
-            case Event::EventType::DataInitialization:
-                return 0;
-            case Event::EventType::DataOdometry:
-                return 1;
-            case Event::EventType::DataObservation:
-                return 2;
-            default:
-                return 100 + static_cast<int>(t);
-        }
-    }
 
-    // Comparator: earlier time comes first; tie-break so init → odom → obs for same t
+    // Comparator: time first; then sortPriority (e.g. DataEventBase: init<odom<obs<lmobs);
+    // then tieOrder; pointer last (non-deterministic — avoid relying on it).
     struct EventCompare {
         bool operator()(const EventPtr& a, const EventPtr& b) const {
             if (a->time != b->time) {
                 return a->time < b->time;
             }
-            const int pa = dataEventPriority(a->type());
-            const int pb = dataEventPriority(b->type());
+            const int pa = a->sortPriority();
+            const int pb = b->sortPriority();
             if (pa != pb) {
                 return pa < pb;
+            }
+            if (a->tieOrder != b->tieOrder) {
+                return a->tieOrder < b->tieOrder;
             }
             return a.get() < b.get();
         }

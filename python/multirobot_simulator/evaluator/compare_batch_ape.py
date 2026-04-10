@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """
-Compare batch APE (GT vs estimate) side-by-side for:
-  - test_results/multidrone/batch
-  - test_results/multidrone/batch_noGnd
+Compare batch APE (GT vs estimate) side-by-side for two result roots (e.g. with / without
+GND) plus a shared GT batch root.
+
+Only the first N runs are compared, with N = min(# numeric run subdirs in batch root,
+# numeric run subdirs in batch_noGnd root). Run ids are those in the intersection of both
+result roots and GT, sorted numerically (0, 1, 2, …); then the list is truncated to N.
 
 Uses compute_ape() from plot_trajectory_comparison.py.
 """
@@ -38,6 +41,74 @@ def _numeric_subdirs(root: Path) -> List[str]:
         if p.is_dir() and p.name.isdigit():
             out.append(p.name)
     return sorted(out, key=lambda s: int(s))
+
+
+def _format_batch_roots_debug(
+    gt_root: Path,
+    batch_root: Path,
+    no_gnd_root: Path,
+) -> str:
+    """Human-readable report: absolute paths, existence, and numeric run id sets."""
+    lines: List[str] = []
+
+    def describe(label: str, p: Path) -> set[str]:
+        abs_p = p.expanduser().resolve()
+        if not p.exists():
+            lines.append(f"  [{label}] MISSING (path does not exist):")
+            lines.append(f"           {abs_p}")
+            return set()
+        if not p.is_dir():
+            lines.append(f"  [{label}] EXISTS BUT IS NOT A DIRECTORY:")
+            lines.append(f"           {abs_p}")
+            return set()
+        nums = set(_numeric_subdirs(p))
+        non_numeric_dirs = sorted(
+            x.name for x in p.iterdir() if x.is_dir() and not x.name.isdigit()
+        )
+        lines.append(f"  [{label}] ok — directory:")
+        lines.append(f"           {abs_p}")
+        lines.append(
+            f"           numeric run subdirs: {len(nums)} → {sorted(nums, key=int)}"
+        )
+        if non_numeric_dirs:
+            sample = non_numeric_dirs[:15]
+            more = " ..." if len(non_numeric_dirs) > 15 else ""
+            lines.append(
+                f"           (non-numeric subdirs, ignored: {sample}{more})"
+            )
+        return nums
+
+    lines.append("Batch APE directory diagnostics:")
+    s_gt = describe("gt_batch_root", gt_root)
+    s_b = describe("batch_root", batch_root)
+    s_ng = describe("batch_noGnd_root", no_gnd_root)
+
+    common = s_gt & s_b & s_ng
+    lines.append(f"  Intersection of numeric run ids (all three): {sorted(common, key=int)}")
+
+    if not s_gt and gt_root.exists() and gt_root.is_dir():
+        lines.append("  Hint: gt root has no numeric subdirs (0,1,2,…); check layout.")
+    if not s_b:
+        lines.append(
+            "  Hint: batch_root has no numeric runs — often missing directory or wrong "
+            "path (e.g. typo batch_f2_nGnd vs batch_f2_noGnd)."
+        )
+    if not s_ng:
+        lines.append(
+            "  Hint: batch_noGnd_root has no numeric runs — path may be wrong or folder missing."
+        )
+
+    if s_gt and s_b and not (s_gt & s_b):
+        lines.append(
+            f"  gt ∩ batch is empty. Only in gt: {sorted(s_gt - s_b, key=int)[:15]}…"
+            f" only in batch: {sorted(s_b - s_gt, key=int)[:15]}…"
+        )
+    if s_gt and s_ng and not (s_gt & s_ng):
+        lines.append(
+            f"  gt ∩ batch_noGnd is empty. Only in gt: {sorted(s_gt - s_ng, key=int)[:15]}…"
+        )
+
+    return "\n".join(lines)
 
 
 def _detect_drone_ids(gt_run_dir: Path, est_run_dir: Path) -> List[str]:
@@ -78,19 +149,28 @@ def _run_ape_mean(
 
 
 def main(
-    gt_batch_root: Path = Path("test_data/multidrone/batch_f1"),
-    batch_root: Path = Path("test_results/multidrone/batch_f1"),
-    batch_no_gnd_root: Path = Path("test_results/multidrone/batch_f1_noGnd"),
+    gt_batch_root: Path = Path("test_data/multidrone2/repeats/batch_f2_bounded"),
+    batch_root: Path = Path("test_results/multidrone2/repeats/batch_f2_bounded"),
+    batch_no_gnd_root: Path = Path("test_results/multidrone2/repeats/batch_f2_nGnd_bounded"),
     drone_ids: List[str] | None = None,
 ) -> None:
-    runs = sorted(
-        set(_numeric_subdirs(gt_batch_root))
-        & set(_numeric_subdirs(batch_root))
-        & set(_numeric_subdirs(batch_no_gnd_root)),
-        key=lambda s: int(s),
-    )
+    ids_b = set(_numeric_subdirs(batch_root))
+    ids_ng = set(_numeric_subdirs(batch_no_gnd_root))
+    ids_gt = set(_numeric_subdirs(gt_batch_root))
+    n_cap = min(len(ids_b), len(ids_ng))
+    common = sorted(ids_b & ids_ng & ids_gt, key=lambda s: int(s))
+    runs = common[:n_cap] if n_cap > 0 else []
     if not runs:
-        raise RuntimeError("No common numeric run directories found across gt/batch/batch_noGnd roots.")
+        raise RuntimeError(
+            "No runs to compare: need non-empty intersection of numeric subdirs across "
+            "gt / batch / batch_noGnd, after capping at N=min(#batch, #batch_noGnd).\n"
+            + _format_batch_roots_debug(gt_batch_root, batch_root, batch_no_gnd_root)
+        )
+    print(
+        f"Comparing first N={len(runs)} trajectories "
+        f"(N_cap=min(batch={len(ids_b)}, batch_noGnd={len(ids_ng)})={n_cap}; "
+        f"{len(common)} common with GT, numeric order {runs[0]}…{runs[-1]})."
+    )
 
     batch_vals: List[float] = []
     no_gnd_vals: List[float] = []
@@ -110,13 +190,15 @@ def main(
     batch_arr = np.asarray(batch_vals, dtype=float)
     no_gnd_arr = np.asarray(no_gnd_vals, dtype=float)
     print("\nOverall mean across runs:")
-    print(f"  batch mean APE      = {np.nanmean(batch_arr):.6f}")
-    print(f"  batch_noGnd mean APE= {np.nanmean(no_gnd_arr):.6f}")
+    print(f"  batch mean APE      = {np.nanmean(batch_arr):.3f} \pm {np.nanstd(batch_arr):.3f}")
+    print(f"  batch_noGnd mean APE= {np.nanmean(no_gnd_arr):.3f} \pm {np.nanstd(no_gnd_arr):.3f}")
 
     valid_mask = np.isfinite(batch_arr) & np.isfinite(no_gnd_arr)
     valid_mask = valid_mask.astype(bool)
     paired_batch = batch_arr[valid_mask]
     paired_no_gnd = no_gnd_arr[valid_mask]
+    
+    print(f"\n GND results are better in {np.sum(paired_no_gnd > paired_batch)} out of {paired_batch.size} tests.")
 
     print("\nPaired significance tests (batch vs batch_noGnd):")
     print(f"  valid paired runs   = {paired_batch.size}")
@@ -148,5 +230,10 @@ def main(
 
 
 if __name__ == "__main__":
-    main()
+    # Note: on disk the no-GND folder is typically `batch_f2_noGnd`, not `batch_f2_nGnd`.
+    main(
+        gt_batch_root=Path("test_data/multidrone2/long_traj/30_20lm_2midpoint"),
+        batch_root=Path("test_results/multidrone2/long_traj/30_20lm_2midpoint_lmf2_of2_bounded"),
+        batch_no_gnd_root=Path("test_results/multidrone2/long_traj/30_20lm_2midpoint_lmf2_of2_bounded_nGnd"),
+    )
 

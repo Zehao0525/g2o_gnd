@@ -1,0 +1,11 @@
+{
+    "input_path" : "test_data/utisa/MRCLAM7/MRCLAM_Dataset7",
+    "output_path" : "test_results/utisa_mrclam7_batch",
+    "experiment_base_config" : "Source/Examples/UTISA_slam/config/experiment_base_config.json",
+    "single_dataset" : true,
+    "verbose" : false,
+    "enable_visualization" : false,
+    "show_progress" : true,
+    "view_config_path" : "Source/Examples/UTISA_slam/config/view_config.json",
+    "view_config_dir" : "Source/Examples/UTISA_slam/config"
+}

@@ -13,9 +13,10 @@ project(GND_SLAM)
 
 set(CMAKE_CXX_STANDARD 17)
 
-# Add subdirectories
+# Add subdirectories (UTISA_Simulator before visualizer: Incremental_Visualizer links both Multidrone and UTISA)
 add_subdirectory(Oneshot_Simulator)
 add_subdirectory(G2O_Graph)
-add_subdirectory(visualizer)
 add_subdirectory(Incremental_Simulator)
 add_subdirectory(Multidrone_Simulator)
+add_subdirectory(UTISA_Simulator)
+add_subdirectory(visualizer)

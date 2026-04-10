@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <cctype>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -25,6 +26,18 @@ using namespace g2o::tutorial::viz;
 using json = nlohmann::json;
 
 namespace {
+
+  void printWallElapsed(std::chrono::steady_clock::time_point t0) {
+    using namespace std::chrono;
+    const auto t1 = steady_clock::now();
+    const double w = duration<double>(t1 - t0).count();
+    const long long sec_ll = static_cast<long long>(std::floor(w + 1e-9));
+    const long long xh = sec_ll / 3600;
+    const long long ym = (sec_ll % 3600) / 60;
+    const long long zs = sec_ll % 60;
+    std::cout << "Wall time: " << xh << " hr, " << ym << " mins, " << zs << " secs ("
+              << std::fixed << std::setprecision(3) << w << " secs)" << std::endl;
+  }
 
 static bool isAllDigits(const std::string& name) {
   if (name.empty()) return false;
@@ -198,6 +211,7 @@ static int runOneBatchItem(
 int main(int argc, char* argv[]) {
   (void)argc;
   (void)argv;
+  const auto wall_clock_start = std::chrono::steady_clock::now();
   try {
     const std::string batch_config_path =
         "Source/Examples/Multidrone_slam/config/batch_experiment_config.json";
@@ -238,6 +252,7 @@ int main(int argc, char* argv[]) {
     const auto run_dirs = listNumericBatchRuns(std::filesystem::path(batch_data_root));
     if (run_dirs.empty()) {
       std::cerr << "No numeric batch subdirectories found under: " << batch_data_root << std::endl;
+      printWallElapsed(wall_clock_start);
       return 1;
     }
 
@@ -267,9 +282,11 @@ int main(int argc, char* argv[]) {
     }
 
     std::cout << "\nBatch complete (" << run_dirs.size() << " runs)." << std::endl;
+    printWallElapsed(wall_clock_start);
     return 0;
   } catch (const std::exception& e) {
     std::cerr << "Error: " << e.what() << std::endl;
+    printWallElapsed(wall_clock_start);
     return 1;
   }
 }

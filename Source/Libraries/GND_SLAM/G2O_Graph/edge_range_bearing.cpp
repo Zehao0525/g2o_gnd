@@ -59,19 +59,16 @@ bool EdgeRangeBearing::write(std::ostream& os) const {
 
 void EdgeRangeBearing::computeError() {
   const VertexPointXY* l2 = static_cast<const VertexPointXY*>(_vertices[1]);
-  const VertexSE2* l1 = static_cast<const VertexSE2*>(_vertices[0]);
-  //const SE2* platformVtx = static_cast<const VertexPointXY*>(_vertices[0]);
   Eigen::Vector2d delta = (_sensorCache->w2n() * l2->estimate());
-  //Eigen::Vector2d delta = ((l1->estimate()).inverse() * l2->estimate());
 
-  double dx = delta[0];
-  double dy = delta[1];
+  const double dx = delta[0];
+  const double dy = delta[1];
 
-  double r_pred = std::sqrt(dx*dx + dy*dy);
-  double theta_pred = std::atan2(dy, dx);
+  const double r_pred = std::sqrt(dx * dx + dy * dy);
+  const double theta_pred = std::atan2(dy, dx);
 
   _error[0] = r_pred - _measurement[0];
-  _error[1] = g2o::normalize_theta(theta_pred - _measurement[1]);  // Normalize angle to [-pi, pi]
+  _error[1] = g2o::normalize_theta(theta_pred - _measurement[1]);
 }
 
 bool EdgeRangeBearing::resolveCaches() {

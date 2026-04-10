@@ -27,6 +27,7 @@
 #pragma once
 
 #include <map>
+#include <string>
 #include <vector>
 
 #include <nlohmann/json.hpp>
@@ -45,6 +46,7 @@
 
 #include "g2o_tutorial_slam2d_api.h"
 #include "events.h"
+#include "md_events.h"
 #include "gnd_kernel.h"
 #include "messages.hpp"
 #include "stamp_map.hpp"
@@ -54,7 +56,9 @@
 #include "slam_system_base.h"
 
 #include "g2o/types/slam3d/edge_se3.h"
+#include "g2o/types/slam3d/edge_se3_pointxyz.h"
 #include "g2o/types/slam3d/edge_se3_prior.h"
+#include "g2o/types/slam3d/vertex_pointxyz.h"
 #include "g2o/types/slam3d/vertex_se3.h"
 #include "g2o/types/slam3d/types_slam3d.h"
 
@@ -106,6 +110,22 @@ public:
   using Base::optimize;
 
  public:
+  /// Per-drone landmark estimate bookkeeping (e.g. for sync / priors).
+  struct LandmarkEst {
+    int lmId = 0;
+    std::string observerId;
+    EdgeSE3PointXYZ* estimatePriorEdge = nullptr;
+    bool initialized = false;
+  };
+
+  /// One landmark vertex plus per-drone estimate history.
+  struct Landmark {
+    int lmId = 0;
+    bool initialized = false;
+    VertexPointXYZ* landmark = nullptr;
+    std::map<std::string, LandmarkEst> landmarkEsts;
+  };
+
   struct Observation {
     g2o::EdgeSE3* observationPriorEdge;  // pointer, since EdgeSE3Prior is non-copyable
     g2o::EdgeSE3* observationEdge;  // pointer, since EdgeSE3 is non-copyable
@@ -185,6 +205,10 @@ public:
 
   DSMessage handleObservationSyncRequest(DSMessage& msg);
 
+  // Allows AgentManager to forward `experiment_base_config.json`'s `lm_query`
+  // into DSMessage.lm_query for landmark marginalization/priors.
+  void setLmQueryEnabled(bool enabled) { lmQueryEnabled_ = enabled; }
+
 protected:
   /**
    * @brief process an event
@@ -216,9 +240,9 @@ protected:
    */
   void handleObservationEvent(DataObsEvent event);
 
+  void handleLMObservationEvent(DataLmObsEvent event);
 
   //void handleIntraObservationEvent(FileIntraObsEvent event);
-
 
   const std::string& getRobotId() const { return robotId_; }
 
@@ -230,11 +254,31 @@ protected:
   /// If false, `gndActive_` is never forced true in `stop()` and kernels stay off after the first opt retarget.
   bool gndActiveConfig_ = true;
 
+  /// GND robust kernel parameters (`gndBound_`, `gndPower_`, `gndLnc_`, `gndTailPenaltyStd_` in JSON).
+  double gndBound_ = 3.0;
+  double gndPower_ = 6.0;
+  double gndLnc_ = 1e-3;
+  /// Passed to `GNDKernel` as tail penalty std (internal `_delta` = square of this).
+  double gndTailPenaltyStd_ = 5.0;
+
+  /** Inter-robot observation priors and landmark estimate priors: inactive until first opt, then follow `gndActive_`. */
+  g2o::ToggelableGNDKernel* newPriorToggelableGndKernel();
+
+  // If true, DSMessage.lm_query requests landmark marginalization + priors
+  // during observation synchronization.
+  bool lmQueryEnabled_ = true;
+
   // After a prior edge has been optimized once, switch its GND kernel
   // bool pointer from `gndActiveAlwaysFalse_` to this system's `gndActive_`.
   void onAfterOptimize() override;
   bool gndActiveAlwaysFalse_ = false;
-  std::vector<EdgeSE3*> pendingGndPriorEdges_;
+  /// SE3 observation priors and SE3–PointXYZ landmark estimate priors (any optimizable edge with ToggelableGND).
+  std::vector<g2o::OptimizableGraph::Edge*> pendingGndPriorEdges_;
+
+  // When true, relative-transform vertices (between robots, used for
+  // inter-robot priors) are fixed to identity to prevent the optimizer from
+  // explaining away comm/association errors by moving these vertices.
+  bool fixRelativetransform_ = false;
 
   // This mapping maps the vertex of the platform to platform vertices
   // This also maps the observed vertex to its location in "observations_"
@@ -250,9 +294,14 @@ protected:
   bool haveUninitializedObs_;
   std::vector<Observation> observations_;
 
+  /// Global landmark id -> landmark node (shared across observations from this robot).
+  std::map<int, Landmark> landmarks_;
+  int nextLandmarkVertexSeq_ = 0;
+
   // Note, relative transforms' Isometry values are the inverse of the actual relative transforms.
   // (Transform to bot_i's frame) * (pose in bot_i's frame) == (Transform to observation source) * (noiseless observation measurement)
   std::map<std::string, VertexSE3*> relativeTransforms_;
+  std::map<std::string, bool> relativeTransformInGraph_;
   
   // For g2o we still need integer vertex ids; we assign them sequentially
   // per SLAM system when new relative-transform vertices are created.

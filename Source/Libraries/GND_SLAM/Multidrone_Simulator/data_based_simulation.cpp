@@ -4,6 +4,7 @@
 
 #include <fstream>
 #include <sstream>
+#include <string>
 #include <algorithm>
 #include <stdexcept>
 #include <cmath>
@@ -14,59 +15,6 @@
 namespace g2o {
 namespace tutorial {
 namespace multibotsim{
-
-// ======== Helper structs (internal to this .cpp) ========
-
-// Buffer for next GT (ground-truth) line
-struct GTBuffer {
-  bool valid = false;
-  double time = 0.0;
-  Isometry3 pose = Isometry3::Identity();
-};
-
-// Type of data message in the data file
-enum class DataMsgType {
-  None,
-  Odom,
-  RelPos
-};
-
-// Buffer for next data line
-struct DataBuffer {
-  bool valid = false;
-  double time = 0.0;
-  DataMsgType type = DataMsgType::None;
-
-  // For odom:
-  Isometry3 odomPose = Isometry3::Identity();
-  double odomOmegaZ = 0.0;
-
-  // For relpos:
-  std::string targetRobotId;
-  Isometry3 relPose = Isometry3::Identity();
-  Eigen::Matrix<double, 6, 6> information =
-      Eigen::Matrix<double, 6, 6>::Identity();
-};
-
-// ======== IMPORTANT: required private members in the header ========
-//
-// In DataBasedSimulation (data_based_simulation.h), you should add:
-//
-//  #include <fstream>
-//  #include <Eigen/Core>
-//
-//  protected:
-//    std::ifstream dataStream_;
-//    std::ifstream gtStream_;
-//
-//    GTBuffer gtBuffer_;
-//    DataBuffer dataBuffer_;
-//
-//    bool gtHasMore_;
-//    bool dataHasMore_;
-//
-// End of NOTE.
-// ========================================================
 
 // Small helper: replace commas with spaces so >> on doubles works even
 // if the file has "0.0," etc.
@@ -154,6 +102,13 @@ std::vector<EventPtr> DataBasedSimulation::acquireEvents() {
   auto events = eventQueue_.orderedEvents();
   eventQueue_.clear();
   return events;
+}
+
+void DataBasedSimulation::pushEvent(EventPtr e) {
+  if (e) {
+    e->tieOrder = nextEventTieOrder_++;
+  }
+  eventQueue_.push(std::move(e));
 }
 
 // ----------- Internal helpers to read next lines -----------
@@ -340,6 +295,40 @@ bool DataBasedSimulation::readNextData() {
 
       dataBuffer_.valid = true;
       return true;
+    } else if (type == "lmobs_rp") {
+      // Format:
+      //   t lmobs_rp <landmark_id_int> rel_x rel_y rel_z [std_x std_y std_z]
+      int lm_id = 0;
+      double px, py, pz;
+      if (!(iss >> lm_id >> px >> py >> pz)) {
+        continue;
+      }
+      if (lm_id < 0) {
+        continue;
+      }
+
+      dataBuffer_.time = t;
+      dataBuffer_.type = DataMsgType::LmObs;
+      dataBuffer_.landmarkId = lm_id;
+      dataBuffer_.relLmPos = Eigen::Vector3d(px, py, pz);
+
+      // Read optional std devs and convert to information.
+      // If unavailable, keep identity.
+      double sx, sy, sz;
+      Eigen::Matrix3d info3 = Eigen::Matrix3d::Identity();
+      if (iss >> sx >> sy >> sz) {
+        const double eps = 1e-12;
+        const double maxDiag = 9.0e9;
+        sx = std::max(sx, eps);
+        sy = std::max(sy, eps);
+        sz = std::max(sz, eps);
+        info3(0, 0) = std::min(1.0 / (sx * sx), maxDiag);
+        info3(1, 1) = std::min(1.0 / (sy * sy), maxDiag);
+        info3(2, 2) = std::min(1.0 / (sz * sz), maxDiag);
+      }
+      dataBuffer_.lmInformation = info3;
+      dataBuffer_.valid = true;
+      return true;
     } else {
       // Unknown type; skip
       continue;
@@ -358,6 +347,7 @@ void DataBasedSimulation::start() {
   currentTime_ = 0.0;
 
   eventQueue_.clear();
+  nextEventTieOrder_ = 0;
   timeStore_.clear();
   xTrueStore_.clear();
 
@@ -469,7 +459,7 @@ void DataBasedSimulation::initialize() {
       pose,   // value
       info);  // information
 
-  eventQueue_.push(initEvt);
+  pushEvent(initEvt);
 
   // Also store in history as t=0 pose
   storeStepResults();
@@ -506,14 +496,21 @@ void DataBasedSimulation::step(double dt) {
       auto evt = std::make_shared<DataOdomEvent>(
           dataBuffer_.time, dataBuffer_.odomPose, dataBuffer_.odomOmegaZ,
           dataBuffer_.information);
-      eventQueue_.push(evt);
+      pushEvent(evt);
     } else if (dataBuffer_.type == DataMsgType::RelPos) {
       auto evt = std::make_shared<DataObsEvent>(
           dataBuffer_.time,
           dataBuffer_.targetRobotId,
           dataBuffer_.relPose,
           dataBuffer_.information);
-      eventQueue_.push(evt);
+      pushEvent(evt);
+    } else if (dataBuffer_.type == DataMsgType::LmObs) {
+      auto evt = std::make_shared<DataLmObsEvent>(
+          dataBuffer_.time,
+          dataBuffer_.landmarkId,
+          dataBuffer_.relLmPos,
+          dataBuffer_.lmInformation);
+      pushEvent(evt);
     }
 
     // Read next data line

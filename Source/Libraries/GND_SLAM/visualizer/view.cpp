@@ -42,7 +42,6 @@ void View::renderRobotPath() const {
         glVertex2d(pose[0], pose[1]);
     }
     glEnd();
-    std::cout<<"rndrobpose";
 }
 
 void View::renderMeasurmentViz() {

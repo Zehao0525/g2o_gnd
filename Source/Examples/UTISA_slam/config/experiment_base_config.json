@@ -1,0 +1,29 @@
+{
+    "slam_config_path" : "Source/Examples/UTISA_slam/config/slam_system_config.json",
+    "sim_config_path" : "python/multirobot_simulator/config/sim_config.json",
+    "input_path" : "test_data/utisa/MRCLAM7/MRCLAM_Dataset7",
+    "output_path" : "test_results/utisa_mrclam7",
+    "topology_path" : "Source/Examples/UTISA_slam/config/topology.json",
+    "debug_outputs" : true,
+    "no_observations" : false,
+    "verbose" : false,
+
+    "communication":{
+        "enabled": false,
+        "frequency": 0.00000002,
+        "end_rounds": 3
+      },
+    "lm_query": false,
+    "odom_covariance": [
+        [0.0004, 0.0, 0.0],
+        [0.0, 1.0, 0.0],
+        [0.0, 0.0, 0.0025]
+    ],
+    "range_bearing_covariance": [
+        [0.5, 0.0],
+        [0.0, 0.04]
+    ],
+    "Duration": 240.0,
+
+    "RobotIds": ["Robot1", "Robot2", "Robot3", "Robot4", "Robot5"]
+}

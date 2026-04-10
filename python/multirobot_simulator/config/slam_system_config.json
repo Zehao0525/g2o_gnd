@@ -8,6 +8,6 @@
   "optimize_count":{
     "process":5,
     "stop": 10,
-    "stop_fixed": 10
+    "stop_fixed": 2
   }
 }

@@ -1,0 +1,21 @@
+{
+  "verbose": false,
+  "debug_verbose": false,
+
+  "gndActive_": false,
+  "gndBound_": 4.0,
+  "gndPower_": 6,
+  "gndLnc_": 1e-6,
+  "gndTailPenaltyStd_": 5.0,
+
+  "fixRelativetransform_": false,
+  "optimization_period": 10000,
+  "sensor_offset": [0.0, 0.0, 0.0],
+  "optimization_algorithm": "LevenbergMarquardt",
+
+  "optimize_count":{
+    "process":10,
+    "stop": 20,
+    "stop_fixed": 2
+  }
+}
