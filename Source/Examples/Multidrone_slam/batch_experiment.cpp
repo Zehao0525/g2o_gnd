@@ -183,7 +183,8 @@ static int runOneBatchItem(
       }
     }
   }
-
+  manager.dumpPreOptTrajectories();
+  manager.optimiseSystem(20);
   manager.dumpPreOptTrajectories();
   manager.stop();
 

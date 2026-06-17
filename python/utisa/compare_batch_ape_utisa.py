@@ -15,7 +15,7 @@ DISPLAY_DURATION_SEC is not used here (metrics only).
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Iterable, List, Optional, Tuple
+from typing import Iterable, List, Optional
 
 import numpy as np
 
@@ -23,6 +23,7 @@ try:
     from mrclam_eval_common import (
         align_gt_to_first_sample,
         canonical_robot_id,
+        compute_ape,
         crop_time_interval,
         derive_simulated_duration_sec,
         discover_robot_gt_paths,
@@ -35,6 +36,7 @@ except ModuleNotFoundError:
     from python.utisa.mrclam_eval_common import (  # type: ignore
         align_gt_to_first_sample,
         canonical_robot_id,
+        compute_ape,
         crop_time_interval,
         derive_simulated_duration_sec,
         discover_robot_gt_paths,
@@ -48,21 +50,6 @@ try:
     from scipy import stats as scipy_stats
 except ImportError:
     scipy_stats = None
-
-try:
-    from python.utisa.plot_trajectory_comparison_utisa import _nearest_indices
-except ModuleNotFoundError:
-    from plot_trajectory_comparison_utisa import _nearest_indices  # type: ignore
-
-
-def compute_ape(ref_t: np.ndarray, ref_xy: np.ndarray, est_t: np.ndarray, est_xy: np.ndarray) -> Tuple[float, float, int]:
-    if len(ref_t) == 0 or len(est_t) == 0:
-        return float("nan"), float("nan"), 0
-    ref_idx = _nearest_indices(ref_t, est_t)
-    d = est_xy - ref_xy[ref_idx]
-    dist = np.linalg.norm(d, axis=1)
-    return float(np.mean(dist)), float(np.sqrt(np.mean(dist * dist))), int(len(dist))
-
 
 # -------------------- Edit these --------------------
 GT_DATASET_DIR = Path("test_data/utisa/MRCLAM7/MRCLAM_Dataset7")

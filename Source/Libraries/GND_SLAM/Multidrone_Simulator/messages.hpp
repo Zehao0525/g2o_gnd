@@ -29,6 +29,7 @@ struct PoseStampEntry {
 };
 
 /// Landmark pose entry (e.g. for sync messages involving landmark IDs).
+/// observerId is the marginalizing robot (whose map produced the estimate), not the pose-query originator.
 struct LMPoseEntry {
     int landmarkId = -1;
     std::string observerId;
@@ -59,11 +60,12 @@ struct DSMessage {
     /// Pass only pose entries, only landmark entries, or both (omit unused side with `{}`).
     DSMessage(std::string sender,
               bool loaded_,
-              bool lm_query = true,
+              bool lm_query_in = true,
               std::vector<PoseStampEntry> pe = {},
               std::vector<LMPoseEntry> lm = {})
         : sourceId(std::move(sender)),
           loaded(loaded_),
+          lm_query(lm_query_in),
           poseEntries(std::move(pe)),
           lmEntries(std::move(lm)) {}
 };

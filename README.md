@@ -151,7 +151,15 @@ A far more developed repository for multidrone experiment from simulated data.
   
 
 ### UTISA_slam (Executable)
-This repository is structurally similar to "Multidrone_slam". please reference discription of that.
+This repository is structurally similar to "Multidrone_slam". please reference discription of that. 
+
+Also note that the covariance values of the UTISA test came from the following paper, with covariance set with the "velosity measurment principles" mentioned and $\sigma_{k}$ set to 0.1 as did the paper for the UTIAS tests. i.e: 
+- $\sigma_{odom-v}$ = $\sqrt{2} / 2 * \sigma_{k}$ = 0.0707
+- $\sigma_{odom-\omega}$ = $\sqrt{2} / a * \sigma_{k}$ (I used a = 0.258 for irobot rombas as described in the manual) = 0.548
+- $\sigma_{r} = 0.5$
+- $\sigma_{\theta}$ = 3 degrees = 0.0524
+
+"Y. Huang, C. Xue, F. Zhu, W. Wang, Y. Zhang and J. A. Chambers, "Adaptive Recursive Decentralized Cooperative Localization for Multirobot Systems With Time-Varying Measurement Accuracy," in IEEE Transactions on Instrumentation and Measurement, vol. 70, pp. 1-25, 2021, Art no. 8501525, doi: 10.1109/TIM.2021.3054005. keywords: {Robots;Covariance matrices;Noise measurement;Multi-robot systems;Location awareness;Estimation;Adaptive systems;Adaptive filter;decentralized cooperative localization;extended Kalman filter;multirobot systems;variational Bayesian},"
 
 ### G2O_Graph (Library)
 Content largely for 2D experiments. The most note worthy implementation is `gnd_kernel.h` and `gnd_kernel.cpp`, which is mostly used in the rest of the repository.

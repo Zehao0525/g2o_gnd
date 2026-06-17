@@ -69,7 +69,9 @@ public:
   /// then deliver the responses back to connected drones.
   void performCommunication();
 
-public:
+  /// Run `optimize` on every SLAM system (uses each system's `optCountProcess_` from config).
+  void optimiseSystem(int count);
+
   // Public so you can inspect/use it if you want
   std::vector<std::pair<std::string, std::string>> topology_;
 
@@ -124,6 +126,9 @@ protected:
 
   // Whether DS queries should request landmark marginalization / priors.
   bool lmQueryEnabled_ = true;
+
+  // Whether broadcasts include per-observation robot sync requests (see MultiDroneSLAMSystem).
+  bool robotQueryEnabled_ = true;
 
 };
 

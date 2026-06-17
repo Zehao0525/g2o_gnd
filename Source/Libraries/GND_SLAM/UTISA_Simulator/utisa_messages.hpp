@@ -33,7 +33,8 @@ struct PoseStampEntry {
 
 struct LMPoseEntry {
   int landmarkId = -1;
-  std::string observerId;
+  /// Marginalizing robot (whose map produced position/information), not the pose-query originator.
+  std::string observerId;                     // [Important] The ID of the robot that observed the landmark, i.e. that produced the data in this entry.
   bool hasPose = false;
   Eigen::Vector2d position = Eigen::Vector2d::Zero();
   Eigen::Matrix2d information = Eigen::Matrix2d::Identity();

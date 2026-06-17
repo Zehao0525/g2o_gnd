@@ -3,6 +3,7 @@
 
 #include "utisa_slam_system.h"
 
+#include <cassert>
 #include <map>
 #include <vector>
 #include <algorithm>
@@ -418,7 +419,7 @@ void UTISASlamSystem::handleLMObservationEvent(UTISALmObsEvent event) {
       for (auto& [observerId, est] : slot.landmarkEsts) {
         (void)observerId;
         if (!est.estimatePriorEdge) continue;
-        est.estimatePriorEdge ->setVertex(1, lmVtx);
+        est.estimatePriorEdge->setVertex(1, lmVtx);
         if (optimizer_->addEdge(est.estimatePriorEdge)) {
           pendingGndPriorEdges_.push_back(est.estimatePriorEdge);
         }
@@ -501,11 +502,12 @@ UTSIAMessage UTISASlamSystem::broadcastUTSIAMessage() const {
     std::cout << "Bot " << robotId_ << " broadcastUTSIAMessage start\n";
   }
   std::vector<PoseStampEntry> syncReqs;
-  syncReqs.reserve(observations_.size());
-
-  for (const auto& obs : observations_) {
-    PoseStampEntry entry(obs.observationTime, robotId_, obs.observationId, obs.observedRobotId);
-    syncReqs.push_back(std::move(entry));
+  if (robotQueryEnabled_) {
+    syncReqs.reserve(observations_.size());
+    for (const auto& obs : observations_) {
+      PoseStampEntry entry(obs.observationTime, robotId_, obs.observationId, obs.observedRobotId);
+      syncReqs.push_back(std::move(entry));
+    }
   }
 
   return UTSIAMessage(robotId_, false, lmQueryEnabled_, std::move(syncReqs), {});
@@ -516,11 +518,13 @@ UTSIAMessage UTISASlamSystem::handleObservationSyncRequest(UTSIAMessage& msg) {
     std::cout << "Bot " << robotId_ << " handleObservationSyncRequest start\n";
   }
 
+  // 1) Pose marginalization for any pose entries whose subject matches this robot.
   std::vector<PoseStampEntry> localPoseEntries;
   std::vector<g2o::OptimizableGraph::Vertex*> poseVerticesToMarginalize;
   localPoseEntries.reserve(msg.poseEntries.size());
   poseVerticesToMarginalize.reserve(msg.poseEntries.size());
 
+  // Find all the poses that are part of this robot
   for (const auto& pe : msg.poseEntries) {
     if (pe.subjectId != robotId_) continue;
 
@@ -538,22 +542,8 @@ UTSIAMessage UTISASlamSystem::handleObservationSyncRequest(UTSIAMessage& msg) {
   std::vector<g2o::OptimizableGraph::Vertex*> landmarkVerticesToMarginalize;
   std::vector<int> landmarkIdsToMarginalize;
 
-  std::vector<std::string> observerIdsToRespondTo;
   if (msg.lm_query) {
-    observerIdsToRespondTo.reserve(msg.poseEntries.size());
-    for (const auto& pe : msg.poseEntries) {
-      if (pe.sourceId == robotId_) continue;
-      if (std::find(observerIdsToRespondTo.begin(), observerIdsToRespondTo.end(), pe.sourceId) ==
-          observerIdsToRespondTo.end()) {
-        observerIdsToRespondTo.push_back(pe.sourceId);
-      }
-    }
-    if (observerIdsToRespondTo.empty()) {
-      if (msg.sourceId != robotId_) {
-        observerIdsToRespondTo.push_back(msg.sourceId);
-      }
-    }
-
+    // Find all the landmarks that observed by this robot (like properly observed)
     for (const auto& [lmId, lm] : landmarks_) {
       if (!lm.initialized) continue;
       if (!lm.landmark) continue;
@@ -569,6 +559,7 @@ UTSIAMessage UTISASlamSystem::handleObservationSyncRequest(UTSIAMessage& msg) {
     return UTSIAMessage(robotId_, false, msg.lm_query, {}, {});
   }
 
+  // optimise only if the graph was changed before last optimisation
   if (graphChanged_) {
     if (verbose_) {
       std::cout << "Optimizing before marginalization:\n";
@@ -577,6 +568,7 @@ UTSIAMessage UTISASlamSystem::handleObservationSyncRequest(UTSIAMessage& msg) {
     graphChanged_ = false;
   }
 
+  // Assemble the list of vertices to marginalize and marginalise
   std::vector<g2o::OptimizableGraph::Vertex*> verticesToMarginalize;
   verticesToMarginalize.reserve(poseVerticesToMarginalize.size() + landmarkVerticesToMarginalize.size());
   verticesToMarginalize.insert(verticesToMarginalize.end(), poseVerticesToMarginalize.begin(),
@@ -598,9 +590,11 @@ UTSIAMessage UTISASlamSystem::handleObservationSyncRequest(UTSIAMessage& msg) {
 
   g2o::SparseBlockMatrix<Eigen::MatrixXd> margCov;
 
+  // TODO OK maybe not this. I recon we turn the kernles flat rather than doing this. But then I'd need a new GND kernel, will do later
   const bool oldGndActive = gndActive_;
   gndActive_ = false;
 
+  // Linearize arund current point
   optimizer_->initializeOptimization();
   optimizer_->computeActiveErrors();
   if (const auto* algoConst =
@@ -609,6 +603,7 @@ UTSIAMessage UTISASlamSystem::handleObservationSyncRequest(UTSIAMessage& msg) {
     algo->updateLinearSystem();
   }
 
+  //Compute marginals
   bool margSuccess = optimizer_->computeMarginals(margCov, verticesToMarginalize);
 
   gndActive_ = oldGndActive;
@@ -647,7 +642,7 @@ UTSIAMessage UTISASlamSystem::handleObservationSyncRequest(UTSIAMessage& msg) {
 
   std::vector<LMPoseEntry> validLmResponses;
   if (msg.lm_query) {
-    validLmResponses.reserve(landmarkVerticesToMarginalize.size() * observerIdsToRespondTo.size());
+    validLmResponses.reserve(landmarkVerticesToMarginalize.size());
 
     for (size_t k = 0; k < landmarkVerticesToMarginalize.size(); ++k) {
       auto* ptVtx = dynamic_cast<VertexPointXY*>(landmarkVerticesToMarginalize[k]);
@@ -665,13 +660,13 @@ UTSIAMessage UTISASlamSystem::handleObservationSyncRequest(UTSIAMessage& msg) {
 
       const Eigen::Vector2d pos = ptVtx->estimate();
 
-      for (const auto& observerId : observerIdsToRespondTo) {
-        LMPoseEntry entry(lmId, observerId);
-        entry.hasPose = true;
-        entry.position = pos;
-        entry.information = info2;
-        validLmResponses.push_back(std::move(entry));
-      }
+      // This is the correct oberverId: which is the id that actualy observed the landmakr. 
+      // TODO: There's a naming consistancy issue here between lm observations and inter robot observation. Will change later.
+      LMPoseEntry entry(lmId, robotId_);
+      entry.hasPose = true;
+      entry.position = pos;
+      entry.information = info2;
+      validLmResponses.push_back(std::move(entry));
     }
   }
 
@@ -753,18 +748,20 @@ void UTISASlamSystem::handleObservationSyncResponse(const UTSIAMessage& message)
 
       LandmarkEst& est = landmark.landmarkEsts[observerId];
 
-      if (!est.estimatePriorEdge && landmark.landmark) {
+      if (!est.estimatePriorEdge) {
         est.lmId = lmId;
         est.observerId = observerId;
         est.initialized = true;
         est.estimatePriorEdge = new EdgeSE2PointXY();
 
+        
         est.estimatePriorEdge->setVertex(0, relativeTransforms_[observerId]);
-        est.estimatePriorEdge->setVertex(1, landmark.landmark);
+        //est.estimatePriorEdge->setVertex(1, landmark.landmark);
         est.estimatePriorEdge->setParameterId(0, kPoseFrameParameterId);
         est.estimatePriorEdge->setRobustKernel(newPriorToggelableGndKernel());
 
         if (landmark.initialized) {
+          est.estimatePriorEdge->setVertex(1, landmark.landmark);
           if (optimizer_->addEdge(est.estimatePriorEdge)) {
             pendingGndPriorEdges_.push_back(est.estimatePriorEdge);
           }

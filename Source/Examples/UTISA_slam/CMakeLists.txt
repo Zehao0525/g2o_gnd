@@ -11,6 +11,19 @@ target_link_libraries(utisa_slam_experiment PRIVATE
   Incremental_Visualizer
 )
 
+add_executable(utisa_slam_unit_experiment
+  unit_experiment.cpp
+)
+
+target_include_directories(utisa_slam_unit_experiment PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+
+target_link_libraries(utisa_slam_unit_experiment PRIVATE
+  UTISA_Simulator
+  G2O_Graph
+  Incremental_Simulator
+  Incremental_Visualizer
+)
+
 add_executable(batch_utisa_slam
   batch_experiment.cpp
 )

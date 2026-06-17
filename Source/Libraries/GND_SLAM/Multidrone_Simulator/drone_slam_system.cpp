@@ -583,17 +583,19 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
     std::vector<PoseStampEntry> syncReqs;
     syncReqs.reserve(observations_.size());
 
-    // Convert each Observation into an ObsSyncRequest
-    for (const auto& obs : observations_) {
-      // 1) Use the existing ID-only constructor
-      PoseStampEntry entry(
-        /* time */          obs.observationTime,                
-        /* sourceId */      robotId_,                   // who originated this query
-        /* observationId */ obs.observationId,          // local obs id (for matching on return)
-        /* subjectId */     obs.observedRobotId         // which robot / subject this pose refers to
-      );
-      // 2) Fill in the actual pose + information from the edge
-      syncReqs.push_back(std::move(entry));
+    if (robotQueryEnabled_) {
+      // Convert each Observation into an ObsSyncRequest
+      for (const auto& obs : observations_) {
+        // 1) Use the existing ID-only constructor
+        PoseStampEntry entry(
+          /* time */          obs.observationTime,                
+          /* sourceId */      robotId_,                   // who originated this query
+          /* observationId */ obs.observationId,          // local obs id (for matching on return)
+          /* subjectId */     obs.observedRobotId         // which robot / subject this pose refers to
+        );
+        // 2) Fill in the actual pose + information from the edge
+        syncReqs.push_back(std::move(entry));
+      }
     }
 
     // Build & return the final message; mark it as outgoing
@@ -632,28 +634,11 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
       poseVerticesToMarginalize.push_back(v);
     }
 
-    // 2) Landmark marginalization (optional).
+    // 2) Landmark marginalization (optional): marginalize landmarks on this robot's map when lm_query.
     std::vector<g2o::OptimizableGraph::Vertex*> landmarkVerticesToMarginalize;
     std::vector<int> landmarkIdsToMarginalize;
 
-    // Which robots asked for landmark priors? We infer from msg.poseEntries.sourceId.
-    std::vector<std::string> observerIdsToRespondTo;
     if (msg.lm_query) {
-      observerIdsToRespondTo.reserve(msg.poseEntries.size());
-      for (const auto& pe : msg.poseEntries) {
-        // Don't send landmark priors back to ourselves.
-        if (pe.sourceId == robotId_) continue;
-        if (std::find(observerIdsToRespondTo.begin(), observerIdsToRespondTo.end(), pe.sourceId) == observerIdsToRespondTo.end()) {
-          observerIdsToRespondTo.push_back(pe.sourceId);
-        }
-      }
-      if (observerIdsToRespondTo.empty()) {
-        // Fallback: if we have no pose entries, respond to msg.sourceId.
-        if (msg.sourceId != robotId_) {
-          observerIdsToRespondTo.push_back(msg.sourceId);
-        }
-      }
-
       for (const auto& [lmId, lm] : landmarks_) {
         if (!lm.initialized) continue;
         if (!lm.landmark) continue;
@@ -747,10 +732,10 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
       }
     }
 
-    // Step 5: fill landmark responses (if requested).
+    // Step 5: fill landmark responses (if requested). observerId is this robot (marginal source), matching UTISA.
     std::vector<LMPoseEntry> validLmResponses;
     if (msg.lm_query) {
-      validLmResponses.reserve(landmarkVerticesToMarginalize.size() * observerIdsToRespondTo.size());
+      validLmResponses.reserve(landmarkVerticesToMarginalize.size());
 
       for (size_t k = 0; k < landmarkVerticesToMarginalize.size(); ++k) {
         auto* ptVtx = dynamic_cast<g2o::VertexPointXYZ*>(landmarkVerticesToMarginalize[k]);
@@ -775,13 +760,11 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
         Isometry3 pose = Isometry3::Identity();
         pose.translation() = ptVtx->estimate();
 
-        for (const auto& observerId : observerIdsToRespondTo) {
-          LMPoseEntry entry(lmId, observerId);
-          entry.hasPose = true;
-          entry.pose = pose;
-          entry.information = info6;
-          validLmResponses.push_back(std::move(entry));
-        }
+        LMPoseEntry entry(lmId, robotId_);
+        entry.hasPose = true;
+        entry.pose = pose;
+        entry.information = info6;
+        validLmResponses.push_back(std::move(entry));
       }
     }
 
@@ -801,6 +784,7 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
   void MultiDroneSLAMSystem::handleObservationSyncResponse(const DSMessage& message) {
     // 1) Update all matching SE3Prior edges from the external cache
     if(verbose_){std::cout << "Bot " << robotId_ << " handleObservationSyncResponse start\n";}
+    //std::cout << "response.lmEntries.size() " << robotId_ << message.lmEntries.size() << "\n";
     for (const auto& pe : message.poseEntries) {
       // Only handle entries that belong to *this* robot's outstanding requests.
       // `PoseStampEntry.sourceId` is the robot that originated the query.
@@ -855,9 +839,8 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
           continue;
         }
 
-        // Create/update the per-observer landmark estimate prior.
-        // (Insight, don't delete comment): Id of the robot that produced this estimate/observed the landmark to form this prior
-        const std::string& observerId = lme.observerId;  
+        // Create/update the per-remote-map landmark prior: observerId is the marginalizing robot (UTISA-aligned).
+        const std::string& observerId = lme.observerId;
 
         // SO.. This is techincally impossible, but I'll just keep this just in case. 
         if (relativeTransforms_.find(observerId) == relativeTransforms_.end()) {
@@ -883,6 +866,7 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
         LandmarkEst& est = landmark.landmarkEsts[observerId];
 
         if (!est.estimatePriorEdge) {
+          //std::cout << "here prior\n";
           est.lmId = lmId;
           est.observerId = observerId;
           est.initialized = true;
@@ -908,6 +892,7 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
           // Add this edge only if the landmark has been activated in the factor graph.
           // If not added here, it'll be added during landmark initialization.
           if (landmark.initialized) {
+            //std::cout << "add prior\n";
             if (optimizer_->addEdge(est.estimatePriorEdge)) {
               pendingGndPriorEdges_.push_back(est.estimatePriorEdge);
             }
@@ -925,6 +910,7 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
         // (NOTE, don't delete comment) OK so the divide by 4 thing is a bit of a hack.
         // It's to make ths bound of the kernel appear at 2 * std
         // It'd probably better if embedded in the kernel.
+        //std::cout << "set prior\n";
         est.estimatePriorEdge->setMeasurement(lmObserved);
         est.estimatePriorEdge->setInformation(info3);
 

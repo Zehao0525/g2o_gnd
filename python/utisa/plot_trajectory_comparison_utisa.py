@@ -25,6 +25,8 @@ import numpy as np
 from mrclam_eval_common import (
     align_gt_to_first_sample,
     canonical_robot_id,
+    compute_ape,
+    compute_ate,
     crop_time_interval,
     derive_simulated_duration_from_results,
     discover_robot_gt_paths,
@@ -34,11 +36,12 @@ from mrclam_eval_common import (
     read_landmark_groundtruth,
     read_tum_xy,
     resolve_pre_opt_trajectories_dir,
+    _nearest_indices,
 )
 
 # -------------------- Edit these --------------------
 DATASET_DIR = Path("test_data/utisa/MRCLAM7/MRCLAM_Dataset7")
-RESULTS_DIR = Path("test_results/utisa_mrclam7_batch")
+RESULTS_DIR = Path("test_results/utisa_mrclam7_no_obs_test")
 # Pre-opt lives under RESULTS_DIR/pre_opt_trajectories/<n>/ (needs debug_outputs in experiment JSON)
 PRE_OPT_SUBDIR = None  # None = pick newest numeric subfolder that contains trajectory_*.txt
 ROBOTS: List[str] = []  # e.g. ["Robot1", "2"] or [] for all
@@ -53,35 +56,6 @@ EXPERIMENT_JSON: Path | None = Path(
     "test_results/utisa_mrclam7_batch/.batch_merged_configs/experiment_run_single.json"
 )
 # ----------------------------------------------------
-
-
-def _nearest_indices(ref_t: np.ndarray, query_t: np.ndarray) -> np.ndarray:
-    idx = np.searchsorted(ref_t, query_t, side="left")
-    idx = np.clip(idx, 0, len(ref_t) - 1)
-    left = np.clip(idx - 1, 0, len(ref_t) - 1)
-    choose_left = np.abs(query_t - ref_t[left]) < np.abs(ref_t[idx] - query_t)
-    idx[choose_left] = left[choose_left]
-    return idx
-
-
-def compute_ate(gt_t: np.ndarray, gt_xy: np.ndarray, est_t: np.ndarray, est_xy: np.ndarray) -> Tuple[float, float, int]:
-    if len(gt_t) == 0 or len(est_t) == 0:
-        return float("nan"), float("nan"), 0
-    gt_idx = _nearest_indices(gt_t, est_t)
-    d = est_xy - gt_xy[gt_idx]
-    dist = np.linalg.norm(d, axis=1)
-    return float(np.mean(dist)), float(np.sqrt(np.mean(dist * dist))), int(len(dist))
-
-
-def compute_ape(
-    ref_t: np.ndarray, ref_xy: np.ndarray, est_t: np.ndarray, est_xy: np.ndarray
-) -> Tuple[float, float, int]:
-    if len(ref_t) == 0 or len(est_t) == 0:
-        return float("nan"), float("nan"), 0
-    ref_idx = _nearest_indices(ref_t, est_t)
-    d = est_xy - ref_xy[ref_idx]
-    dist = np.linalg.norm(d, axis=1)
-    return float(np.mean(dist)), float(np.sqrt(np.mean(dist * dist))), int(len(dist))
 
 
 def resolve_sim_duration(results_dir: Path, robot_ids: List[str]) -> float | None:
@@ -108,10 +82,12 @@ def main() -> None:
     lm_gt = read_landmark_groundtruth(lm_path) if lm_path.is_file() else {}
 
     post_dir = RESULTS_DIR / "trajectories"
+    have_post_dir = True
     pre_root = RESULTS_DIR / "pre_opt_trajectories"
 
     if not post_dir.is_dir():
-        raise FileNotFoundError(post_dir)
+        have_post_dir = False
+        #raise FileNotFoundError(post_dir)
 
     available_robots = sorted(gt_map.keys(), key=lambda s: int(s.replace("Robot", "")))
     if ROBOTS:

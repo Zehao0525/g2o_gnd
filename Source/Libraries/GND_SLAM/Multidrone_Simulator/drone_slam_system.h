@@ -209,6 +209,9 @@ public:
   // into DSMessage.lm_query for landmark marginalization/priors.
   void setLmQueryEnabled(bool enabled) { lmQueryEnabled_ = enabled; }
 
+  /// When false, `broadcastDSMessage()` omits per-observation pose sync entries (robot-to-robot query).
+  void setRobotQueryEnabled(bool enabled) { robotQueryEnabled_ = enabled; }
+
 protected:
   /**
    * @brief process an event
@@ -267,6 +270,9 @@ protected:
   // If true, DSMessage.lm_query requests landmark marginalization + priors
   // during observation synchronization.
   bool lmQueryEnabled_ = true;
+
+  /// If true, each observation is turned into a pose sync entry in `broadcastDSMessage()`.
+  bool robotQueryEnabled_ = true;
 
   // After a prior edge has been optimized once, switch its GND kernel
   // bool pointer from `gndActiveAlwaysFalse_` to this system's `gndActive_`.

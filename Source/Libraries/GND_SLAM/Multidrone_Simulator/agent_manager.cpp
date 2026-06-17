@@ -58,6 +58,9 @@ AgentManager::AgentManager(const std::string& config_path,
     // Forwarded into DSMessage.lm_query and consumed by MultiDroneSLAMSystem.
     lmQueryEnabled_ = j.value("lm_query", true);
 
+    // Per-observation robot sync entries in broadcastDSMessage(); false = omit them.
+    robotQueryEnabled_ = j.value("robot_query", true);
+
     // Communication config (defaults: enabled=true, frequency=0 -> every step)
     if (j.contains("communication") && j["communication"].is_object()) {
       const auto& c = j["communication"];
@@ -118,6 +121,7 @@ AgentManager::AgentManager(const std::string& config_path,
     sims_.push_back(std::make_unique<DataBasedSimulation>(id, data_path, gt_path));
     slamSystems_.push_back(std::make_unique<MultiDroneSLAMSystem>(id, slam_config_path));
     slamSystems_.back()->setLmQueryEnabled(lmQueryEnabled_);
+    slamSystems_.back()->setRobotQueryEnabled(robotQueryEnabled_);
     slamSystems_.back()->setPreOptTrajectoryDumpEnabled(debugOutputs_);
     slamSystems_.back()->setPreOptTrajectoryOutputDir(outputPath_ + "/pre_opt_trajectories");
 
@@ -360,6 +364,13 @@ void AgentManager::saveTrajectories(const std::string& output_dir, const std::st
   }
 
   std::cout << "Saved trajectories for " << slamSystems_.size() << " robots" << std::endl;
+}
+
+void AgentManager::optimiseSystem(int count) {
+  for (auto& slam : slamSystems_) {
+    if (!slam) continue;
+    (void)slam->optimize(count);
+  }
 }
 
 void AgentManager::performCommunication() {

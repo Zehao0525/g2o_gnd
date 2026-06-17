@@ -212,6 +212,43 @@ def derive_simulated_duration_sec(trajectory_paths: List[Path]) -> float:
     return min(spans)
 
 
+def _nearest_indices(ref_t: np.ndarray, query_t: np.ndarray) -> np.ndarray:
+    """Map each query timestamp to the nearest index in sorted `ref_t`."""
+    idx = np.searchsorted(ref_t, query_t, side="left")
+    idx = np.clip(idx, 0, len(ref_t) - 1)
+    left = np.clip(idx - 1, 0, len(ref_t) - 1)
+    choose_left = np.abs(query_t - ref_t[left]) < np.abs(ref_t[idx] - query_t)
+    idx[choose_left] = left[choose_left]
+    return idx
+
+
+def compute_ape(
+    ref_t: np.ndarray, ref_xy: np.ndarray, est_t: np.ndarray, est_xy: np.ndarray
+) -> Tuple[float, float, int]:
+    """
+    Absolute position error statistics: for each estimate sample, error vs reference pose
+    at nearest reference time. Returns (mean, RMSE, count).
+    """
+    if len(ref_t) == 0 or len(est_t) == 0:
+        return float("nan"), float("nan"), 0
+    ref_idx = _nearest_indices(ref_t, est_t)
+    d = est_xy - ref_xy[ref_idx]
+    dist = np.linalg.norm(d, axis=1)
+    return float(np.mean(dist)), float(np.sqrt(np.mean(dist * dist))), int(len(dist))
+
+
+def compute_ate(
+    gt_t: np.ndarray, gt_xy: np.ndarray, est_t: np.ndarray, est_xy: np.ndarray
+) -> Tuple[float, float, int]:
+    """ATE-style 2D error: for each estimate time, distance to GT at nearest GT time."""
+    if len(gt_t) == 0 or len(est_t) == 0:
+        return float("nan"), float("nan"), 0
+    gt_idx = _nearest_indices(gt_t, est_t)
+    d = est_xy - gt_xy[gt_idx]
+    dist = np.linalg.norm(d, axis=1)
+    return float(np.mean(dist)), float(np.sqrt(np.mean(dist * dist))), int(len(dist))
+
+
 def derive_simulated_duration_from_results(
     results_dir: Path, robot_ids: Optional[List[str]] = None
 ) -> float:

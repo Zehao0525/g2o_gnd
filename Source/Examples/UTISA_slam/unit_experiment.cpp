@@ -19,7 +19,7 @@ using namespace g2o::tutorial::viz;
 using json = nlohmann::json;
 
 namespace g2o::tutorial {
-void forceLinkTypesTutorialSlam2d();  // Forward declaration
+void forceLinkTypesTutorialSlam2d();
 }
 
 namespace {
@@ -34,6 +34,16 @@ void printWallElapsed(std::chrono::steady_clock::time_point t0) {
   std::cout << "Wall time: " << xh << " hr, " << ym << " mins, " << zs << " secs ("
             << std::fixed << std::setprecision(3) << w << " secs)" << std::endl;
 }
+
+json readJsonFile(const std::string& path) {
+  std::ifstream in(path);
+  if (!in) {
+    throw std::runtime_error("cannot open JSON: " + path);
+  }
+  json j;
+  in >> j;
+  return j;
+}
 }  // namespace
 
 int main(int argc, char* argv[]) {
@@ -43,33 +53,26 @@ int main(int argc, char* argv[]) {
 
   const auto wall_clock_start = std::chrono::steady_clock::now();
   try {
-    const std::string base_config_path = "Source/Examples/UTISA_slam/config/experiment_base_config.json";
-    const std::string view_config_path = "Source/Examples/UTISA_slam/config/view_config.json";
+    const std::string experiment_config_path = "Source/Examples/UTISA_slam/config/unit_experiment_config.json";
     const std::string view_config_dir = "Source/Examples/UTISA_slam/config";
 
-    std::ifstream in(base_config_path);
-    if (!in) {
-      throw std::runtime_error("cannot open base config file: " + base_config_path);
-    }
-    json j;
-    in >> j;
-
-    const std::string config_path = base_config_path;
-    const std::string slam_config_path = j.at("slam_config_path").get<std::string>();
-    const std::string input_path = j.at("input_path").get<std::string>();
-    const std::string output_path = j.value("output_path", std::string("test_results/utisa"));
+    const json cfg = readJsonFile(experiment_config_path);
+    const std::string view_config_path =
+        cfg.value("view_config_path", std::string("Source/Examples/UTISA_slam/config/view_config.json"));
+    const std::string slam_config_path = cfg.at("slam_config_path").get<std::string>();
+    const std::string input_path = cfg.at("input_path").get<std::string>();
+    const std::string output_path = cfg.value("output_path", std::string("test_results/utisa_unit_experiment"));
     const std::string topology_path =
-        j.value("topology_path", std::string("Source/Examples/UTISA_slam/config/topology.json"));
-    const bool verbose = j.value("verbose", false);
+        cfg.value("topology_path", std::string("Source/Examples/UTISA_slam/config/topology.json"));
+    const bool verbose = cfg.value("verbose", false);
 
-    std::cout << "Initializing UTISAAgentManager..." << std::endl;
-    std::cout << "  Config path: " << config_path << std::endl;
-    std::cout << "  SLAM config path: " << slam_config_path << std::endl;
+    std::cout << "UTISA unit experiment (no inter-robot communication)\n";
+    std::cout << "  Experiment config: " << experiment_config_path << std::endl;
     std::cout << "  Input path: " << input_path << std::endl;
     std::cout << "  Output path: " << output_path << std::endl;
-    std::cout << "  Topology path: " << topology_path << std::endl;
 
-    UTISAAgentManager manager(config_path, input_path, slam_config_path);
+    UTISAAgentManager manager(experiment_config_path, input_path, slam_config_path);
+    manager.configureNoInterRobotCommunication();
     manager.setTopologyJson(topology_path);
 
     std::ifstream view_in(view_config_path);
@@ -87,7 +90,7 @@ int main(int argc, char* argv[]) {
     const bool visualise_sim_path = view_j.value("visualise_sim_path", true);
     const bool visualise_pose = view_j.value("visualise_pose", true);
 
-    std::cout << "Setting up visualization..." << std::endl;
+    std::cout << "Setting up visualization...\n";
     ViewManager3D viewManager(view_config_path);
     std::cout << "  platform_size: " << platform_size << std::endl;
     if (step_pause_sec > 0.0) {
@@ -143,18 +146,18 @@ int main(int argc, char* argv[]) {
       }
     }
 
-    std::cout << "Starting visualization..." << std::endl;
+    std::cout << "Starting visualization...\n";
     viewManager.start();
 
-    std::cout << "Starting simulation..." << std::endl;
+    std::cout << "Starting simulation...\n";
     manager.start();
 
-    std::cout << "Running simulation..." << std::endl;
+    std::cout << "Running simulation...\n";
     int step_count = 0;
     const int max_steps = 100000;
     while (step_count < max_steps && manager.keepRunning()) {
       if (verbose) {
-        std::cout << "Experiment: step " << step_count << std::endl;
+        std::cout << "Unit experiment: step " << step_count << std::endl;
       }
       manager.step();
       step_count++;
@@ -174,8 +177,6 @@ int main(int argc, char* argv[]) {
     }
 
     manager.dumpPreOptTrajectories();
-    manager.optimiseSystem(20);
-    manager.dumpPreOptTrajectories();
     manager.stop();
     for (auto& view : slamViews) {
       view->update();
@@ -184,14 +185,14 @@ int main(int argc, char* argv[]) {
       view->update();
     }
 
-    std::cout << "Saving trajectories..." << std::endl;
+    std::cout << "Saving trajectories...\n";
     manager.saveTrajectories(output_path + "/trajectories", "tum");
     manager.saveLandmarks(output_path + "/landmarks");
 
-    std::cout << "Stopping visualization..." << std::endl;
+    std::cout << "Stopping visualization...\n";
     viewManager.stop();
 
-    std::cout << "Simulation complete!" << std::endl;
+    std::cout << "Unit experiment complete.\n";
     printWallElapsed(wall_clock_start);
     return 0;
   } catch (const std::exception& e) {

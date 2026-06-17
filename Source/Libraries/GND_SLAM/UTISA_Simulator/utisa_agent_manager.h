@@ -54,6 +54,10 @@ class UTISAAgentManager {
   /// Load topology from JSON file (keys = bot ids, values = array of neighbor ids)
   void setTopologyJson(const std::string& topology_path);
 
+  /// Disable inter-robot sync: no `performCommunication` during `step()` or at `stop()`.
+  /// Sets `communicationEndRounds_` to 0 and uses an effectively infinite comm period.
+  void configureNoInterRobotCommunication();
+
   /// Query the bots in the simulation for poses (you said we can leave impl for now).
   void getPoses(std::vector<std::vector<double>>& poses);
 
@@ -70,7 +74,9 @@ class UTISAAgentManager {
   /// then deliver the responses back to connected drones.
   void performCommunication();
 
-public:
+  /// Run `optimize` on every SLAM system (uses each system's `optCountProcess_` from config).
+  void optimiseSystem(int count);
+
   // Public so you can inspect/use it if you want
   std::vector<std::pair<std::string, std::string>> topology_;
 
@@ -125,6 +131,9 @@ protected:
 
   // Whether sync queries should request landmark marginalization / priors.
   bool lmQueryEnabled_ = true;
+
+  /// Forwarded into each `UTISASlamSystem` (per-observation sync entries in broadcast when true).
+  bool robotQueryEnabled_ = true;
 
 };
 

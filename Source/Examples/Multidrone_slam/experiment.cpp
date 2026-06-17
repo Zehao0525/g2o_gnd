@@ -243,6 +243,8 @@ int main(int argc, char* argv[]) {
 
     // Optional debug dump right before stop-time optimization.
     manager.dumpPreOptTrajectories();
+    manager.optimiseSystem(20);
+    manager.dumpPreOptTrajectories();
 
     // Stop the simulation and finalize
     std::cout << "Stopping simulation..." << std::endl;

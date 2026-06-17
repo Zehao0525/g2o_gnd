@@ -311,9 +311,9 @@ if __name__ == "__main__":
     # Edit these directly when you want to change paths quickly.
     # `pre_dir` is the pre_opt_trajectories root; the latest numeric subfolder (e.g. …/2/) is picked automatically.
     main(
-        gt_dir=Path("test_data/multidrone2/long_traj/30_20lm_2midpoint/1"),
-        pre_dir=Path("test_results/multidrone2/long_traj/30_20lm_2midpoint_lmf1_of1/1/pre_opt_trajectories/0"),
-        post_dir=Path("test_results/multidrone2/long_traj/30_20lm_2midpoint_lmf1_of1/1/trajectories"),
+        gt_dir=Path("test_data/multidrone2/unit_test/1_20lm_2midpoint/0"),
+        pre_dir=Path("test_results/multidrone_lm_comms_test/lm_only_fc/pre_opt_trajectories/0"),
+        post_dir=Path("test_results/multidrone_lm_comms_test/lm_only_fc/trajectories"),
         drone_ids=["0", "1", "2", "3", "4"],
         xy_only=False,
     )

@@ -139,6 +139,9 @@ class G2O_TUTORIAL_SLAM2D_API UTISASlamSystem : public SlamSystemBase<VertexSE2,
 
   void setLmQueryEnabled(bool enabled) { lmQueryEnabled_ = enabled; }
 
+  /// When false, `broadcastUTSIAMessage()` omits per-observation pose sync entries.
+  void setRobotQueryEnabled(bool enabled) { robotQueryEnabled_ = enabled; }
+
  protected:
   void processEvent(Event& event) override;
 
@@ -168,6 +171,7 @@ class G2O_TUTORIAL_SLAM2D_API UTISASlamSystem : public SlamSystemBase<VertexSE2,
   g2o::ToggelableGNDKernel* newPriorToggelableGndKernel();
 
   bool lmQueryEnabled_ = true;
+  bool robotQueryEnabled_ = true;
 
   void onAfterOptimize() override;
   bool gndActiveAlwaysFalse_ = false;

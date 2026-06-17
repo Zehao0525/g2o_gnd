@@ -131,6 +131,8 @@ UTISAAgentManager::UTISAAgentManager(const std::string& config_path,
 
   lmQueryEnabled_ = j.value("lm_query", true);
 
+  robotQueryEnabled_ = j.value("robot_query", true);
+
   if (j.contains("communication") && j["communication"].is_object()) {
     const auto& c = j["communication"];
     if (c.contains("enabled")) {
@@ -244,6 +246,7 @@ UTISAAgentManager::UTISAAgentManager(const std::string& config_path,
     }
     slamSystems_.push_back(std::make_unique<UTISASlamSystem>(id, slam_config_path));
     slamSystems_.back()->setLmQueryEnabled(lmQueryEnabled_);
+    slamSystems_.back()->setRobotQueryEnabled(robotQueryEnabled_);
     slamSystems_.back()->setPreOptTrajectoryDumpEnabled(debugOutputs_);
     slamSystems_.back()->setPreOptTrajectoryOutputDir(outputPath_ + "/pre_opt_trajectories");
 
@@ -254,6 +257,14 @@ UTISAAgentManager::UTISAAgentManager(const std::string& config_path,
 }
 
 UTISAAgentManager::~UTISAAgentManager() = default;
+
+void UTISAAgentManager::configureNoInterRobotCommunication() {
+  communicationEnabled_ = false;
+  communicationEndRounds_ = 0;
+  communicationFrequencyHz_ = 1.0e12;
+  communicationPeriodSteps_ = std::numeric_limits<int>::max();
+  std::cout << "UTISAAgentManager: inter-robot communication disabled (unit experiment mode).\n";
+}
 
 void UTISAAgentManager::platformEstimate(Eigen::Vector3d& x, Eigen::Matrix3d& P) {
   if (slamSystems_.empty()) {
@@ -499,6 +510,13 @@ void UTISAAgentManager::saveLandmarks(const std::string& output_dir) const {
   std::cout << "Saved estimated landmarks for " << slamSystems_.size() << " robots" << std::endl;
 }
 
+void UTISAAgentManager::optimiseSystem(int count) {
+  for (auto& slam : slamSystems_) {
+    if (!slam) continue;
+    (void)slam->optimize(count);
+  }
+}
+
 void UTISAAgentManager::performCommunication() {
   // Build adjacency from topology_ (already made bidirectional by setTopology()).
   std::map<std::string, std::set<std::string>> neighbors;
@@ -523,6 +541,10 @@ void UTISAAgentManager::performCommunication() {
 
   // 2) For each drone, aggregate neighbor queries, answer them locally,
   //    then deliver the response to all connected drones.
+  //
+  // I need to admit that the whole lm query mechanism is an unessesary redundancy.
+  // But since it funcations as expected I'll leave it as it for now
+  // We'll deal with this once we are sure we don't want customised lm_query for each drone
   for (size_t i = 0; i < slamSystems_.size() && i < robotIds_.size(); ++i) {
     const std::string& receiverId = robotIds_[i];
     auto* receiver = slamSystems_[i].get();
@@ -549,8 +571,8 @@ void UTISAAgentManager::performCommunication() {
     UTSIAMessage reqMsg(receiverId, /*loaded=*/false, lm_query, std::move(aggregated));
     UTSIAMessage response = receiver->handleObservationSyncRequest(reqMsg);
 
-    // Deliver response to self and neighbors; recipients filter by PoseStampEntry.sourceId.
-    receiver->handleObservationSyncResponse(response);
+    // Deliver response to neighbors only; recipients filter by PoseStampEntry.sourceId.
+    //receiver->handleObservationSyncResponse(response);
     for (const auto& n : neighbors[receiverId]) {
       auto itIdx = idToIndex.find(n);
       if (itIdx == idToIndex.end()) continue;
