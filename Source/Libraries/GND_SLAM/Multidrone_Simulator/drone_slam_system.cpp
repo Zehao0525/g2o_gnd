@@ -432,7 +432,7 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
     auto it = landmarks_.find(lmKey);
     if (it == landmarks_.end()) {
       lmVtx = new VertexPointXYZ();
-      lmVtx->setId(400000 + nextLandmarkVertexSeq_++);
+      lmVtx->setId(40000000 + nextLandmarkVertexSeq_++);
       const Eigen::Vector3d p_world = v0->estimate() * event.relPos;
       lmVtx->setEstimate(p_world);
       optimizer_->addVertex(lmVtx);
@@ -452,7 +452,7 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
       // Probably could be combined with the above control flow, but it is what it is. 
       if (!it->second.initialized) {
         lmVtx = new VertexPointXYZ();
-        lmVtx->setId(400000 + nextLandmarkVertexSeq_++);
+        lmVtx->setId(40000000 + nextLandmarkVertexSeq_++);
         const Eigen::Vector3d p_world = v0->estimate() * event.relPos;
         lmVtx->setEstimate(p_world);
         optimizer_->addVertex(lmVtx);
@@ -509,7 +509,7 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
     const std::string& observedRobotKey = event.robotIdTo;
     if (relativeTransforms_.find(observedRobotKey) == relativeTransforms_.end()) {
       VertexSE3* v = new VertexSE3();
-      v->setId(200000 + nextRelativeTransformVtxId_);
+      v->setId(200000 + nextRelativeTransformVtxId_++);
       v->setEstimate(Isometry3d::Identity());
 
       // Optional robustness switch: fix relative transforms to identity so the
@@ -520,8 +520,8 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
       }
 
       relativeTransforms_[observedRobotKey] = v;
-      ++nextRelativeTransformVtxId_;
-      relativeTransformInGraph_[observedRobotKey] = false;
+      optimizer_->addVertex(v);
+      relativeTransformInGraph_[observedRobotKey] = true;
     }
 
     VertexSE3* observedVtx;
@@ -534,7 +534,7 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
     observedVtx->setEstimate(v0->estimate() * event.value);
     // NOTE: this will cause failure if the odom entries exceed 10000, but for the purposes of this it doesn't matter.
     // We take this short cut for simplicity. Otherwise we will have the whole ID management pain in the butt.
-    observedVtx->setId(100000 + observations_.size());
+    observedVtx->setId(10000000 + static_cast<int>(observations_.size()));
 
     // Each observation is recorded once.
     // So the vertex prior and vertex mapping is removed: There's no way to do these kinds of matching
@@ -888,11 +888,9 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
           est.estimatePriorEdge->setParameterId(0, 0);
           est.estimatePriorEdge->setRobustKernel(newPriorToggelableGndKernel());
 
-          // (Insight, don't delete comment)
-          // Add this edge only if the landmark has been activated in the factor graph.
-          // If not added here, it'll be added during landmark initialization.
+          // Add edge only once the landmark vertex exists in the graph (UTISA-aligned).
           if (landmark.initialized) {
-            //std::cout << "add prior\n";
+            
             if (optimizer_->addEdge(est.estimatePriorEdge)) {
               pendingGndPriorEdges_.push_back(est.estimatePriorEdge);
             }

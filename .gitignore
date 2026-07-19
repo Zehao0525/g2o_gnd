@@ -34,5 +34,5 @@ tutorial_after.g2o
 tutorial_before.g2o
 tutorial_gt.g2o
 
-python/multirobot_simulator/log/
-python/multirobot_simulator/sample_data/
+python/simulators/multidrone/log/
+python/simulators/multidrone/sample_data/

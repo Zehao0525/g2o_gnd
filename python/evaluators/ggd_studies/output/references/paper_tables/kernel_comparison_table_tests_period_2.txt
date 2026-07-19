@@ -1,0 +1,17 @@
+\begin{table}[!htbp]
+\centering
+\caption{Paired comparison against the Gaussian baseline (GPS period 2, 100 Monte Carlo trials). Win rate counts seeds with lower APE than Gaussian; Wilcoxon $p$ is two-sided on paired APE differences.}
+\label{tab:kernel_comparison_tests_period_2}
+\small
+\begin{tabular}{@{}l c c@{}}
+\toprule
+Kernel & Wins vs Gaussian & Wilcoxon $p$ vs Gaussian \\
+\midrule
+Gaussian & -- & -- \\
+Geman--McClure & 41/100 & $1.53\times10^{-4}$ \\
+\gls{ggd} & \textbf{79/100} & $\mathbf{1.41\times10^{-9}}$ \\
+Huber & 41/100 & $0.382$ \\
+Tukey & 35/100 & $2.64\times10^{-7}$ \\
+\bottomrule
+\end{tabular}
+\end{table}

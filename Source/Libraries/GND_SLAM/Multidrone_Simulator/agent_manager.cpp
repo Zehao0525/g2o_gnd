@@ -423,8 +423,7 @@ void AgentManager::performCommunication() {
     DSMessage reqMsg(receiverId, /*loaded=*/false, lm_query, std::move(aggregated));
     DSMessage response = receiver->handleObservationSyncRequest(reqMsg);
 
-    // Deliver response to self and neighbors; recipients filter by PoseStampEntry.sourceId.
-    receiver->handleObservationSyncResponse(response);
+    // Deliver response to neighbors only; recipients filter by PoseStampEntry.sourceId.
     for (const auto& n : neighbors[receiverId]) {
       auto itIdx = idToIndex.find(n);
       if (itIdx == idToIndex.end()) continue;

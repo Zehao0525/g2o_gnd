@@ -1,2 +1,0 @@
-"""multirobot_simulator package."""
-

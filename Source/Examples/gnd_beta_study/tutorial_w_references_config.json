@@ -1,0 +1,39 @@
+{
+  "simulation": {
+    "num_nodes": 300,
+    "seed": 37,
+    "num_tests": 100,
+    "sensor_offset": [0.2, 0.1, -0.1],
+    "transition_prob": 0.95,
+    "gps_std": 2.5,
+    "gps_period": 30,
+    "increment_gps_period": false
+  },
+
+  "optimization": {
+    "opt_iterations": 20,
+    "gnd_warmup_iterations": 10,
+    "gnd_active_iterations": 10,
+    "verbose": false
+  },
+
+  "kernels": {
+    "gnd_bound": 3.0,
+    "gnd_power": 8.0,
+    "gnd_lnc": 0.001,
+    "gnd_tail_std": 2.0,
+    "robust_delta": 3.0
+  },
+
+  "output": {
+    "base_dir": "test_results/gnd_beta_study/references_robust_kernels_period_30"
+  },
+
+  "kernel_specs": [
+    {"name": "gaussian", "type": "gaussian", "output_suffix": "gauss"},
+    {"name": "gnd", "type": "gnd", "output_suffix": "gnd"},
+    {"name": "huber", "type": "huber", "output_suffix": "huber"},
+    {"name": "tukey", "type": "tukey", "output_suffix": "tukey"},
+    {"name": "geman_mcclure", "type": "geman_mcclure", "output_suffix": "geman_mcclure"}
+  ]
+}

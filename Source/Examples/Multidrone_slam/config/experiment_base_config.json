@@ -1,6 +1,6 @@
 {
     "slam_config_path" : "Source/Examples/Multidrone_slam/config/slam_system_config.json",
-    "sim_config_path" : "python/multirobot_simulator/config/sim_config.json",
+    "sim_config_path" : "python/simulators/multidrone/config/sim_config.json",
     "input_path" : "test_data/multidrone2/unit_test/1_20lm_2midpoint/0",
     "output_path" : "test_results/multidrone_lm_comms_test/lm_only_fc",
     "debug_outputs" : true,
@@ -13,5 +13,5 @@
         "end_rounds": 3
       },
     "lm_query": true,
-    "robot_query": false
+    "robot_query": true
 }

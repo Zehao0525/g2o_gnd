@@ -215,7 +215,7 @@ int main() {
   }
 
   for(int i=0;i<num_bots;i++){
-    std::string filename = "test_results/multirobot/file_trajectory_pre_comm_bot" + std::to_string(i) + ".g2o";
+    std::string filename = "test_results/multirobot3/file_trajectory_pre_comm_bot" + std::to_string(i) + ".g2o";
     fileslamsystems[i]->saveOptimizerResults(filename);
   }
   
@@ -235,7 +235,7 @@ int main() {
         if(!synced_update){
           fileslamsystems[j]->handleObservationSyncResponse(osmsg);
           (fileslamsystems[j]->gndActive_) = false;
-          fileslamsystems[j]->optimize(50);
+          fileslamsystems[j]->optimize(20);
           (fileslamsystems[j]->gndActive_) = true;
           fileslamsystems[j]->optimize(10);
         }
@@ -246,26 +246,38 @@ int main() {
       for(int j=0;j<num_bots;j++){
           fileslamsystems[j]->handleObservationSyncResponse(returnMsgs[j]);
           (fileslamsystems[j]->gndActive_) = false;
-          fileslamsystems[j]->optimize(50);
+          fileslamsystems[j]->optimize(20);
           (fileslamsystems[j]->gndActive_) = true;
           fileslamsystems[j]->optimize(10);
       }
     }
+
+    if(a == 0){
+      for(int i=0;i<num_bots;i++){
+        std::string filename = "test_results/multirobot3/single_round/file_trajectory_gt_bot" + std::to_string(i) + ".g2o";
+        std::string slamfilename = "test_results/multirobot3/single_round/file_trajectory_opt_bot" + std::to_string(i) + ".g2o";
+        filesims[i]->saveGroundTruth(filename);
+        fileslamsystems[i]->saveOptimizerResults(slamfilename);
+        cerr << "single round saved bot "<<i<<endl; 
+      }
+    }
+
   }
 
   for(int k=0;k<num_bots;k++){
     (fileslamsystems[k]->gndActive_) = false;
-    fileslamsystems[k]->optimize(50);
-    (fileslamsystems[k]->gndActive_) = true;
+    fileslamsystems[k]->optimize(20);
+  (fileslamsystems[k]->gndActive_) = true;
     fileslamsystems[k]->optimize(10);
   }
 
   for(int i=0;i<num_bots;i++){
     fileslamsystems[i]->stop();
-    std::string filename = "test_results/multirobot/multi_round/file_trajectory_gt_bot" + std::to_string(i) + ".g2o";
-    std::string slamfilename = "test_results/multirobot/multi_round/file_trajectory_opt_bot" + std::to_string(i) + ".g2o";
+    std::string filename = "test_results/multirobot2/multi_round/file_trajectory_gt_bot" + std::to_string(i) + ".g2o";
+    std::string slamfilename = "test_results/multirobot2/multi_round/file_trajectory_opt_bot" + std::to_string(i) + ".g2o";
     filesims[i]->saveGroundTruth(filename);
     fileslamsystems[i]->saveOptimizerResults(slamfilename);
+    cerr << "multi round saved bot "<<i<<endl; 
   }
   //slamVizer->update();
   vizer.pause();

@@ -1,0 +1,17 @@
+\begin{table}[!htbp]
+\centering
+\caption{APE mean $\pm$ std by robust kernel under correlated bounded GPS-like noise (GPS period 30, 100 Monte Carlo trials). Lower is better.}
+\label{tab:kernel_comparison_ape_period_30}
+\small
+\begin{tabularx}{\columnwidth}{@{}>{\raggedright\arraybackslash}X r r@{}}
+\toprule
+Kernel & APE mean $\pm$ std [m] & APE median [m] \\
+\midrule
+Gaussian & $0.661 \pm 0.642$ & $0.448$ \\
+Geman--McClure & $0.678 \pm 0.696$ & $0.399$ \\
+\gls{ggd} & $0.701 \pm 0.918$ & $0.344$ \\
+Huber & $\mathbf{0.661 \pm 0.642}$ & $0.448$ \\
+Tukey & $0.682 \pm 0.693$ & $\mathbf{0.344}$ \\
+\bottomrule
+\end{tabularx}
+\end{table}

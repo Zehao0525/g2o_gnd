@@ -1,0 +1,36 @@
+{
+  "simulation": {
+    "num_nodes": 300,
+    "seed": 37,
+    "num_tests": 30,
+    "sensor_offset": [0.2, 0.1, -0.1],
+    "transition_prob": 0.95,
+    "gps_std": 2.5
+  },
+
+  "gps_periods": [4, 6, 8, 10, 14, 18, 22, 26, 30],
+
+  "optimization": {
+    "opt_iterations": 20,
+    "gnd_warmup_iterations": 10,
+    "gnd_active_iterations": 10,
+    "verbose": false
+  },
+
+  "kernels": {
+    "gnd_bound": 3.0,
+    "gnd_power": 8.0,
+    "gnd_lnc": 0.001,
+    "gnd_tail_std": 2.0,
+    "robust_delta": 3.0
+  },
+
+  "output": {
+    "base_dir": "test_results/gnd_beta_study/gps_period_sweep"
+  },
+
+  "kernel_specs": [
+    {"name": "gaussian", "type": "gaussian", "output_suffix": "gauss"},
+    {"name": "gnd", "type": "gnd", "output_suffix": "gnd"}
+  ]
+}

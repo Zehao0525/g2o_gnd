@@ -354,7 +354,7 @@ void Simulator::saveGroundTruth(const std::string& filename) {
     for (size_t i = 0; i < _poses.size(); ++i) {
         const auto& pose = _poses[i].truePose;
         out << std::fixed << std::setprecision(6);
-        out << "TUTORIAL_VERTEX_SE2 " << i << " "
+        out << "TUTORIAL_VERTEX_SE2 " << _poses[i].id << " "
             << pose[0] << " "
             << pose[1] << " "
             << pose[2] << "\n";

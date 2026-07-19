@@ -1,0 +1,23 @@
+\begin{table}[!htbp]
+\centering
+\caption{Gaussian vs \gls{ggd} mean APE difference across GPS observation periods. Difference is Gaussian minus \gls{ggd} mean translation APE per seed (positive = GGD better). Paired $t$-test and Wilcoxon tests are two-sided on per-seed differences.}
+\label{tab:gps_period_ape_diff}
+\small
+\begin{tabularx}{\columnwidth}{@{}r r c c c@{}}
+\toprule
+GPS period & Mean APE diff.\ [m] & GGD wins & paired $t$ $p$ & Wilcoxon $p$ \\
+\midrule
+1 & $0.349$ & 25/30 & $2.1\times10^{-4}$ & $9.71\times10^{-5}$ \\
+2 & $\mathbf{0.445}$ & \textbf{27/30} & $8.27\times10^{-6}$ & $2.16\times10^{-5}$ \\
+4 & $0.177$ & 18/30 & $0.0711$ & $0.106$ \\
+6 & $0.336$ & 23/30 & $0.00533$ & $0.00338$ \\
+8 & $0.314$ & 21/30 & $0.0128$ & $0.0196$ \\
+10 & $0.174$ & 19/30 & $0.136$ & $0.153$ \\
+14 & $0.0999$ & 14/30 & $0.382$ & $0.861$ \\
+18 & $0.0831$ & 18/30 & $0.537$ & $0.491$ \\
+22 & $-0.0025$ & 13/30 & $0.986$ & $0.959$ \\
+26 & $0.0911$ & 18/30 & $0.493$ & $0.289$ \\
+30 & $-0.166$ & 12/30 & $0.371$ & $0.371$ \\
+\bottomrule
+\end{tabularx}
+\end{table}

@@ -1,0 +1,108 @@
+\begin{table}[!htbp]
+\centering
+\caption{APE mean $\pm$ std by robust kernel under correlated bounded GPS-like noise (GPS period 1, 100 Monte Carlo trials). Lower is better.}
+\label{tab:kernel_comparison_ape_period_1}
+\small
+\begin{tabularx}{\columnwidth}{@{}>{\raggedright\arraybackslash}X r r@{}}
+\toprule
+Kernel & APE mean $\pm$ std [m] & APE median [m] \\
+\midrule
+Gaussian & $0.631 \pm 0.434$ & $0.499$ \\
+Geman--McClure & $0.828 \pm 0.658$ & $0.682$ \\
+\gls{ggd} & $\mathbf{0.364 \pm 0.301}$ & $\mathbf{0.273}$ \\
+Huber & $0.631 \pm 0.434$ & $0.499$ \\
+Tukey & $0.797 \pm 0.598$ & $0.68$ \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{table}[!htbp]
+\centering
+\caption{Paired comparison against the Gaussian baseline (GPS period 1, 100 Monte Carlo trials). Win rate counts seeds with lower APE than Gaussian; Wilcoxon $p$ is two-sided on paired APE differences.}
+\label{tab:kernel_comparison_tests_period_1}
+\small
+\begin{tabular}{@{}l c c@{}}
+\toprule
+Kernel & Wins vs Gaussian & Wilcoxon $p$ vs Gaussian \\
+\midrule
+Gaussian & -- & -- \\
+Geman--McClure & 32/100 & $7.38\times10^{-7}$ \\
+\gls{ggd} & \textbf{78/100} & $\mathbf{5.2\times10^{-10}}$ \\
+Huber & 46/100 & $0.929$ \\
+Tukey & 32/100 & $6.75\times10^{-9}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[!htbp]
+\centering
+\caption{APE mean $\pm$ std by robust kernel under correlated bounded GPS-like noise (GPS period 2, 100 Monte Carlo trials). Lower is better.}
+\label{tab:kernel_comparison_ape_period_2}
+\small
+\begin{tabularx}{\columnwidth}{@{}>{\raggedright\arraybackslash}X r r@{}}
+\toprule
+Kernel & APE mean $\pm$ std [m] & APE median [m] \\
+\midrule
+Gaussian & $0.74 \pm 0.51$ & $0.688$ \\
+Geman--McClure & $0.895 \pm 0.677$ & $0.822$ \\
+\gls{ggd} & $\mathbf{0.414 \pm 0.373}$ & $\mathbf{0.301}$ \\
+Huber & $0.74 \pm 0.51$ & $0.688$ \\
+Tukey & $0.888 \pm 0.631$ & $0.81$ \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{table}[!htbp]
+\centering
+\caption{Paired comparison against the Gaussian baseline (GPS period 2, 100 Monte Carlo trials). Win rate counts seeds with lower APE than Gaussian; Wilcoxon $p$ is two-sided on paired APE differences.}
+\label{tab:kernel_comparison_tests_period_2}
+\small
+\begin{tabular}{@{}l c c@{}}
+\toprule
+Kernel & Wins vs Gaussian & Wilcoxon $p$ vs Gaussian \\
+\midrule
+Gaussian & -- & -- \\
+Geman--McClure & 41/100 & $1.53\times10^{-4}$ \\
+\gls{ggd} & \textbf{79/100} & $\mathbf{1.41\times10^{-9}}$ \\
+Huber & 41/100 & $0.382$ \\
+Tukey & 35/100 & $2.64\times10^{-7}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[!htbp]
+\centering
+\caption{APE mean $\pm$ std by robust kernel under correlated bounded GPS-like noise (GPS period 30, 100 Monte Carlo trials). Lower is better.}
+\label{tab:kernel_comparison_ape_period_30}
+\small
+\begin{tabularx}{\columnwidth}{@{}>{\raggedright\arraybackslash}X r r@{}}
+\toprule
+Kernel & APE mean $\pm$ std [m] & APE median [m] \\
+\midrule
+Gaussian & $0.661 \pm 0.642$ & $0.448$ \\
+Geman--McClure & $0.678 \pm 0.696$ & $0.399$ \\
+\gls{ggd} & $0.701 \pm 0.918$ & $0.344$ \\
+Huber & $\mathbf{0.661 \pm 0.642}$ & $0.448$ \\
+Tukey & $0.682 \pm 0.693$ & $\mathbf{0.344}$ \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{table}[!htbp]
+\centering
+\caption{Paired comparison against the Gaussian baseline (GPS period 30, 100 Monte Carlo trials). Win rate counts seeds with lower APE than Gaussian; Wilcoxon $p$ is two-sided on paired APE differences.}
+\label{tab:kernel_comparison_tests_period_30}
+\small
+\begin{tabular}{@{}l c c@{}}
+\toprule
+Kernel & Wins vs Gaussian & Wilcoxon $p$ vs Gaussian \\
+\midrule
+Gaussian & -- & -- \\
+Geman--McClure & 60/100 & $0.134$ \\
+\gls{ggd} & 54/100 & $0.479$ \\
+Huber & 33/100 & $0.927$ \\
+Tukey & \textbf{63/100} & $\mathbf{0.0333}$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+

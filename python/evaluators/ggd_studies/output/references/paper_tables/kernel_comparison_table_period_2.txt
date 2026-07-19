@@ -1,0 +1,17 @@
+\begin{table}[!htbp]
+\centering
+\caption{Kernel comparison under correlated bounded GPS-like noise (GPS period 2) over 100 Monte Carlo trials. Lower APE is better. Win rate and Wilcoxon tests are computed against the Gaussian baseline.}
+\label{tab:kernel_comparison_period_2}
+\small
+\begin{tabularx}{\columnwidth}{Xccc}
+\toprule
+Kernel & APE mean $\pm$ std & Wins vs Gaussian & Wilcoxon $p$ vs Gaussian \\
+\midrule
+Gaussian & $0.7398 \pm 0.5098$ & -- & -- \\
+Geman--McClure & $0.8950 \pm 0.6768$ & 41/100 & $1.53\times10^{-4}$ \\
+\gls{ggd} & $\mathbf{0.4144 \pm 0.3726}$ & \textbf{79/100} & $\mathbf{1.41\times10^{-9}}$ \\
+Huber & $0.7398 \pm 0.5098$ & 41/100 & $0.3824$ \\
+Tukey & $0.8880 \pm 0.6309$ & 35/100 & $2.64\times10^{-7}$ \\
+\bottomrule
+\end{tabularx}
+\end{table}

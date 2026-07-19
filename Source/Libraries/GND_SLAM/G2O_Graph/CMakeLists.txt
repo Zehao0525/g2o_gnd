@@ -25,6 +25,8 @@ add_library(G2O_Graph ${LIB_TYPE}
   GNDEdges/cauchy_edge_se2_pointxy.cpp
   GNDEdges/gnd_kernel.h
   GNDEdges/gnd_kernel.cpp
+  GNDEdges/gnd_cauchy_kernel.h
+  GNDEdges/gnd_cauchy_kernel.cpp
 )
 
 #target_include_directories(G2O_Graph PUBLIC ${CMAKE_CURRENT_DIRECTORY})

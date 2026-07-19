@@ -74,7 +74,6 @@ target_link_libraries(tutorial_bearing_test PRIVATE
   Oneshot_Simulator
 )
 
-
 add_executable(multirobot_concept_test
   multirobot_concept_test.cpp
 )

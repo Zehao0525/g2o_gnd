@@ -1,0 +1,83 @@
+try:
+    from simulators.multidrone.core import trajectory_generator as tg
+except ModuleNotFoundError:
+    import sys
+    from pathlib import Path as _Path
+
+    sys.path.insert(0, str(_Path(__file__).resolve().parent))
+    from core import trajectory_generator as tg
+
+import os, json
+
+file_path, filename = os.path.split(os.path.realpath(__file__))
+config_pth = os.path.join(file_path,"config","sim_config_batch.json")
+
+# The observers are some form of lidar, camera or monocular camera.
+#   What we have is the triangulated projection 
+bot_data = {
+    "sensors" : {
+        "lm_observer": {
+            "type" : "relative_pose",   # relative_pose: x,y,z ,, range_bearing_bearing: Range, Yaw, Pitch
+            "active" : True,
+            "frequency" : 2,
+            "range" : [[0,10],[-90,90], [-90,90]],
+            "error_std" : [0.4, 0.4, 0.4],
+            "noise_on": True,
+            "bounded_noise": False,
+        },
+        "bot_observer": {
+            "type" : "relative_pose",
+            "active" : True,
+            "frequency" : 2,
+            "range" : [[0,100],[-180,180], [-180,180]],
+            "error_std" : [0.4, 0.4, 0.4, 5 * 3.1415926/180.0],    # x, y, z, yaw
+            "noise_on": True,
+            "bounded_noise": False,
+        }, 
+        "gps":  {
+            "type" : "gps",
+            "active" : False,
+            "frequency" : 0.2,
+            "error_std" : [2.5, 2.5, 1000],     # x, y, z
+            "noise_on": True,
+            "bounded_noise": False
+        }, 
+        "bearing":  {
+            "type" : "horizontal_bearing",
+            "active" : False,
+            "frequency" : 0.2,
+            "error_std" : 10.0,
+            "noise_on": True,
+            "bounded_noise": False
+        }
+    },
+    "controller": {
+        "type": "quad_dron_controller_wih_yaw_control",
+        "frequency": 30,
+        "max_lin_vel": 3,
+        "max_lin_acc": 2,
+        "max_rot_vel": 90,
+        "max_rot_acc": 45,
+        "odom_noise_on": True,
+        "bounded_noise": False,
+        "odom_error_std": [0.1, 0.02, 5 *3.14159/180.0]
+    },
+    "initialization": {
+        "default_init": False,
+        "fixed_init": True,
+        "init_error_std": [1, 1, 1, 1, 1, 1]
+    }
+}
+
+if os.path.exists(config_pth):
+    with open(config_pth, "r") as f:
+        config_dict = json.load(f)
+        config_dict.setdefault("bots", {})
+else:
+    config_dict = {"bots" : {}}
+
+for i, data in enumerate(config_dict["bots"].values()):
+    for key,value in bot_data.items():
+        data.update({key : value})
+
+tg.dump_outer_list_rows(config_dict,config_pth)
