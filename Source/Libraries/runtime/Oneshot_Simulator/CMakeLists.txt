@@ -4,7 +4,7 @@ add_library(Oneshot_Simulator ${LIB_TYPE}
   rng_util.h
 )
 
-target_link_libraries(Oneshot_Simulator PRIVATE G2O_Graph)
+target_link_libraries(Oneshot_Simulator PRIVATE G2O_Graph GND_Core)
 #target_include_directories(Oneshot_Simulator PUBLIC ${CMAKE_CURRENT_DIRECTORY})
 target_include_directories(Oneshot_Simulator PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 

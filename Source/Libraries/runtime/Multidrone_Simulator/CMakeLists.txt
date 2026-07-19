@@ -14,6 +14,7 @@ find_package(nlohmann_json REQUIRED)
 
 target_link_libraries(Multidrone_Simulator PRIVATE
   G2O_Graph
+  GND_Core
   Incremental_Simulator
 )
 

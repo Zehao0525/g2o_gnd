@@ -82,12 +82,12 @@ int main() {
   forceLinkTypesTutorialSlam2d();
   checkTypeRegistration();
 
-  std::string viewFilenme = "Source/Examples/Tutorial_slam2d/view_config.json";
+  std::string viewFilenme = "Source/Examples/comp0250_reimplement/config/view_config.json";
 
-  IncrementalSimulator incsim = IncrementalSimulator("Source/Examples/Tutorial_slam2d/simulator_config.json");
-  SlamSystem slamSystem = SlamSystem("Source/Examples/Tutorial_slam2d/slam_system_config.json");
-  viz::ViewManager vizer = viz::ViewManager("Source/Examples/Tutorial_slam2d/view_config.json");
-  std::shared_ptr<viz::SimulatorView> simVizer = std::make_shared<viz::SimulatorView>(&incsim, "Source/Examples/Tutorial_slam2d/view_config.json");
+  IncrementalSimulator incsim = IncrementalSimulator("Source/Examples/comp0250_reimplement/config/simulator_config.json");
+  SlamSystem slamSystem = SlamSystem("Source/Examples/comp0250_reimplement/config/slam_system_config.json");
+  viz::ViewManager vizer = viz::ViewManager("Source/Examples/comp0250_reimplement/config/view_config.json");
+  std::shared_ptr<viz::SimulatorView> simVizer = std::make_shared<viz::SimulatorView>(&incsim, "Source/Examples/comp0250_reimplement/config/view_config.json");
   //std::shared_ptr<viz::SLAMSystemView> slamVizer = std::make_shared<viz::SLAMSystemView>(&slamSystem, Vector3f(0.0f, 0.0f, 1.0f));
   std::shared_ptr<viz::SLAMSystemView> slamVizer = std::make_shared<viz::SLAMSystemView>(&slamSystem,viewFilenme);
   vizer.addView(simVizer);

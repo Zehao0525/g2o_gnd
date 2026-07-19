@@ -19,7 +19,7 @@ add_library(Incremental_Simulator ${LIB_TYPE}
 
 find_package(nlohmann_json REQUIRED)
 
-target_link_libraries(Incremental_Simulator PRIVATE G2O_Graph)
+target_link_libraries(Incremental_Simulator PRIVATE G2O_Graph GND_Core)
 target_include_directories(Incremental_Simulator PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 

@@ -6,6 +6,7 @@ add_executable(tutorial_references_test
 
 target_link_libraries(tutorial_references_test PRIVATE
   G2O_Graph
+  GND_Core
   Oneshot_Simulator
   nlohmann_json::nlohmann_json
 )
@@ -16,6 +17,7 @@ add_executable(tutorial_gps_period_sweep
 
 target_link_libraries(tutorial_gps_period_sweep PRIVATE
   G2O_Graph
+  GND_Core
   Oneshot_Simulator
   nlohmann_json::nlohmann_json
 )
@@ -26,6 +28,7 @@ add_executable(tutorial_beta_sweep
 
 target_link_libraries(tutorial_beta_sweep PRIVATE
   G2O_Graph
+  GND_Core
   Oneshot_Simulator
   nlohmann_json::nlohmann_json
 )

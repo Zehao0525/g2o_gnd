@@ -4,7 +4,7 @@ Robust cost functions ρ(e²) used in g2o, plus GND (kernel and edge forms).
 All functions take squared Mahalanobis distance e² = rᵀ Ω r. For scalar plots we use
 unit information (Ω = 1), so e² = r² and r is the 1D residual in σ-units after scaling.
 
-GND kernel (matches Source/Libraries/GND_SLAM/G2O_Graph/GNDEdges/gnd_kernel.cpp):
+GND kernel (matches Source/Libraries/core/GNDEdges/gnd_kernel.cpp):
     ρ(e²) = ℓ + (e² / σ²)^(β/2)
 
 GND edge (matches edge_none_gaussian_unary computeError with gndSetInformation):

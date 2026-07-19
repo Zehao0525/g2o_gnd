@@ -108,7 +108,7 @@ int main() {
   forceLinkTypesTutorialSlam2d();
   checkTypeRegistration();
 
-  std::string viewFilenme = "Source/Examples/Tutorial_slam2d/multirobot_configs/overall_view.json";
+  std::string viewFilenme = "Source/Examples/Glenn_Multirobot/config/overall_view.json";
   std::ifstream f(viewFilenme);
   if (!f) {
       throw std::runtime_error("Cannot open Simulator config file: " + viewFilenme);
@@ -131,11 +131,11 @@ int main() {
   cerr << "Adding Simulator and visualizer for bot " << 0 << endl;
   std::string datafilename = viewJson.value("file_source", "test_data/test1_new_data") + "/bot0";
   filesim = std::make_shared<FileSimulator>(0, datafilename);
-  std::string slamConfig = "Source/Examples/Tutorial_slam2d/multirobot_configs/slam_system_config.json";
+  std::string slamConfig = "Source/Examples/Glenn_Multirobot/config/slam_system_config.json";
   fileslamsystem = std::make_shared<FileSlamSystem>(0, slamConfig);
 
 
-  std::string configname = "Source/Examples/Tutorial_slam2d/multirobot_configs/bot0_view.json";
+  std::string configname = "Source/Examples/Glenn_Multirobot/config/bot0_view.json";
   simVizer = std::make_shared<viz::FileSimulatorView>(filesim.get(), configname);
   slamVizer = std::make_shared<viz::FileSlamSystemView>(fileslamsystem.get(), configname);
   vizer.addView(simVizer);
