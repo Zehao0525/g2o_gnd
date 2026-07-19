@@ -321,7 +321,7 @@ int main(int argc, char* argv[]) {
   g2o::tutorial::forceLinkTypesTutorialSlam2d();
 
   const std::string defaultConfigPath =
-      "Source/Examples/gnd_beta_study/tutorial_w_references_config.json";
+      "Source/Examples/gnd_beta_study/config/tutorial_w_references_config.json";
   const std::string configPath = (argc > 1) ? argv[1] : defaultConfigPath;
   const ExperimentConfig cfg = loadExperimentConfig(configPath);
 

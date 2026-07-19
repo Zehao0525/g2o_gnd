@@ -307,7 +307,7 @@ int main(int argc, char* argv[]) {
   g2o::tutorial::forceLinkTypesTutorialSlam2d();
 
   const std::string defaultConfigPath =
-      "Source/Examples/gnd_beta_study/gps_period_sweep_config.json";
+      "Source/Examples/gnd_beta_study/config/gps_period_sweep_config.json";
   const std::string configPath = (argc > 1) ? argv[1] : defaultConfigPath;
   const GpsPeriodSweepConfig cfg = loadSweepConfig(configPath);
 
