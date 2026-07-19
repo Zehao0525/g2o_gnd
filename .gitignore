@@ -30,9 +30,20 @@ CMakeFiles
 test_results
 test_data
 
+# Root run / debug dumps (keep out of VCS)
+debug.txt
+paths.npz
+/trajectories.json
+/trajectory_before.g2o
+/trajectory_est.g2o
+/trajectory_gt.g2o
+/trajectory_after.g2o
+/bot0_observation_vtxs_refs.g2o
+/bounded_rv_visualization.png
 tutorial_after.g2o
 tutorial_before.g2o
 tutorial_gt.g2o
 
 python/simulators/multidrone/log/
 python/simulators/multidrone/sample_data/
+__pycache__/
