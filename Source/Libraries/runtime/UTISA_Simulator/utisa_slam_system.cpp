@@ -212,33 +212,29 @@ void UTISASlamSystem::dumpPreOptTrajectory(const std::string& run_directory) {
 
 void UTISASlamSystem::processEvent(Event& event) {
   graphChanged_ = true;
-  switch (event.type()) {
-    case Event::EventType::Other: {
-      auto& utisaEvent = static_cast<UTISAEventBase&>(event);
-      switch (utisaEvent.utisaEventType()) {
-        case UTISAEventType::Initialization:
-          handleInitializationEvent(static_cast<UTISAInitEvent&>(event));
-          break;
-        case UTISAEventType::Odometry:
-          stepNumber_ += 1;
-          handleOdometryEvent(static_cast<UTISAOdomEvent&>(event));
-          break;
-        case UTISAEventType::Observation:
-          handleObservationEvent(static_cast<UTISAObsEvent&>(event));
-          break;
-        case UTISAEventType::LandmarkObservation:
-          handleLMObservationEvent(static_cast<UTISALmObsEvent&>(event));
-          break;
-        default:
-          ignoreUnknownEventType();
-          break;
-      }
-      break;
+  auto* utisaEvent = dynamic_cast<UTISAEventBase*>(&event);
+  if (!utisaEvent) {
+    if (verbose_) {
+      std::cout << " - Unknown Event ..." << std::endl;
     }
+    ignoreUnknownEventType();
+    return;
+  }
+  switch (utisaEvent->utisaEventType()) {
+    case UTISAEventType::Initialization:
+      handleInitializationEvent(static_cast<UTISAInitEvent&>(event));
+      break;
+    case UTISAEventType::Odometry:
+      stepNumber_ += 1;
+      handleOdometryEvent(static_cast<UTISAOdomEvent&>(event));
+      break;
+    case UTISAEventType::Observation:
+      handleObservationEvent(static_cast<UTISAObsEvent&>(event));
+      break;
+    case UTISAEventType::LandmarkObservation:
+      handleLMObservationEvent(static_cast<UTISALmObsEvent&>(event));
+      break;
     default:
-      if (verbose_) {
-        std::cout << " - Unknown Event ..." << std::endl;
-      }
       ignoreUnknownEventType();
       break;
   }
@@ -623,7 +619,7 @@ UTSIAMessage UTISASlamSystem::handleObservationSyncRequest(UTSIAMessage& msg) {
     assert(v && "v to marginalize is nullptr");
 
     const int vhIdx = v->hessianIndex();
-    req.position = v->estimate().translation();
+    req.pose = v->estimate().translation();
     req.hasPose = true;
 
     assert(margCov.block(vhIdx, vhIdx) && "Marg block is nullptr");
@@ -664,7 +660,7 @@ UTSIAMessage UTISASlamSystem::handleObservationSyncRequest(UTSIAMessage& msg) {
       // TODO: There's a naming consistancy issue here between lm observations and inter robot observation. Will change later.
       LMPoseEntry entry(lmId, robotId_);
       entry.hasPose = true;
-      entry.position = pos;
+      entry.pose = pos;
       entry.information = info2;
       validLmResponses.push_back(std::move(entry));
     }
@@ -695,7 +691,7 @@ void UTISASlamSystem::handleObservationSyncResponse(const UTSIAMessage& message)
       continue;
     }
     EdgeSE2PointXY* priorEdge = observations_[pe.observationId].observationPriorEdge;
-    priorEdge->setMeasurement(pe.position);
+    priorEdge->setMeasurement(pe.pose);
     priorEdge->setInformation(pe.information);
     graphChanged_ = true;
   }
@@ -768,7 +764,7 @@ void UTISASlamSystem::handleObservationSyncResponse(const UTSIAMessage& message)
         }
       }
 
-      const Eigen::Vector2d lmWorld = lme.position;
+      const Eigen::Vector2d lmWorld = lme.pose;
 
       Eigen::Matrix2d info2 = lme.information;
       if (!info2.allFinite()) {

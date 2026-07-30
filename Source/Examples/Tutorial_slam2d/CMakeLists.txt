@@ -13,5 +13,6 @@ add_executable(tutorial_bearing_test
 
 target_link_libraries(tutorial_bearing_test PRIVATE
   G2O_Graph
+  GND_Core
   Oneshot_Simulator
 )

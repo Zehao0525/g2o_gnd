@@ -1,10 +1,14 @@
 add_library(UTISA_Simulator ${LIB_TYPE}
   utisa_agent_manager.h
   utisa_agent_manager.cpp
+  utisa_agent_manager_new.h
+  utisa_agent_manager_new.cpp
   utisa_simulation.h
   utisa_simulation.cpp
   utisa_slam_system.h
   utisa_slam_system.cpp
+  utisa_slam_system_new.h
+  utisa_slam_system_new.cpp
   utisa_messages.hpp
   utisa_stamp_map.hpp
   utisa_events.h
@@ -16,7 +20,7 @@ find_package(nlohmann_json REQUIRED)
 target_link_libraries(UTISA_Simulator PRIVATE
   G2O_Graph
   GND_Core
-  Incremental_Simulator
+  SlamSystemBase
 )
 
 target_include_directories(UTISA_Simulator PUBLIC

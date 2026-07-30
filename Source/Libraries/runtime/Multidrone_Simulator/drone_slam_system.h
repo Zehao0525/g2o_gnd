@@ -45,7 +45,7 @@
 
 
 #include "g2o_tutorial_slam2d_api.h"
-#include "events.h"
+#include "events_base.h"
 #include "md_events.h"
 #include "gnd_kernel.h"
 #include "messages.hpp"

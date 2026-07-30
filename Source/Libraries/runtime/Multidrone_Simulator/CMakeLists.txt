@@ -1,11 +1,15 @@
-## Follow pattern used by Incremental_Simulator
+## Follow pattern used by SlamSystemBase / domain packages
 add_library(Multidrone_Simulator ${LIB_TYPE}
   agent_manager.h
   agent_manager.cpp
+  agent_manager_new.h
+  agent_manager_new.cpp
   data_based_simulation.h
   data_based_simulation.cpp
   drone_slam_system.h
   drone_slam_system.cpp
+  drone_slam_system_new.h
+  drone_slam_system_new.cpp
   messages.hpp
   stamp_map.hpp
 )
@@ -15,7 +19,7 @@ find_package(nlohmann_json REQUIRED)
 target_link_libraries(Multidrone_Simulator PRIVATE
   G2O_Graph
   GND_Core
-  Incremental_Simulator
+  SlamSystemBase
 )
 
 target_include_directories(Multidrone_Simulator PUBLIC

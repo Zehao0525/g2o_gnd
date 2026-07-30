@@ -1,6 +1,7 @@
 # Shared runtime layer + domain frontends (for now all under runtime/)
-# CMake target names unchanged for Examples compatibility.
+add_subdirectory(slam_system_base)
+add_subdirectory(reimplement_comp0250)
+add_subdirectory(glenn_multirobot)
 add_subdirectory(Oneshot_Simulator)
-add_subdirectory(Incremental_Simulator)
 add_subdirectory(Multidrone_Simulator)
 add_subdirectory(UTISA_Simulator)

@@ -3,7 +3,7 @@
 
 #include <memory>
 #include <set>
-#include "events.h"  // for Event base class
+#include "events_base.h"  // for Event base class
 
 namespace g2o {
 namespace tutorial {

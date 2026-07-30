@@ -16,12 +16,17 @@ namespace g2o {
 namespace tutorial {
 namespace viz {
 
-/// SLAM trajectory view for `UTISASlamSystem` (2D SE2 estimate → 3D display).
+/// SLAM trajectory view for UTISA slam systems (2D SE2 estimate → 3D display).
 class UTISASlamSystemView : public View {
  public:
   UTISASlamSystemView(multibotsim::UTISASlamSystem* system, const Eigen::Vector3f& color,
                       bool visualise_path = true);
   UTISASlamSystemView(multibotsim::UTISASlamSystem* system, const std::string& filename,
+                      bool visualise_path = true);
+
+  UTISASlamSystemView(multibotsim::UTISASlamSystemNew* system, const Eigen::Vector3f& color,
+                      bool visualise_path = true);
+  UTISASlamSystemView(multibotsim::UTISASlamSystemNew* system, const std::string& filename,
                       bool visualise_path = true);
 
   void setView(const std::string& filename) override;
@@ -30,7 +35,8 @@ class UTISASlamSystemView : public View {
   void renderScene() const override;
 
  private:
-  multibotsim::UTISASlamSystem* slamSystem_;
+  multibotsim::UTISASlamSystem* slamSystem_ = nullptr;
+  multibotsim::UTISASlamSystemNew* slamSystemNew_ = nullptr;
   Eigen::Isometry3d currentPose3d_;
   std::vector<Eigen::Isometry3d> path3d_;
   bool visualise_path_;
@@ -61,4 +67,3 @@ class UTISASimulationView : public View {
 }  // namespace viz
 }  // namespace tutorial
 }  // namespace g2o
-

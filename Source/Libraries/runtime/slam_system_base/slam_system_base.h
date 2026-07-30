@@ -46,8 +46,7 @@
 
 #include "g2o_tutorial_slam2d_api.h"
 #include "se2.h"
-#include "events.h"
-#include "sensor_data.h"
+#include "events_base.h"
 
 #include "types_tutorial_slam2d.h"
 #include "vertex_point_xy.h"

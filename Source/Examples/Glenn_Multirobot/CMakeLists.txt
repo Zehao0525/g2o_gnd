@@ -4,7 +4,7 @@ add_executable(multirobot_incsim_test
 
 target_link_libraries(multirobot_incsim_test PRIVATE
   G2O_Graph
-  Incremental_Simulator
+  GlennMultirobot
   Incremental_Visualizer
 )
 
@@ -14,7 +14,7 @@ add_executable(multirobot_concept_test
 
 target_link_libraries(multirobot_concept_test PRIVATE
   G2O_Graph
-  Incremental_Simulator
+  GlennMultirobot
   Incremental_Visualizer
 )
 
@@ -24,5 +24,5 @@ add_executable(multibot_full_graph
 
 target_link_libraries(multibot_full_graph PRIVATE
   G2O_Graph
-  Incremental_Simulator
+  GlennMultirobot
 )

@@ -4,6 +4,6 @@ add_executable(incsim_test
 
 target_link_libraries(incsim_test PRIVATE
   G2O_Graph
-  Incremental_Simulator
+  ReimplementComp0250
   Incremental_Visualizer
 )

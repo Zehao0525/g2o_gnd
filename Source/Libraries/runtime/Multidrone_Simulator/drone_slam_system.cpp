@@ -220,31 +220,29 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
 
   void MultiDroneSLAMSystem::processEvent(Event& event){
     graphChanged_ = true;
-    switch(event.type()){
-      case Event::EventType::Other: {
-        auto& dataEvent = static_cast<DataEventBase&>(event);
-        switch (dataEvent.dataEventType()) {
-          case DataEventType::Initialization:
-            handleInitializationEvent(static_cast<DataInitEvent&>(event));
-            break;
-          case DataEventType::Odometry:
-            stepNumber_ +=1;
-            handleOdometryEvent(static_cast<DataOdomEvent&>(event));
-            break;
-          case DataEventType::Observation:
-            handleObservationEvent(static_cast<DataObsEvent&>(event));
-            break;
-          case DataEventType::LandmarkObservation:
-            handleLMObservationEvent(static_cast<DataLmObsEvent&>(event));
-            break;
-          default:
-            ignoreUnknownEventType();
-            break;
-        }
-        break;
+    auto* dataEvent = dynamic_cast<DataEventBase*>(&event);
+    if (!dataEvent) {
+      if (verbose_) {
+        std::cout << " - Unknown Event ..." << std::endl;
       }
+      ignoreUnknownEventType();
+      return;
+    }
+    switch (dataEvent->dataEventType()) {
+      case DataEventType::Initialization:
+        handleInitializationEvent(static_cast<DataInitEvent&>(event));
+        break;
+      case DataEventType::Odometry:
+        stepNumber_ += 1;
+        handleOdometryEvent(static_cast<DataOdomEvent&>(event));
+        break;
+      case DataEventType::Observation:
+        handleObservationEvent(static_cast<DataObsEvent&>(event));
+        break;
+      case DataEventType::LandmarkObservation:
+        handleLMObservationEvent(static_cast<DataLmObsEvent&>(event));
+        break;
       default:
-        if(verbose_){std::cout << " - Unknown Event ..." << std::endl;}
         ignoreUnknownEventType();
         break;
     }

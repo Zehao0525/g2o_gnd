@@ -16,6 +16,14 @@ SLAMSystemView::SLAMSystemView(SlamSystem* system, const std::string& filename)
         setView(filename);
     }
 
+SLAMSystemView::SLAMSystemView(SlamSystemNew* system, const Eigen::Vector3f& color)
+    : View(color), slamSystemNew_(system), marginalizeCounter_(0) {}
+
+SLAMSystemView::SLAMSystemView(SlamSystemNew* system, const std::string& filename)
+    : View(Eigen::Vector3f(0.0,0.0,0.0)), slamSystemNew_(system), marginalizeCounter_(0) {
+        setView(filename);
+    }
+
 
 void SLAMSystemView::pause(){
     View::pause();
@@ -46,11 +54,14 @@ void SLAMSystemView::setView(const std::string& filename){
 }
 
 void SLAMSystemView::update() {
-    //std::lock_guard<std::mutex> lock(slamSystem_->mutex());
     std::cout << " SLAMSystemView update " << std::endl;
     marginalizeCounter_++;
     Eigen::Vector3d x;
-    slamSystem_->platformEstimate(x);
+    if (slamSystem_) {
+      slamSystem_->platformEstimate(x);
+    } else {
+      slamSystemNew_->platformEstimate(x);
+    }
     updateRobotPose(x);
     if(marginalizeCounter_ > marginalizePeriod_){
         computeMarginals();
@@ -64,7 +75,11 @@ void SLAMSystemView::computeMarginals(){
     std::vector<Eigen::Vector2d> m;
     std::vector<Eigen::Matrix2d> Pmm;
     std::vector<int> lmIDs;
-    slamSystem_->getSceneEstimatesWithP(x,P,m,Pmm,lmIDs);
+    if (slamSystem_) {
+      slamSystem_->getSceneEstimatesWithP(x,P,m,Pmm,lmIDs);
+    } else {
+      slamSystemNew_->getSceneEstimatesWithP(x,P,m,Pmm,lmIDs);
+    }
     Eigen::LLT<Eigen::Matrix2d> llt(P);
     Eigen::Matrix2d PSqrt_ = llt.matrixL();;
 

@@ -69,9 +69,13 @@ void SimulatorView::setView(const std::string& filename){
 void SimulatorView::processEvents(EventPtrVector& events){
     updateRobotPose(simulator_->xTrue().toVector());
     for (const auto& event : events) {
-      switch(event->type()){
-        case Event::EventType::LandmarkObservations:{
-            LandmarkObservationsEvent& lmObsEvent = static_cast<LandmarkObservationsEvent&>(*event);
+      auto* compEvent = dynamic_cast<CompEventBase*>(event.get());
+      if (!compEvent) {
+        continue;
+      }
+      switch (compEvent->compEventType()) {
+        case CompEventType::LandmarkObservations: {
+            auto& lmObsEvent = static_cast<LandmarkObservationsEvent&>(*event);
             for(const auto& lmObs : lmObsEvent.landmarkObservations){
                 double x = lmObs.value[0]*cos(pose_[2]) - lmObs.value[1]*sin(pose_[2]) + pose_[0];
                 double y = lmObs.value[0]*sin(pose_[2]) + lmObs.value[1]*cos(pose_[2]) + pose_[1];
@@ -80,8 +84,8 @@ void SimulatorView::processEvents(EventPtrVector& events){
             }
             break;
         }
-        case Event::EventType::LMRangeBearingObservations:{
-            LMRangeBearingObservationsEvent& lmObsEvent = static_cast<LMRangeBearingObservationsEvent&>(*event);
+        case CompEventType::LMRangeBearingObservations: {
+            auto& lmObsEvent = static_cast<LMRangeBearingObservationsEvent&>(*event);
             for(const auto& lmObs : lmObsEvent.landmarkObservations){
                 double x = lmObs.value[0] * cos(lmObs.value[1] + pose_[2]) + pose_[0];
                 double y = lmObs.value[0] * sin(lmObs.value[1] + pose_[2]) + pose_[1];
@@ -90,8 +94,8 @@ void SimulatorView::processEvents(EventPtrVector& events){
             }
             break;
         }
-        case Event::EventType::GPSObservation:{
-            GPSObservationEvent& gpsEvent = static_cast<GPSObservationEvent&>(*event);
+        case CompEventType::GPSObservation: {
+            auto& gpsEvent = static_cast<GPSObservationEvent&>(*event);
             std::shared_ptr<CircleViz> gpsViz = std::make_shared<CircleViz>(gpsEvent.value, sqrt(gpsEvent.covariance(0,0))*2.0, 25, 0,  MeasurmentViz::AttachmentType::World, gpsMeasColor_);
             measVizVertex_.push_back(gpsViz);
             break;

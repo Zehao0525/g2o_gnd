@@ -19,6 +19,12 @@ cmake_path(SET THIRD_PARTY_BUILT_LIBRARY_PREFIX NORMALIZE ${CMAKE_CURRENT_SOURCE
 message(THIRD_PARTY_BUILT_LIBRARY_PREFIX=${THIRD_PARTY_BUILT_LIBRARY_PREFIX})
 list(PREPEND CMAKE_SYSTEM_PREFIX_PATH "${THIRD_PARTY_BUILT_LIBRARY_PREFIX}")
 
+# So binaries find Develop shared libs at runtime without LD_LIBRARY_PATH
+# (e.g. libg2o_opengl_helper.so, Pangolin, …).
+set(CMAKE_BUILD_RPATH "${THIRD_PARTY_BUILT_LIBRARY_PREFIX}/lib")
+set(CMAKE_INSTALL_RPATH "${THIRD_PARTY_BUILT_LIBRARY_PREFIX}/lib")
+set(CMAKE_BUILD_RPATH_USE_ORIGIN TRUE)
+
 # Default installation and search libraries where the yaml files will be stored
 set(DEFAULT_ORB_SETTINGS_DIR "${BUILD_INSTALL_PREFIX}/etc/orbslam2")
 
@@ -86,9 +92,10 @@ find_package(g2o REQUIRED HINTS "${THIRD_PARTY_BUILT_LIBRARY_PREFIX}" NO_DEFAULT
 
 
 
-# Add the libraries and examples
+# Add the libraries, examples, and tests
 add_subdirectory(Libraries)
 add_subdirectory(Examples)
+add_subdirectory(Tests)
 add_subdirectory(Vocabulary)
 
 # Third party libraries are built separately to speed things up

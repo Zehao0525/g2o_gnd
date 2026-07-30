@@ -45,7 +45,7 @@
 
 #include "g2o_tutorial_slam2d_api.h"
 #include "se2.h"
-#include "events.h"
+#include "events_comp.h"
 #include "sensor_data.h"
 
 #include "types_tutorial_slam2d.h"

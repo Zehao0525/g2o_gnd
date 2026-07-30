@@ -32,11 +32,9 @@
 #include <nlohmann/json.hpp>
 
 #include "g2o_tutorial_slam2d_api.h"
-#include "se2.h"
-#include "system_model.h"
-#include "platform_controller.h"
+#include "events_glenn.h"
 #include "ordered_event_queue.hpp"
-#include "sensor_data.h"
+#include "se2.h"
 
 #include "g2o/types/slam3d/edge_se3.h"
 #include "g2o/types/slam3d/vertex_se3.h"
@@ -183,9 +181,7 @@ protected:
   Isometry3 x_;
 
   // System Handles
-  std::unique_ptr<SystemModel> systemModel_;
   OrderedEventQueue eventQueue_;
-  std::unique_ptr<PlatformController> platformController_;
   // WaypointController controller_;
 
   std::vector<double> timeStore_;

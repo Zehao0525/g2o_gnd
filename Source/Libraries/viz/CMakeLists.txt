@@ -32,7 +32,9 @@ find_package(nlohmann_json REQUIRED)
 target_link_libraries(Incremental_Visualizer PRIVATE 
   G2O_Graph
   GND_Core
-  Incremental_Simulator
+  SlamSystemBase
+  ReimplementComp0250
+  GlennMultirobot
   Multidrone_Simulator
   UTISA_Simulator
 )

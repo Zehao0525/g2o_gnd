@@ -4,7 +4,7 @@
 
 #include <Eigen/Core>
 
-#include "events.h"
+#include "events_base.h"
 #include "se2.h"
 
 namespace g2o {
@@ -19,7 +19,6 @@ enum class UTISAEventType {
 
 struct G2O_TUTORIAL_SLAM2D_API UTISAEventBase : public Event {
   explicit UTISAEventBase(double t) : Event(t) {}
-  EventType type() const final { return EventType::Other; }
   virtual UTISAEventType utisaEventType() const = 0;
   /// Same timestamp: Initialization < Odometry < Observation < LandmarkObservation.
   int sortPriority() const override {

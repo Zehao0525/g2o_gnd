@@ -7,7 +7,7 @@ target_include_directories(utisa_slam_experiment PRIVATE ${CMAKE_CURRENT_SOURCE_
 target_link_libraries(utisa_slam_experiment PRIVATE
   UTISA_Simulator
   G2O_Graph
-  Incremental_Simulator
+  SlamSystemBase
   Incremental_Visualizer
 )
 
@@ -20,7 +20,7 @@ target_include_directories(utisa_slam_unit_experiment PRIVATE ${CMAKE_CURRENT_SO
 target_link_libraries(utisa_slam_unit_experiment PRIVATE
   UTISA_Simulator
   G2O_Graph
-  Incremental_Simulator
+  SlamSystemBase
   Incremental_Visualizer
 )
 
@@ -33,6 +33,6 @@ target_include_directories(batch_utisa_slam PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(batch_utisa_slam PRIVATE
   UTISA_Simulator
   G2O_Graph
-  Incremental_Simulator
+  SlamSystemBase
   Incremental_Visualizer
 )

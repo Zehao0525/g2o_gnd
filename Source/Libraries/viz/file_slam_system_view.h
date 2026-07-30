@@ -1,6 +1,7 @@
 #pragma once
 #include "view.h"
 #include "file_slam_system.h"
+#include "file_slam_system_new.h"
 
 #include <fstream> 
 #include <Eigen/Core>
@@ -16,6 +17,9 @@ public:
     FileSlamSystemView(FileSlamSystem* simulator, const Eigen::Vector3f& color, const Eigen::Vector3f& lmColor, const Eigen::Vector3f& wpColor);
     FileSlamSystemView(FileSlamSystem* simulator, const std::string& filename);
 
+    FileSlamSystemView(FileSlamSystemNew* simulator, const Eigen::Vector3f& color, const Eigen::Vector3f& lmColor, const Eigen::Vector3f& wpColor);
+    FileSlamSystemView(FileSlamSystemNew* simulator, const std::string& filename);
+
     void processEvents(EventPtrVector& events);
 
     void pause() override;
@@ -27,7 +31,8 @@ public:
     void renderScene() const override;
 
 private:
-    FileSlamSystem* slamSystem_;
+    FileSlamSystem* slamSystem_ = nullptr;
+    FileSlamSystemNew* slamSystemNew_ = nullptr;
     Eigen::Vector3f lmColor_;
     double lmSize_;
     Eigen::Vector3f wpColor_;

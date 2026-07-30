@@ -18,6 +18,17 @@ FileSlamSystemView::FileSlamSystemView(FileSlamSystem* sim, const std::string& f
         setView(filename);
     }
 
+FileSlamSystemView::FileSlamSystemView(FileSlamSystemNew* sim, const Eigen::Vector3f& botColor, const Eigen::Vector3f& lmColor, const Eigen::Vector3f& wpColor)
+    : View(botColor), slamSystemNew_(sim), lmColor_(lmColor), wpColor_(wpColor),
+    lmSize_(0.5), wpSize_(0.5) {
+    }
+
+FileSlamSystemView::FileSlamSystemView(FileSlamSystemNew* sim, const std::string& filename):
+    slamSystemNew_(sim), View(Eigen::Vector3f(0.0,1.0,0.0)), lmColor_(Eigen::Vector3f(0.0,1.0,0.5)), wpColor_(Eigen::Vector3f(1.0,5.0,0.0)),
+    lmSize_(0.5), wpSize_(0.5) {
+        setView(filename);
+    }
+
 
 void FileSlamSystemView::pause(){
     View::pause();
@@ -25,7 +36,11 @@ void FileSlamSystemView::pause(){
 
 void FileSlamSystemView::update() {
     Eigen::Vector3d x;
-    slamSystem_->platformEstimate2d(x);
+    if (slamSystem_) {
+      slamSystem_->platformEstimate2d(x);
+    } else {
+      slamSystemNew_->platformEstimate2d(x);
+    }
     updateRobotPose(x);
     std::cout << "\n\n x:" << x <<std::endl;
 }

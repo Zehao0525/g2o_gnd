@@ -2,7 +2,10 @@
 
 #include <string>
 
-#include "events.h"
+#include <Eigen/Core>
+
+#include "events_base.h"
+#include "g2o/types/slam3d/se3quat.h"
 
 namespace g2o {
 namespace tutorial {
@@ -16,7 +19,6 @@ enum class DataEventType {
 
 struct G2O_TUTORIAL_SLAM2D_API DataEventBase : public Event {
   explicit DataEventBase(double t) : Event(t) {}
-  EventType type() const final { return EventType::Other; }
   virtual DataEventType dataEventType() const = 0;
   /// Same timestamp: Initialization < Odometry < Observation < LandmarkObservation.
   int sortPriority() const override {

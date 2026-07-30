@@ -4,8 +4,6 @@ add_library(GND_Core ${LIB_TYPE}
   GNDEdges/edge_none_gaussian_binary.h
   GNDEdges/edge_platform_loc_prior_gnd.h
   GNDEdges/edge_platform_loc_prior_gnd.cpp
-  GNDEdges/edge_platform_pose_prior_gnd.h
-  GNDEdges/edge_platform_pose_prior_gnd.cpp
   GNDEdges/cauchy_edge_se2_pointxy.h
   GNDEdges/cauchy_edge_se2_pointxy.cpp
   GNDEdges/gnd_kernel.h

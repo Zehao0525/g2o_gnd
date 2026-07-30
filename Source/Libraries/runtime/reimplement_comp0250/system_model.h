@@ -11,7 +11,7 @@
 
 #include "g2o_tutorial_slam2d_api.h"
 #include "se2.h"
-#include "events.h"
+#include "events_comp.h"
 
 #include "g2o/stuff/sampler.h"
 

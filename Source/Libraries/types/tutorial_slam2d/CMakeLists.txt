@@ -15,8 +15,6 @@ add_library(G2O_Graph ${LIB_TYPE}
   edge_platform_bearing_prior.cpp
   edge_se2_wt.cpp
   edge_se2_wt.h
-  vertex_platform.h
-  vertex_platform.cpp
 )
 
 target_include_directories(G2O_Graph PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

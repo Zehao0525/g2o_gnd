@@ -24,20 +24,15 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "file_slam_system.h"
-
-
-
+#include "file_slam_system_new.h"
 
 namespace g2o {
 namespace tutorial {
-
 
 static bool isValidInformationMatrix(const Eigen::Matrix<double,6,6>& info) {
   auto eig = info.selfadjointView<Eigen::Upper>().eigenvalues();
   if (!info.allFinite() || (eig.array() <= 0).any() ||
     eig.maxCoeff() > 1e10){
-      std::cout << "is Valid information failed, " << (!info.allFinite()) << (eig.array() <= 0) << (eig.maxCoeff() > 1e6) << std::endl;
       return false;
     }
   return true;
@@ -47,17 +42,16 @@ using namespace Eigen;
 
 using VertexContainer = g2o::OptimizableGraph::VertexContainer;
 
-
-
-  FileSlamSystem::FileSlamSystem(int id, const std::string& filename)
-    :SlamSystemBase<VertexSE3, EdgeSE3>(filename), robotId_(id), gndActive_(false), haveUninitializedObs_(false){
-
+  FileSlamSystemNew::FileSlamSystemNew(int id, const std::string& filename)
+    : Base(id, filename) {
+    // Glenn historically starts with GND off; tests/apps toggle gndActive_ explicitly.
+    gndActiveConfig_ = false;
+    gndActive_ = false;
   }
 
-  FileSlamSystem::~FileSlamSystem()=default;
+  FileSlamSystemNew::~FileSlamSystemNew()=default;
 
-
-  void FileSlamSystem::start(){
+  void FileSlamSystemNew::start(){
     graphChanged_ = false;
 
     auto* offset = new g2o::ParameterSE3Offset; // identity offset	
@@ -66,8 +60,7 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
     optimizer_->addParameter(offset); // <-- only once
   }
 
-
-  void FileSlamSystem::stop(){
+  void FileSlamSystemNew::stop(){
     optimize(optCountStop_);
 
     //if (fixOlderPlatformVertices_ == true){
@@ -79,53 +72,40 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
       }
     }
     optimize(optCountStopFix_);
-
-    for (size_t i = 0; i < observations_.size(); ++i) {
-      const auto& obs = observations_[i];
-      std::cout << "Observation[" << i << "] (vertex " << obs.observedVertexId
-                << ") initialized? " << (obs.initialized ? "Yes" : "No") << std::endl;
-    }
-
-    std::cout << "Number of intra: " << intraRobotCount_ << std::endl;
   }
 
-  void FileSlamSystem::processEvent(Event& event){
+  void FileSlamSystemNew::processEvent(Event& event){
     graphChanged_ = true;
-    switch(event.type()){
-      case Event::EventType::FileObservation:
+    auto* glennEvent = dynamic_cast<GlennEventBase*>(&event);
+    if (!glennEvent) {
+      ignoreUnknownEventType();
+      return;
+    }
+    switch (glennEvent->glennEventType()) {
+      case GlennEventType::FileObservation:
         handleObservationEvent(static_cast<FileObsEvent&>(event));
         break;
-      case Event::EventType::FileIntraObservation:
+      case GlennEventType::FileIntraObservation:
         handleIntraObservationEvent(static_cast<FileIntraObsEvent&>(event));
         break;
-      case Event::EventType::FileOdometry:
-        stepNumber_ +=1;
+      case GlennEventType::FileOdometry:
+        stepNumber_ += 1;
         handleOdometryEvent(static_cast<FileOdomEvent&>(event));
         break;
-      case Event::EventType::FileInitialization:
+      case GlennEventType::FileInitialization:
         handleInitializationEvent(static_cast<FileInitEvent&>(event));
         break;
       default:
-        if(verbose_){std::cout << " - Unknown Event ..." << std::endl;}
         ignoreUnknownEventType();
         break;
     }
   }
 
-
-
-  void FileSlamSystem::ignoreUnknownEventType(){}
-
-
-  void FileSlamSystem::handleInitializationEvent(FileInitEvent event){
-    if(verbose_){std::cout << " - SlamSystem handleInitializationEvent start ..." << std::endl;}
-    if(verbose_){std::cout << " - Creaing vertex ..." << std::endl;}
+  void FileSlamSystemNew::handleInitializationEvent(FileInitEvent event){
     currentPlatformVertex_ = new VertexSE3();
-
 
     currentPlatformVertex_->setId(event.vtxId);
     currentPlatformVertex_->setEstimate(event.value);
-    if(verbose_){std::cout << " - Adding vertex to optimizer ..." << std::endl;}
     optimizer_->addVertex(currentPlatformVertex_);
 
     platformVertices_.emplace_back(currentPlatformVertex_);
@@ -135,22 +115,15 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
     }
 
     // TODO replace with initialization prior
-    if(verbose_){std::cout << " - Fixing initial vertex ..." << std::endl;}
     currentPlatformVertex_->setFixed(true);
     initialized_ = true;
-    if(verbose_){std::cout << " - SlamSystem handleInitializationEvent end ..." << std::endl;}
 
   }
 
-
-  void FileSlamSystem::handleOdometryEvent(FileOdomEvent event){
-    if(verbose_){std::cout << " - SlamSystem handleOdometryEvent start ..." << std::endl;}
-    if(verbose_){std::cout << " - Creaing vertex ..." << std::endl;}
+  void FileSlamSystemNew::handleOdometryEvent(FileOdomEvent event){
     currentPlatformVertex_ = new VertexSE3();
 
-
     currentPlatformVertex_->setId(event.vtxId);
-    if(verbose_){std::cout << " - Adding vertex to optimizer ..." << std::endl;}
     optimizer_->addVertex(currentPlatformVertex_);
 
     platformVertices_.emplace_back(currentPlatformVertex_);
@@ -160,7 +133,6 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
     }
 
     // TODO replace with initialization prior
-    if(verbose_){std::cout << " - Adding Edge ..." << std::endl;}
     EdgeSE3* odometry = new EdgeSE3();
     VertexSE3* v0 = platformVertices_[platformVertices_.size() - 2];
     odometry->setVertex(0, v0);
@@ -171,50 +143,20 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
     //odometry->initialEstimate(fromSet, v0);
     currentPlatformVertex_->setEstimate(v0->estimate() * event.value);
 
-    if(verbose_){std::cout << " - Vertex set, setting measurments ..." << std::endl;}
     odometry->setMeasurement(event.value);
     //assert(odometry->information().rows() == 3);
-    if(verbose_){std::cout << " - measurements set, setting information ..." << std::endl;}
     assert(isValidInformationMatrix(event.information));
     odometry->setInformation((event.information));
-    if(verbose_){std::cout << " - Adding edge to optimizer ..." << std::endl;}
     optimizer_->addEdge(odometry);
 
     processModelEdges_.emplace_back(odometry);
     numProcessModelEdges_ += 1;
 
-    if(verbose_ && false){
-      // Optional: Set formatting for better readability
-      std::cout << std::fixed << std::setprecision(6);
-      std::cout << "\n\n\n\n Current Vertex\n";
-      Isometry3 v0Iso  = v0->estimate();
-      std::cout << "Translation (x y z):\n" << v0Iso.translation().transpose() << "\n\n";
-      std::cout << "Rotation matrix (3x3):\n" << v0Iso.rotation() << "\n\n";
-      // Print translation
-      std::cout << "Odom Edge Vertex\n";
-      std::cout << "Translation (x y z):\n" << event.value.translation().transpose() << "\n\n";
-      // Print rotation matrix
-      std::cout << "Rotation matrix (3x3):\n" << event.value.rotation() << "\n\n";
-      // Print quaternion form
-      Quaterniond q(event.value.rotation());
-      std::cout << "Quaternion (w x y z):\n" 
-          << q.w() << " " << q.x() << " " << q.y() << " " << q.z() << "\n\n";
-      // Print full isometry matrix
-      std::cout << "Isometry3 (4x4 homogeneous transformation):\n" << event.value.matrix() << "\n\n";
-      // Print 6x6 information matrix
-      std::cout << "Information matrix (6x6):\n" << event.information << "\n";
-    }
-
-
-    if(verbose_){std::cout << " - SlamSystem handleOdometryEvent end ..." << std::endl;}
   }
 
-
-  void FileSlamSystem::handleObservationEvent(FileObsEvent event){
+  void FileSlamSystemNew::handleObservationEvent(FileObsEvent event){
     //TODO implement
-    if(verbose_){std::cout << " - SlamSystem handleObservationEvent start for robot: " << robotId_ << std::endl;}
 
-    if(verbose_){std::cout << " - overvation from: " << event.vtxIdFrom << " To: " << event.vtxIdTo << std::endl;}
     // Initialize Vertex
     // place the id into the vertex id map
 
@@ -256,8 +198,7 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
       //bool ok2 = optimizer_->addEdge(observationPrior);
       // std::cout << "Registered types:\n";
       // g2o::Factory::instance()->printRegisteredTypes(std::cout);
-      //if(verbose_){std::cout << " - Adding this prior: " << ok << ok2 << std::endl;}
-      //assert(false);
+      //      //assert(false);
       // Attach a GND kernel
       auto rk = new g2o::ToggelableGNDKernel(2.0, 6, 1e-3, 2.0*2.0, &gndActive_);
       observationPrior->setRobustKernel(rk);
@@ -280,18 +221,15 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
     observation->setMeasurement(event.value);
     observation->setInformation(event.information);
 
-
     observations_.emplace_back(robotId_, event.robotIdTo, event.vtxIdFrom, event.vtxIdTo,
             observationPrior, observation, observedVtx);
     haveUninitializedObs_ = true;
 
   }
 
-
-  void FileSlamSystem::handleIntraObservationEvent(FileIntraObsEvent event){
+  void FileSlamSystemNew::handleIntraObservationEvent(FileIntraObsEvent event){
     //TODO implement
     intraRobotCount_+=1;
-    if(verbose_){std::cout << " - robot " << robotId_<< "SlamSystem handleIntraObservationEvent start ..." << std::endl;}
     // lookup vertices
     auto* vFrom = platformVertices_[ VertexIdMap_[event.vtxIdFrom] ];
     auto* vTo   = platformVertices_[ VertexIdMap_[event.vtxIdTo]   ];
@@ -309,41 +247,21 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
     observation->setVertex(0, vFrom);
     observation->setVertex(1, vTo);
 
-    if(verbose_){std::cout << " - Setting measurments ..." << std::endl;}
     observation->setMeasurement(event.value);
-    if(verbose_){std::cout << " - measurements set, setting information ..." << std::endl;}
     observation->setInformation((event.information));
-    if(verbose_){std::cout << " - Adding edge to optimizer ..." << std::endl;}
     optimizer_->addEdge(observation);
-
-    if(verbose_){
-      // Optional: Set formatting for better readability
-      std::cout << "Odom Edge Vertex\n";
-      std::cout << "Translation (x y z):\n" << event.value.translation().transpose() << "\n\n";
-      // Print rotation matrix
-      std::cout << "Rotation matrix (3x3):\n" << event.value.rotation() << "\n\n";
-      // Print quaternion form
-      Quaterniond q(event.value.rotation());
-      std::cout << "Quaternion (w x y z):\n" 
-          << q.w() << " " << q.x() << " " << q.y() << " " << q.z() << "\n\n";
-      // Print full isometry matrix
-      std::cout << "Isometry3 (4x4 homogeneous transformation):\n" << event.value.matrix() << "\n\n";
-      // Print 6x6 information matrix
-      std::cout << "Information matrix (6x6):\n" << event.information << "\n";
-    }
 
   }
 
-
-  FileSlamSystem::ObsSyncMessage FileSlamSystem::broadcastObsSyncMessage() const{
+  FileObsSyncMessage FileSlamSystemNew::broadcastSyncMessage() const{
     // Pre-allocate the vector for efficiency
-    std::vector<FileSlamSystem::ObsSyncRequest> syncReqs;
+    std::vector<FileObsSyncRequest> syncReqs;
     syncReqs.reserve(observations_.size());
 
     // Convert each Observation into an ObsSyncRequest
     for (const auto& obs : observations_) {
       // 1) Use the existing ID-only constructor
-      FileSlamSystem::ObsSyncRequest req(
+      FileObsSyncRequest req(
         /* selfId */        obs.observerRobotId,
         /* robotId */       obs.observedRobotId,
         /* selfVtxId */     obs.observerVertexId,
@@ -361,7 +279,7 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
     }
 
     // Build & return the final message; mark it as outgoing
-    return FileSlamSystem::ObsSyncMessage(
+    return FileObsSyncMessage(
       /* sender    */ robotId_,
       /* outGoing  */ true,
       /* syncReqs  */ std::move(syncReqs)
@@ -369,7 +287,7 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
   }
 
   // recieveObsSyncMessage
-  FileSlamSystem::ObsSyncMessage FileSlamSystem::handleObservationSyncRequest(FileSlamSystem::ObsSyncMessage& request){
+  FileObsSyncMessage FileSlamSystemNew::handleObservationSyncRequest(FileObsSyncMessage& request){
     // Step 1: find all ObsSyncReqs with observedRobotId == robotId_
     // if there are requests we ned to deal with, do:
     //   Stwp 2: call "optimize(10)"
@@ -379,7 +297,7 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
     //   Step 4: Create a ObsSyncMessage for these requests, set outGoing = false, return this message
 
       // Step 1: collect requests addressed to this robot
-    std::vector<FileSlamSystem::ObsSyncRequest> localRequests;
+    std::vector<FileObsSyncRequest> localRequests;
     localRequests.reserve(request.syncRequests.size());
     std::vector<g2o::OptimizableGraph::Vertex*> verticesToMarginalize;
     verticesToMarginalize.reserve(localRequests.size());
@@ -389,10 +307,6 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
       } 
       auto it = VertexIdMap_.find(req.observedVertexId);
       if (it == VertexIdMap_.end()) {
-        if (verbose_) {
-          std::cerr << "  [WARN] no mapping for observerVertexId="
-                    << req.observedVertexId << "\n";
-        }
         continue;
       }
       int idx = it->second;
@@ -415,16 +329,11 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
 
     // 2) if nothing to do, early out immediately
     if (localRequests.empty()) {
-      if (verbose_) {
-        std::cout << "[REQ] no observations to sync for robot "
-                  << robotId_ << " – skipping optimize+marginals\n";
-      }
-      return ObsSyncMessage(robotId_, /*outGoing=*/false, {});
+      return FileObsSyncMessage(robotId_, /*outGoing=*/false, {});
     }
 
     // Step 2: optimize our graph so that we have up-to-date estimates
     if(graphChanged_ && false){
-      if(verbose_){std::cout << "Optimizing before marginalization:\n";}
       optimizer_->initializeOptimization();
       optimizer_->optimize(10);
       graphChanged_ = false;
@@ -453,16 +362,13 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
     }
     int numVertices = optimizer_->vertices().size();
     int numEdges    = optimizer_->edges().size();
-    if(verbose_){std::cout << "Graph contains: " << (numVertices) << " verticies and " << numEdges << " edges\n";}
-    if(verbose_){std::cout << "Marginalizing " << size(verticesToMarginalize) << " verticies\n";}
     g2o::SparseBlockMatrix<Eigen::MatrixXd> margCov;
     
     //assert(false);
     optimizer_->initializeOptimization();
     optimizer_->optimize(10);
     bool margSuccess = optimizer_->computeMarginals(margCov, verticesToMarginalize);
-    if(verbose_){std::cout << "Marginalization success: " << margSuccess << "\n";}
-    if(!margSuccess){return ObsSyncMessage(robotId_, /*outGoing=*/false, {});}
+    if(!margSuccess){return FileObsSyncMessage(robotId_, /*outGoing=*/false, {});}
 
     // for (auto& [id, v] : externalVertices_) {
     //   if (v) {
@@ -471,10 +377,9 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
     // }
 
     // Step 4: fill in each ObsSyncRequest with measurement+information
-    std::vector<FileSlamSystem::ObsSyncRequest> validResponses;
+    std::vector<FileObsSyncRequest> validResponses;
     validResponses.reserve(localRequests.size());
     for (size_t i = 0; i < localRequests.size(); ++i) {
-      //if(verbose_){std::cout << "entering for loop \n";}
       auto& req = localRequests[i];
       auto* v = dynamic_cast<g2o::VertexSE3*>(verticesToMarginalize[i]);
       int vhIdx = v->hessianIndex();
@@ -484,7 +389,6 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
 
       // 3.2: covariance → information = inverse(covariance)
       assert(margCov.block(vhIdx, vhIdx) && "Marg block is nullptr");
-      //if(verbose_){std::cout << "marg cov block extraction start\n";}
       const Eigen::Matrix<double,6,6>& cov = *margCov.block(vhIdx, vhIdx);
       Eigen::Matrix<double,6,6> info = cov.inverse();
       // **Validation**: only keep if the info‐matrix is well‐formed
@@ -495,24 +399,19 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
       } else {
         std::cerr << "Dropping sync for vertex " << req.observedVertexId
                   << " due to invalid information matrix\n";
-                  if(verbose_){std::cout << "cov (6x6):\n" << cov << "\n";}
       }
     }
-    if(verbose_){std::cout << "handleObervationSynRequest Complete\n";}
 
     // Step 5: return only the valid responses
-    return FileSlamSystem::ObsSyncMessage(
+    return FileObsSyncMessage(
       /* sourceId  */ request.sourceId,
       /* outGoing  */ false,
       /* syncReqs  */ std::move(validResponses)
     );
   }
 
-
-
-  void FileSlamSystem::handleObservationSyncResponse(const FileSlamSystem::ObsSyncMessage& message) {
+  void FileSlamSystemNew::handleObservationSyncResponse(const FileObsSyncMessage& message) {
     // 1) Update all matching SE3Prior edges from the external cache
-    if(verbose_){std::cout << "handleObervationSynResponse Start\n";}
     for (const auto& req : message.syncRequests) {
       auto it = externalVerticesPrior_.find(req.observedVertexId);
       if (it != externalVerticesPrior_.end()) {
@@ -526,7 +425,6 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
       }
     }
 
-    if(verbose_){std::cout << "step 2 Start\n";}
     // 2) If we still have uninitialized observations, try to add them now
     if (haveUninitializedObs_) {
       bool foundAny = false;
@@ -550,7 +448,6 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
             assert(obs.observationVertex == obs.observationEdge->vertices()[1]);
             assert(obs.observationPriorEdge->information().rows() == 6); // or whatever dimension
             assert(obs.observationPriorEdge->information().determinant() > 0);
-
 
             auto* vertex = obs.observationVertex;
             auto* prior = obs.observationPriorEdge;
@@ -593,9 +490,6 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
             //     std::cout << "→ allVerticesValid() would return TRUE.\n";
             // }
 
-
-
-
             bool ok = optimizer_->addVertex(obs.observationVertex);
 
             assert(optimizer_->vertex(obs.observationEdge->vertices()[0]->id()) != nullptr);
@@ -605,8 +499,9 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
             //bool ok2 = false;
             bool ok2 = optimizer_->addEdge(obs.observationPriorEdge);
             bool ok3 = optimizer_->addEdge(obs.observationEdge);
-            std::cout << "AddVertex, AddPrior, AddObservation " << ok << " " << ok2 << " " << ok3 << std::endl;
-            std::cout << "obs.observationVertex->id(): " << obs.observationVertex->id() << std::endl;
+            (void)ok;
+            (void)ok2;
+            (void)ok3;
             obs.initialized = true;
           } else {
             // still have at least one uninitialized left
@@ -619,18 +514,18 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
         haveUninitializedObs_ = false;
       }
     }
-    if(verbose_){std::cout << "handleObervationSynResponse Complete\n";}
   }
 
-  void FileSlamSystem::platformEstimate2d(Eigen::Vector3d& x, Eigen::Matrix2d& P){
-
+  void FileSlamSystemNew::platformEstimate2d(Eigen::Vector3d& x, Eigen::Matrix2d& P){
+    platformEstimate2d(x);
+    P.setZero();
   }
 
-  void FileSlamSystem::platformEstimate(Eigen::Isometry3d& x, Eigen::Matrix<double,6,6>& P){
-
+  void FileSlamSystemNew::platformEstimateSe3(EstimateType& x, CovarianceType& P){
+    platformEstimateMarginals(x, P);
   }
 
-  void FileSlamSystem::platformEstimate2d(Eigen::Vector3d& pose) const {
+  void FileSlamSystemNew::platformEstimate2d(Eigen::Vector3d& pose) const {
     // 1) translation
     Isometry3 pos = currentPlatformVertex_->estimate();
     const Eigen::Vector3d& t3 = pos.translation();
@@ -644,7 +539,6 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
 
     pose = Eigen::Vector3d(x, y, yaw);
   }
-
 
 }  // namespace tutorial
 }  // namespace g2o

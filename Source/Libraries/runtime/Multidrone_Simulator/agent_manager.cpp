@@ -10,7 +10,7 @@
 #include <set>
 
 #include <nlohmann/json.hpp>
-#include "events.h"
+#include "events_base.h"
 
 namespace g2o {
 namespace tutorial {
