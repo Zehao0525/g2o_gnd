@@ -1,4 +1,4 @@
-// Implementation of SlamSystemBase (included from slam_system_base_new.hpp).
+// Implementation of SlamSystemBase (included from slam_system_base.hpp).
 // Do not compile this translation unit on its own.
 
 #include <fstream>

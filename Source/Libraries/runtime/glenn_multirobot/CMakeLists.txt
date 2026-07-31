@@ -4,8 +4,6 @@ add_library(GlennMultirobot ${LIB_TYPE}
   file_simulator.cpp
   file_slam_system.h
   file_slam_system.cpp
-  file_slam_system_new.h
-  file_slam_system_new.cpp
 )
 
 find_package(nlohmann_json REQUIRED)

@@ -45,7 +45,7 @@ using SlamLinearSolver = LinearSolverEigen<SlamBlockSolver::PoseMatrixType>;
 
 /**
  * Templated abstract base for a single-robot factor-graph SLAM system.
- * Method bodies live in slam_system_base_new.inl.
+ * Method bodies live in slam_system_base.inl.
  */
 template <typename VertexType, typename EdgeType>
 class SlamSystemBase {
@@ -145,4 +145,4 @@ class SlamSystemBase {
 
 }  // namespace g2o
 
-#include "slam_system_base_new.inl"
+#include "slam_system_base.inl"

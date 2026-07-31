@@ -41,7 +41,7 @@
 
 
 #include "incremental_simulator.h"
-#include "slam_system_new.h"
+#include "slam_system.h"
 #include "types_tutorial_slam2d.h"
 #include "vertex_point_xy.h"
 #include "vertex_se2.h"
@@ -87,7 +87,7 @@ int main() {
   std::string viewFilenme = "Source/Tests/comp0250_reimplement/config/view_config.json";
 
   IncrementalSimulator incsim = IncrementalSimulator("Source/Tests/comp0250_reimplement/config/simulator_config.json");
-  SlamSystemNew slamSystem = SlamSystemNew("Source/Tests/comp0250_reimplement/config/slam_system_config.json");
+  SlamSystem slamSystem = SlamSystem("Source/Tests/comp0250_reimplement/config/slam_system_config.json");
   viz::ViewManager vizer = viz::ViewManager("Source/Tests/comp0250_reimplement/config/view_config.json");
   std::shared_ptr<viz::SimulatorView> simVizer = std::make_shared<viz::SimulatorView>(&incsim, "Source/Tests/comp0250_reimplement/config/view_config.json");
   //std::shared_ptr<viz::SLAMSystemView> slamVizer = std::make_shared<viz::SLAMSystemView>(&slamSystem, Vector3f(0.0f, 0.0f, 1.0f));
@@ -147,7 +147,7 @@ int main() {
   cerr << endl;
   // incsim.stop();
   cerr << "SLAM System Stopping ..."<<endl;
-  const std::filesystem::path outDir("test_results/comp0250_reimplement");
+  const std::filesystem::path outDir("test_results/tests/comp0250_reimplement");
   std::error_code mkdirEc;
   std::filesystem::create_directories(outDir, mkdirEc);
   if (mkdirEc) {

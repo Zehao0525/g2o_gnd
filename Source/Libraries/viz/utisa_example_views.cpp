@@ -49,22 +49,6 @@ UTISASlamSystemView::UTISASlamSystemView(multibotsim::UTISASlamSystem* system, c
   setView(filename);
 }
 
-UTISASlamSystemView::UTISASlamSystemView(multibotsim::UTISASlamSystemNew* system, const Eigen::Vector3f& color,
-                                       bool visualise_path)
-    : View(color),
-      slamSystemNew_(system),
-      currentPose3d_(Eigen::Isometry3d::Identity()),
-      visualise_path_(visualise_path) {}
-
-UTISASlamSystemView::UTISASlamSystemView(multibotsim::UTISASlamSystemNew* system, const std::string& filename,
-                                       bool visualise_path)
-    : View(Eigen::Vector3f(0.0f, 1.0f, 0.0f)),
-      slamSystemNew_(system),
-      currentPose3d_(Eigen::Isometry3d::Identity()),
-      visualise_path_(visualise_path) {
-  setView(filename);
-}
-
 void UTISASlamSystemView::setView(const std::string& filename) {
   std::ifstream f(filename);
   if (!f) {
@@ -80,11 +64,7 @@ void UTISASlamSystemView::setView(const std::string& filename) {
 
 void UTISASlamSystemView::update() {
   Eigen::Vector3d poseVec;
-  if (slamSystem_) {
-    slamSystem_->platformEstimate(poseVec);
-  } else {
-    slamSystemNew_->platformEstimate(poseVec);
-  }
+  slamSystem_->platformEstimate(poseVec);
   Eigen::Isometry3d pose = pose2dVectorToIsometry3d(poseVec);
 
   {
@@ -115,11 +95,7 @@ void UTISASlamSystemView::renderScene() const {
 
   std::vector<std::pair<Eigen::Vector2d, Eigen::Vector2d>> lmSegs;
   std::vector<std::pair<Eigen::Vector2d, Eigen::Vector2d>> rbSegs;
-  if (slamSystem_) {
-    slamSystem_->getRangeBearingObservationSegments(lmSegs, rbSegs);
-  } else {
-    slamSystemNew_->getRangeBearingObservationSegments(lmSegs, rbSegs);
-  }
+  slamSystem_->getRangeBearingObservationSegments(lmSegs, rbSegs);
 
   glLineWidth(1.0f);
   glColor4f(1.0f, 0.55f, 0.1f, 0.25f);  // landmark observations

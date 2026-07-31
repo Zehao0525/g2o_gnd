@@ -2,7 +2,7 @@
     "slam_config_path" : "Source/Tests/UTISA_slam/config/slam_system_config.json",
     "sim_config_path" : "python/simulators/multidrone/config/sim_config.json",
     "input_path" : "test_data/utisa/MRCLAM7/MRCLAM_Dataset7",
-    "output_path" : "test_results/UTISA_slam",
+    "output_path" : "test_results/tests/UTISA_slam",
     "topology_path" : "Source/Tests/UTISA_slam/config/topology.json",
     "debug_outputs" : true,
     "verbose" : false,

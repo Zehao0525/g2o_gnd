@@ -10,7 +10,7 @@
 
 #include <nlohmann/json.hpp>
 
-#include "utisa_agent_manager_new.h"
+#include "utisa_agent_manager.h"
 #include "view_manager_3d.h"
 #include "utisa_example_views.h"
 
@@ -57,7 +57,7 @@ int main(int argc, char* argv[]) {
     const std::string config_path = base_config_path;
     const std::string slam_config_path = j.at("slam_config_path").get<std::string>();
     const std::string input_path = j.at("input_path").get<std::string>();
-    const std::string output_path = j.value("output_path", std::string("test_results/UTISA_slam"));
+    const std::string output_path = j.value("output_path", std::string("test_results/tests/UTISA_slam"));
     const std::string topology_path =
         j.value("topology_path", std::string("Source/Tests/UTISA_slam/config/topology.json"));
     const bool verbose = j.value("verbose", false);
@@ -69,7 +69,7 @@ int main(int argc, char* argv[]) {
     std::cout << "  Output path: " << output_path << std::endl;
     std::cout << "  Topology path: " << topology_path << std::endl;
 
-    UTISAAgentManagerNew manager(config_path, input_path, slam_config_path);
+    UTISAAgentManager manager(config_path, input_path, slam_config_path);
     manager.setTopologyJson(topology_path);
 
     std::ifstream view_in(view_config_path);
@@ -113,7 +113,7 @@ int main(int argc, char* argv[]) {
     };
 
     for (size_t i = 0; i < robotIds.size(); ++i) {
-      UTISASlamSystemNew* slamSystem = manager.getSlamSystem(i);
+      UTISASlamSystem* slamSystem = manager.getSlamSystem(i);
       UTISASimulator* sim = manager.getSimulation(i);
       const std::string bot_view_config = view_config_dir + "/bot" + robotIds[i] + "_view.json";
 

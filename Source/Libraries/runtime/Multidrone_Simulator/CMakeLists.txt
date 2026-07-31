@@ -2,14 +2,10 @@
 add_library(Multidrone_Simulator ${LIB_TYPE}
   agent_manager.h
   agent_manager.cpp
-  agent_manager_new.h
-  agent_manager_new.cpp
   data_based_simulation.h
   data_based_simulation.cpp
   drone_slam_system.h
   drone_slam_system.cpp
-  drone_slam_system_new.h
-  drone_slam_system_new.cpp
   messages.hpp
   stamp_map.hpp
 )
@@ -41,4 +37,3 @@ target_include_directories(Multidrone_Simulator PUBLIC
   $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
 )
-

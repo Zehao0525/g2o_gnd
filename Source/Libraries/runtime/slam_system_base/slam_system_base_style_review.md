@@ -1,6 +1,6 @@
-# Style / standards review: `slam_system_base_new`
+# Style / standards review: `slam_system_base`
 
-Living checklist against `slam_system_base_new.hpp` / `.inl`.
+Living checklist against `slam_system_base.hpp` / `.inl`.
 
 ---
 

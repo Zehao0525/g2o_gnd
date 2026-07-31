@@ -25,7 +25,9 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <cmath>
+#include <filesystem>
 #include <iostream>
+#include <stdexcept>
 #include <unistd.h>
 
 #include "edge_se2.h"
@@ -39,7 +41,7 @@
 
 
 #include "file_simulator.h"
-#include "file_slam_system_new.h"
+#include "file_slam_system.h"
 #include "types_tutorial_slam2d.h"
 #include "vertex_point_xy.h"
 #include "vertex_se2.h"
@@ -99,7 +101,7 @@ int main() {
 
   bool running = true;
   vector<std::shared_ptr<FileSimulator>> filesims;
-  vector<std::shared_ptr<FileSlamSystemNew>> fileslamsystems;
+  vector<std::shared_ptr<FileSlamSystem>> fileslamsystems;
   vector<std::shared_ptr<viz::FileSimulatorView>> simVizers;
   vector<std::shared_ptr<viz::FileSlamSystemView>> slamVizers;
   viz::ViewManager vizer = viz::ViewManager(viewFilenme);
@@ -108,7 +110,7 @@ int main() {
     std::string datafilename = viewJson.value("file_source", "test_data/test1_new_data") + "/bot" + std::to_string(i);
     std::shared_ptr<FileSimulator> filesimPtr = std::make_shared<FileSimulator>(i, datafilename);
     std::string slamConfig = "Source/Tests/Glenn_Multirobot/config/slam_system_config.json";
-    std::shared_ptr<FileSlamSystemNew> fileslamsystemPtr = std::make_shared<FileSlamSystemNew>(i, slamConfig);
+    std::shared_ptr<FileSlamSystem> fileslamsystemPtr = std::make_shared<FileSlamSystem>(i, slamConfig);
 
     filesims.emplace_back(filesimPtr);
     fileslamsystems.emplace_back(fileslamsystemPtr);
@@ -168,9 +170,9 @@ int main() {
 
     if(i%comms_interval == 0){
       for(int j=0;j<num_bots;j++){
-        FileSlamSystemNew::ObsSyncMessage sync_msg = fileslamsystems[j]->broadcastSyncMessage();
+        FileSlamSystem::ObsSyncMessage sync_msg = fileslamsystems[j]->broadcastSyncMessage();
         for(int k=0;k<num_bots;k++){
-          FileSlamSystemNew::ObsSyncMessage osmsg = fileslamsystems[k]->handleObservationSyncRequest(sync_msg);
+          FileSlamSystem::ObsSyncMessage osmsg = fileslamsystems[k]->handleObservationSyncRequest(sync_msg);
           fileslamsystems[j]->handleObservationSyncResponse(osmsg);
         }
         fileslamsystems[j]->optimize(10);
@@ -214,23 +216,35 @@ int main() {
     fileslamsystems[j]->optimize(10);
   }
 
+  {
+    std::error_code mkdirEc;
+    std::filesystem::create_directories("test_results/tests/Glenn_Multirobot/single_round", mkdirEc);
+    if (mkdirEc) {
+      throw std::runtime_error("Cannot create Glenn test output dirs: " + mkdirEc.message());
+    }
+    std::filesystem::create_directories("test_results/tests/Glenn_Multirobot/multi_round", mkdirEc);
+    if (mkdirEc) {
+      throw std::runtime_error("Cannot create Glenn test output dirs: " + mkdirEc.message());
+    }
+  }
+
   for(int i=0;i<num_bots;i++){
-    std::string filename = "test_results/multirobot3/file_trajectory_pre_comm_bot" + std::to_string(i) + ".g2o";
+    std::string filename = "test_results/tests/Glenn_Multirobot/file_trajectory_pre_comm_bot" + std::to_string(i) + ".g2o";
     fileslamsystems[i]->saveOptimizerResults(filename);
   }
   
   for(int a=0;a<3;a++){
-    std::vector<FileSlamSystemNew::ObsSyncMessage> returnMsgs;
+    std::vector<FileSlamSystem::ObsSyncMessage> returnMsgs;
     for(int j=0;j<num_bots;j++){
 
 
       cerr << " j:"<<j<<endl; 
-      FileSlamSystemNew::ObsSyncMessage sync_msg = fileslamsystems[j]->broadcastSyncMessage();
+      FileSlamSystem::ObsSyncMessage sync_msg = fileslamsystems[j]->broadcastSyncMessage();
       for(int k=0;k<num_bots;k++){
         cerr << " k:"<<k<<endl; 
         if(j==k){continue;}
         
-        FileSlamSystemNew::ObsSyncMessage osmsg = fileslamsystems[k]->handleObservationSyncRequest(sync_msg);
+        FileSlamSystem::ObsSyncMessage osmsg = fileslamsystems[k]->handleObservationSyncRequest(sync_msg);
         returnMsgs.emplace_back(osmsg);
         if(!synced_update){
           fileslamsystems[j]->handleObservationSyncResponse(osmsg);
@@ -254,8 +268,8 @@ int main() {
 
     if(a == 0){
       for(int i=0;i<num_bots;i++){
-        std::string filename = "test_results/multirobot3/single_round/file_trajectory_gt_bot" + std::to_string(i) + ".g2o";
-        std::string slamfilename = "test_results/multirobot3/single_round/file_trajectory_opt_bot" + std::to_string(i) + ".g2o";
+        std::string filename = "test_results/tests/Glenn_Multirobot/single_round/file_trajectory_gt_bot" + std::to_string(i) + ".g2o";
+        std::string slamfilename = "test_results/tests/Glenn_Multirobot/single_round/file_trajectory_opt_bot" + std::to_string(i) + ".g2o";
         filesims[i]->saveGroundTruth(filename);
         fileslamsystems[i]->saveOptimizerResults(slamfilename);
         cerr << "single round saved bot "<<i<<endl; 
@@ -273,8 +287,8 @@ int main() {
 
   for(int i=0;i<num_bots;i++){
     fileslamsystems[i]->stop();
-    std::string filename = "test_results/multirobot2/multi_round/file_trajectory_gt_bot" + std::to_string(i) + ".g2o";
-    std::string slamfilename = "test_results/multirobot2/multi_round/file_trajectory_opt_bot" + std::to_string(i) + ".g2o";
+    std::string filename = "test_results/tests/Glenn_Multirobot/multi_round/file_trajectory_gt_bot" + std::to_string(i) + ".g2o";
+    std::string slamfilename = "test_results/tests/Glenn_Multirobot/multi_round/file_trajectory_opt_bot" + std::to_string(i) + ".g2o";
     filesims[i]->saveGroundTruth(filename);
     fileslamsystems[i]->saveOptimizerResults(slamfilename);
     cerr << "multi round saved bot "<<i<<endl; 

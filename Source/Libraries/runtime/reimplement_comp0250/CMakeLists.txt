@@ -9,8 +9,6 @@ add_library(ReimplementComp0250 ${LIB_TYPE}
   platform_controller.cpp
   slam_system.h
   slam_system.cpp
-  slam_system_new.h
-  slam_system_new.cpp
 )
 
 find_package(nlohmann_json REQUIRED)

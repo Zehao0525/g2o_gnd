@@ -9,9 +9,9 @@
 #include <thread>
 
 #include <nlohmann/json.hpp>
-#include "agent_manager_new.h"
+#include "agent_manager.h"
 #include "data_based_simulation.h"
-#include "drone_slam_system_new.h"
+#include "drone_slam_system.h"
 #include "messages.hpp"
 #include "events_base.h"
 #include "view_manager.h"
@@ -45,7 +45,7 @@ int main(int argc, char* argv[]) {
 
     std::string slam_config_path;
     std::string input_path;
-    std::string output_path = "test_results/Multidrone_slam";
+    std::string output_path = "test_results/tests/Multidrone_slam";
     std::string topology_path = "Source/Tests/Multidrone_slam/config/topology.json";
 
     // Read in base config data
@@ -103,7 +103,7 @@ int main(int argc, char* argv[]) {
 
     // Create AgentManager
     // Constructor: AgentManager(config_path, log_path, slam_config_path)
-    AgentManagerNew manager(config_path, input_path, slam_config_path);
+    AgentManager manager(config_path, input_path, slam_config_path);
 
     // Set topology from JSON file
     std::cout << "Setting topology..." << std::endl;
@@ -161,7 +161,7 @@ int main(int argc, char* argv[]) {
     };
 
     for (size_t i = 0; i < robotIds.size(); ++i) {
-        MultiDroneSLAMSystemNew* slamSystem = manager.getSlamSystem(i);
+        MultiDroneSLAMSystem* slamSystem = manager.getSlamSystem(i);
         DataBasedSimulation* sim = manager.getSimulation(i);
 
         std::string bot_view_config = "Source/Tests/Multidrone_slam/config/bot" + robotIds[i] + "_view.json";

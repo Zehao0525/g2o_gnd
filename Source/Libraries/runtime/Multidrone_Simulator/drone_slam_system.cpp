@@ -48,16 +48,6 @@ namespace multibotsim{
 
 using json = nlohmann::json;
 
-int MultiDroneSLAMSystem::preOptTrajectoryBatchCounter_ = 0;
-
-void MultiDroneSLAMSystem::resetPreOptTrajectoryBatchCounter() {
-  preOptTrajectoryBatchCounter_ = 0;
-}
-
-int MultiDroneSLAMSystem::takeNextPreOptTrajectoryBatchIndex() {
-  return preOptTrajectoryBatchCounter_++;
-}
-
 static bool isValidInformationMatrix(const Eigen::Matrix<double,6,6>& info) {
   auto eig = info.selfadjointView<Eigen::Upper>().eigenvalues();
   if (!info.allFinite() || (eig.array() <= 0).any() ||
@@ -75,33 +65,7 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
 
 
   MultiDroneSLAMSystem::MultiDroneSLAMSystem(const std::string& id, const std::string& filename)
-    : SlamSystemBase<VertexSE3, EdgeSE3>(filename),
-      robotId_(id),
-      exVtxCount_(0),
-      gndActive_(false),
-      haveUninitializedObs_(false),
-      graphChanged_(false) {
-    std::ifstream f(filename);
-    if (!f) {
-      throw std::runtime_error("MultiDroneSLAMSystem: cannot open SLAM config: " + filename);
-    }
-    json j;
-    f >> j;
-    gndActiveConfig_ = j.value("gndActive_", true);
-    gndActive_ = gndActiveConfig_;
-
-    gndBound_ = j.value("gndBound_", gndBound_);
-    gndPower_ = j.value("gndPower_", gndPower_);
-    gndLnc_ = j.value("gndLnc_", gndLnc_);
-    gndTailPenaltyStd_ = j.value("gndTailPenaltyStd_", gndTailPenaltyStd_);
-
-    // Fix relative-transform vertices to identity (debug/robustness switch).
-    fixRelativetransform_ = j.value("fixRelativetransform_", false);
-  }
-
-  g2o::ToggelableGNDKernel* MultiDroneSLAMSystem::newPriorToggelableGndKernel() {
-    return new g2o::ToggelableGNDKernel(
-        gndBound_, gndPower_, gndLnc_, gndTailPenaltyStd_, &gndActiveAlwaysFalse_);
+    : Base(id, filename) {
   }
 
   MultiDroneSLAMSystem::~MultiDroneSLAMSystem()=default;
@@ -119,17 +83,8 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
 
   void MultiDroneSLAMSystem::stop(){
     if(verbose_){std::cout << "Bot " << robotId_ << " stop start\n";}
-    
-    optimize(optCountStop_);
-    if (gndActiveConfig_) {
-      gndActive_ = true;
-    }
-    //if (fixOlderPlatformVertices_ == true){
-    // TODO We are doing id = 0 for now.
-    for (const auto& vertex : optimizer_->vertices()) {
-      g2o::OptimizableGraph::Vertex* v = static_cast<g2o::OptimizableGraph::Vertex*>(vertex.second);
-    }
-    optimize(optCountStopFix_);
+
+    runStopOptimization();
 
     // Debug: dump relative-transform vertices (should be near identity if everything is consistent).
     if (preOptTrajectoryDumpEnabled_) {
@@ -170,36 +125,6 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
     }
 
       // std::cout << "Number of intra: " << intraRobotCount_ << std::endl;  // Commented out - variable not defined
-  }
-
-  void MultiDroneSLAMSystem::onAfterOptimize() {
-    if (pendingGndPriorEdges_.empty()) {
-      return;
-    }
-
-    // First time each pending prior edge participates in an optimization, we
-    // switch its GND kernel from `gndActiveAlwaysFalse_` to `gndActive_` (same for
-    // inter-robot SE3 observation priors and landmark EdgeSE3PointXYZ estimate priors).
-    for (auto* e : pendingGndPriorEdges_) {
-      if (!e) continue;
-
-      auto* rk = dynamic_cast<g2o::ToggelableGNDKernel*>(e->robustKernel());
-      if (rk) {
-        rk->setBoolPointer(&gndActive_);
-      } else if (verbose_) {
-        std::cerr << "[GND] Pending prior edge has no ToggelableGNDKernel; id="
-                  << e->id() << std::endl;
-      }
-    }
-    pendingGndPriorEdges_.clear();
-  }
-
-  void MultiDroneSLAMSystem::setPreOptTrajectoryOutputDir(const std::string& output_dir) {
-    preOptTrajectoryOutputDir_ = output_dir;
-  }
-
-  void MultiDroneSLAMSystem::setPreOptTrajectoryDumpEnabled(bool enabled) {
-    preOptTrajectoryDumpEnabled_ = enabled;
   }
 
   void MultiDroneSLAMSystem::dumpPreOptTrajectory(const std::string& run_directory) {
@@ -249,8 +174,6 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
   }
 
 
-
-  void MultiDroneSLAMSystem::ignoreUnknownEventType(){}
 
 
   void MultiDroneSLAMSystem::handleInitializationEvent(DataInitEvent event){
@@ -575,7 +498,7 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
 
 
 
-  DSMessage MultiDroneSLAMSystem::broadcastDSMessage() const{
+  DSMessage MultiDroneSLAMSystem::broadcastSyncMessage() const{
     // Pre-allocate the vector for efficiency
     if(verbose_){std::cout << "Bot " << robotId_ << " broadcastDSMessage start\n";}
     std::vector<PoseStampEntry> syncReqs;

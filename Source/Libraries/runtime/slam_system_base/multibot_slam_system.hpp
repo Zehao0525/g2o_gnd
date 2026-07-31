@@ -15,7 +15,7 @@
 
 #include "gnd_kernel.h"
 #include "multibot_messages.hpp"
-#include "slam_system_base_new.hpp"
+#include "slam_system_base.hpp"
 
 namespace g2o {
 

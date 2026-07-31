@@ -1,6 +1,5 @@
 #include "multi_drone_slam_system_view.h"
 #include "drone_slam_system.h"
-#include "drone_slam_system_new.h"
 #include <GL/gl.h>
 #include <fstream>
 #include <cmath>
@@ -14,14 +13,6 @@ MultiDroneSLAMSystemView::MultiDroneSLAMSystemView(multibotsim::MultiDroneSLAMSy
 
 MultiDroneSLAMSystemView::MultiDroneSLAMSystemView(multibotsim::MultiDroneSLAMSystem* system, const std::string& filename, bool visualise_path)
     : View(Eigen::Vector3f(0.0f, 1.0f, 0.0f)), slamSystem_(system), currentPose3d_(Eigen::Isometry3d::Identity()), visualise_path_(visualise_path) {
-    setView(filename);
-}
-
-MultiDroneSLAMSystemView::MultiDroneSLAMSystemView(multibotsim::MultiDroneSLAMSystemNew* system, const Eigen::Vector3f& color, bool visualise_path)
-    : View(color), slamSystemNew_(system), currentPose3d_(Eigen::Isometry3d::Identity()), visualise_path_(visualise_path) {}
-
-MultiDroneSLAMSystemView::MultiDroneSLAMSystemView(multibotsim::MultiDroneSLAMSystemNew* system, const std::string& filename, bool visualise_path)
-    : View(Eigen::Vector3f(0.0f, 1.0f, 0.0f)), slamSystemNew_(system), currentPose3d_(Eigen::Isometry3d::Identity()), visualise_path_(visualise_path) {
     setView(filename);
 }
 
@@ -40,11 +31,7 @@ void MultiDroneSLAMSystemView::setView(const std::string& filename) {
 
 void MultiDroneSLAMSystemView::update() {
     Eigen::Isometry3d pose;
-    if (slamSystem_) {
-      slamSystem_->platformEstimate(pose);
-    } else {
-      slamSystemNew_->platformEstimate(pose);
-    }
+    slamSystem_->platformEstimate(pose);
 
     // Update 3D state under lock only; release before calling base View methods
     // so we never hold dataMutex_ while calling appendToRobotPath/updateRobotPose

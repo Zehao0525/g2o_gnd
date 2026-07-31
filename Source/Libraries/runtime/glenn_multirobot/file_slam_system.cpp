@@ -43,8 +43,10 @@ using namespace Eigen;
 using VertexContainer = g2o::OptimizableGraph::VertexContainer;
 
   FileSlamSystem::FileSlamSystem(int id, const std::string& filename)
-    :SlamSystemBase<VertexSE3, EdgeSE3>(filename), robotId_(id), gndActive_(false), haveUninitializedObs_(false){
-
+    : Base(id, filename) {
+    // Glenn historically starts with GND off; tests/apps toggle gndActive_ explicitly.
+    gndActiveConfig_ = false;
+    gndActive_ = false;
   }
 
   FileSlamSystem::~FileSlamSystem()=default;
@@ -98,8 +100,6 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
         break;
     }
   }
-
-  void FileSlamSystem::ignoreUnknownEventType(){}
 
   void FileSlamSystem::handleInitializationEvent(FileInitEvent event){
     currentPlatformVertex_ = new VertexSE3();
@@ -253,15 +253,15 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
 
   }
 
-  FileSlamSystem::ObsSyncMessage FileSlamSystem::broadcastObsSyncMessage() const{
+  FileObsSyncMessage FileSlamSystem::broadcastSyncMessage() const{
     // Pre-allocate the vector for efficiency
-    std::vector<FileSlamSystem::ObsSyncRequest> syncReqs;
+    std::vector<FileObsSyncRequest> syncReqs;
     syncReqs.reserve(observations_.size());
 
     // Convert each Observation into an ObsSyncRequest
     for (const auto& obs : observations_) {
       // 1) Use the existing ID-only constructor
-      FileSlamSystem::ObsSyncRequest req(
+      FileObsSyncRequest req(
         /* selfId */        obs.observerRobotId,
         /* robotId */       obs.observedRobotId,
         /* selfVtxId */     obs.observerVertexId,
@@ -279,7 +279,7 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
     }
 
     // Build & return the final message; mark it as outgoing
-    return FileSlamSystem::ObsSyncMessage(
+    return FileObsSyncMessage(
       /* sender    */ robotId_,
       /* outGoing  */ true,
       /* syncReqs  */ std::move(syncReqs)
@@ -287,7 +287,7 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
   }
 
   // recieveObsSyncMessage
-  FileSlamSystem::ObsSyncMessage FileSlamSystem::handleObservationSyncRequest(FileSlamSystem::ObsSyncMessage& request){
+  FileObsSyncMessage FileSlamSystem::handleObservationSyncRequest(FileObsSyncMessage& request){
     // Step 1: find all ObsSyncReqs with observedRobotId == robotId_
     // if there are requests we ned to deal with, do:
     //   Stwp 2: call "optimize(10)"
@@ -297,7 +297,7 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
     //   Step 4: Create a ObsSyncMessage for these requests, set outGoing = false, return this message
 
       // Step 1: collect requests addressed to this robot
-    std::vector<FileSlamSystem::ObsSyncRequest> localRequests;
+    std::vector<FileObsSyncRequest> localRequests;
     localRequests.reserve(request.syncRequests.size());
     std::vector<g2o::OptimizableGraph::Vertex*> verticesToMarginalize;
     verticesToMarginalize.reserve(localRequests.size());
@@ -329,7 +329,7 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
 
     // 2) if nothing to do, early out immediately
     if (localRequests.empty()) {
-      return ObsSyncMessage(robotId_, /*outGoing=*/false, {});
+      return FileObsSyncMessage(robotId_, /*outGoing=*/false, {});
     }
 
     // Step 2: optimize our graph so that we have up-to-date estimates
@@ -368,7 +368,7 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
     optimizer_->initializeOptimization();
     optimizer_->optimize(10);
     bool margSuccess = optimizer_->computeMarginals(margCov, verticesToMarginalize);
-    if(!margSuccess){return ObsSyncMessage(robotId_, /*outGoing=*/false, {});}
+    if(!margSuccess){return FileObsSyncMessage(robotId_, /*outGoing=*/false, {});}
 
     // for (auto& [id, v] : externalVertices_) {
     //   if (v) {
@@ -377,7 +377,7 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
     // }
 
     // Step 4: fill in each ObsSyncRequest with measurement+information
-    std::vector<FileSlamSystem::ObsSyncRequest> validResponses;
+    std::vector<FileObsSyncRequest> validResponses;
     validResponses.reserve(localRequests.size());
     for (size_t i = 0; i < localRequests.size(); ++i) {
       auto& req = localRequests[i];
@@ -403,14 +403,14 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
     }
 
     // Step 5: return only the valid responses
-    return FileSlamSystem::ObsSyncMessage(
+    return FileObsSyncMessage(
       /* sourceId  */ request.sourceId,
       /* outGoing  */ false,
       /* syncReqs  */ std::move(validResponses)
     );
   }
 
-  void FileSlamSystem::handleObservationSyncResponse(const FileSlamSystem::ObsSyncMessage& message) {
+  void FileSlamSystem::handleObservationSyncResponse(const FileObsSyncMessage& message) {
     // 1) Update all matching SE3Prior edges from the external cache
     for (const auto& req : message.syncRequests) {
       auto it = externalVerticesPrior_.find(req.observedVertexId);
@@ -517,11 +517,12 @@ using VertexContainer = g2o::OptimizableGraph::VertexContainer;
   }
 
   void FileSlamSystem::platformEstimate2d(Eigen::Vector3d& x, Eigen::Matrix2d& P){
-
+    platformEstimate2d(x);
+    P.setZero();
   }
 
-  void FileSlamSystem::platformEstimate(Eigen::Isometry3d& x, Eigen::Matrix<double,6,6>& P){
-
+  void FileSlamSystem::platformEstimateSe3(EstimateType& x, CovarianceType& P){
+    platformEstimateMarginals(x, P);
   }
 
   void FileSlamSystem::platformEstimate2d(Eigen::Vector3d& pose) const {

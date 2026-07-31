@@ -3,7 +3,6 @@
 #include <Eigen/Core>
 #include <nlohmann/json.hpp>
 #include "slam_system.h"
-#include "slam_system_new.h"
 
 
 namespace g2o {
@@ -14,9 +13,6 @@ class SLAMSystemView : public View {
 public:
     SLAMSystemView(SlamSystem* system, const Eigen::Vector3f& color);
     SLAMSystemView(SlamSystem* system, const std::string& filename);
-
-    SLAMSystemView(SlamSystemNew* system, const Eigen::Vector3f& color);
-    SLAMSystemView(SlamSystemNew* system, const std::string& filename);
 
     void setView(const std::string& filename);
 
@@ -30,7 +26,6 @@ public:
 
 private:
     SlamSystem* slamSystem_ = nullptr;
-    SlamSystemNew* slamSystemNew_ = nullptr;
 
     Eigen::Vector3f lmColor_;
     double lmSize_;

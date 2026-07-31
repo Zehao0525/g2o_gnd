@@ -1,6 +1,6 @@
 {
     "input_path" : "test_data/utisa/MRCLAM7/MRCLAM_Dataset7",
-    "output_path" : "test_results/utisa_mrclam7_batch",
+    "output_path" : "test_results/tests/UTISA_slam/utisa_mrclam7_batch",
     "experiment_base_config" : "Source/Tests/UTISA_slam/config/experiment_base_config.json",
     "single_dataset" : true,
     "verbose" : false,

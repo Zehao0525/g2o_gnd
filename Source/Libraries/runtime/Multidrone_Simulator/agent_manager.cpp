@@ -58,7 +58,7 @@ AgentManager::AgentManager(const std::string& config_path,
     // Forwarded into DSMessage.lm_query and consumed by MultiDroneSLAMSystem.
     lmQueryEnabled_ = j.value("lm_query", true);
 
-    // Per-observation robot sync entries in broadcastDSMessage(); false = omit them.
+    // Per-observation robot sync entries in broadcastSyncMessage(); false = omit them.
     robotQueryEnabled_ = j.value("robot_query", true);
 
     // Communication config (defaults: enabled=true, frequency=0 -> every step)
@@ -386,7 +386,7 @@ void AgentManager::performCommunication() {
   // 1) Each drone broadcasts its query message
   std::map<std::string, DSMessage> broadcasts;
   for (size_t i = 0; i < slamSystems_.size() && i < robotIds_.size(); ++i) {
-    broadcasts[robotIds_[i]] = slamSystems_[i]->broadcastDSMessage();
+    broadcasts[robotIds_[i]] = slamSystems_[i]->broadcastSyncMessage();
   }
 
   // Helper: id -> index

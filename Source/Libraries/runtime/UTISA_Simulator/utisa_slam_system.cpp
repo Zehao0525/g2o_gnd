@@ -24,16 +24,6 @@ namespace multibotsim {
 
 using json = nlohmann::json;
 
-int UTISASlamSystem::preOptTrajectoryBatchCounter_ = 0;
-
-void UTISASlamSystem::resetPreOptTrajectoryBatchCounter() {
-  preOptTrajectoryBatchCounter_ = 0;
-}
-
-int UTISASlamSystem::takeNextPreOptTrajectoryBatchIndex() {
-  return preOptTrajectoryBatchCounter_++;
-}
-
 static bool isValidInformationMatrix3(const Eigen::Matrix3d& info) {
   auto eig = info.selfadjointView<Eigen::Upper>().eigenvalues();
   if (!info.allFinite() || (eig.array() <= 0).any() || eig.maxCoeff() > 1e10) {
@@ -63,38 +53,19 @@ static VertexSE2* platformVertexAtTimeSafe(const StampMap& stampMap,
 using VertexContainer = g2o::OptimizableGraph::VertexContainer;
 
 UTISASlamSystem::UTISASlamSystem(const std::string& id, const std::string& filename)
-    : SlamSystemBase<VertexSE2, EdgeSE2>(filename),
-      robotId_(id),
-      exVtxCount_(0),
-      gndActive_(false),
-      haveUninitializedObs_(false),
-      graphChanged_(false) {
+    : Base(id, filename) {
   std::ifstream f(filename);
   if (!f) {
     throw std::runtime_error("UTISASlamSystem: cannot open SLAM config: " + filename);
   }
   json j;
   f >> j;
-  gndActiveConfig_ = j.value("gndActive_", true);
-  gndActive_ = gndActiveConfig_;
-
-  gndBound_ = j.value("gndBound_", gndBound_);
-  gndPower_ = j.value("gndPower_", gndPower_);
-  gndLnc_ = j.value("gndLnc_", gndLnc_);
-  gndTailPenaltyStd_ = j.value("gndTailPenaltyStd_", gndTailPenaltyStd_);
-
-  fixRelativetransform_ = j.value("fixRelativetransform_", false);
 
   const auto sensorOff = j.value("sensor_offset", std::vector<double>{0.0, 0.0, 0.0});
   if (sensorOff.size() != 3) {
     throw std::runtime_error("UTISASlamSystem: sensor_offset must have exactly 3 values [x, y, theta]");
   }
   landmarkSensorOffset_ = SE2(sensorOff[0], sensorOff[1], sensorOff[2]);
-}
-
-g2o::ToggelableGNDKernel* UTISASlamSystem::newPriorToggelableGndKernel() {
-  return new g2o::ToggelableGNDKernel(
-      gndBound_, gndPower_, gndLnc_, gndTailPenaltyStd_, &gndActiveAlwaysFalse_);
 }
 
 UTISASlamSystem::~UTISASlamSystem() = default;
@@ -124,17 +95,9 @@ void UTISASlamSystem::stop() {
 
   const bool canOptimize = !optimizer_->edges().empty() && optimizer_->vertices().size() > 1;
   if (canOptimize) {
-    optimize(optCountStop_);
-  }
-  if (gndActiveConfig_) {
+    runStopOptimization();
+  } else if (gndActiveConfig_) {
     gndActive_ = true;
-  }
-  for (const auto& vertex : optimizer_->vertices()) {
-    g2o::OptimizableGraph::Vertex* v = static_cast<g2o::OptimizableGraph::Vertex*>(vertex.second);
-    (void)v;
-  }
-  if (canOptimize) {
-    optimize(optCountStopFix_);
   }
 
   if (preOptTrajectoryDumpEnabled_) {
@@ -168,32 +131,6 @@ void UTISASlamSystem::stop() {
                 << ") initialized=" << (obs.initialized ? "Yes" : "No") << std::endl;
     }
   }
-}
-
-void UTISASlamSystem::onAfterOptimize() {
-  if (pendingGndPriorEdges_.empty()) {
-    return;
-  }
-
-  for (auto* e : pendingGndPriorEdges_) {
-    if (!e) continue;
-
-    auto* rk = dynamic_cast<g2o::ToggelableGNDKernel*>(e->robustKernel());
-    if (rk) {
-      rk->setBoolPointer(&gndActive_);
-    } else if (verbose_) {
-      std::cerr << "[GND] Pending prior edge has no ToggelableGNDKernel; id=" << e->id() << std::endl;
-    }
-  }
-  pendingGndPriorEdges_.clear();
-}
-
-void UTISASlamSystem::setPreOptTrajectoryOutputDir(const std::string& output_dir) {
-  preOptTrajectoryOutputDir_ = output_dir;
-}
-
-void UTISASlamSystem::setPreOptTrajectoryDumpEnabled(bool enabled) {
-  preOptTrajectoryDumpEnabled_ = enabled;
 }
 
 void UTISASlamSystem::dumpPreOptTrajectory(const std::string& run_directory) {
@@ -239,8 +176,6 @@ void UTISASlamSystem::processEvent(Event& event) {
       break;
   }
 }
-
-void UTISASlamSystem::ignoreUnknownEventType() {}
 
 void UTISASlamSystem::handleInitializationEvent(UTISAInitEvent event) {
   if (verbose_) {
@@ -492,7 +427,7 @@ void UTISASlamSystem::handleObservationEvent(UTISAObsEvent event) {
   haveUninitializedObs_ = true;
 }
 
-UTSIAMessage UTISASlamSystem::broadcastUTSIAMessage() const {
+UTSIAMessage UTISASlamSystem::broadcastSyncMessage() const {
   
   if (verbose_) {
     std::cout << "Bot " << robotId_ << " broadcastUTSIAMessage start\n";

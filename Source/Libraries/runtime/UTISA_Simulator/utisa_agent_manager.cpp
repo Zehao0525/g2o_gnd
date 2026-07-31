@@ -530,7 +530,7 @@ void UTISAAgentManager::performCommunication() {
   // 1) Each drone broadcasts its query message
   std::map<std::string, UTSIAMessage> broadcasts;
   for (size_t i = 0; i < slamSystems_.size() && i < robotIds_.size(); ++i) {
-    broadcasts[robotIds_[i]] = slamSystems_[i]->broadcastUTSIAMessage();
+    broadcasts[robotIds_[i]] = slamSystems_[i]->broadcastSyncMessage();
   }
 
   // Helper: id -> index

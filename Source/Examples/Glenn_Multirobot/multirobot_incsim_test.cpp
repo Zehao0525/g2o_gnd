@@ -142,7 +142,7 @@ int main() {
     fileslamsystems[i]->processEvents(events);
     slamVizers[i]->update();
 
-    std::cout << "sys" << i << " optimizer@ " << fileslamsystems[i]->optimizer() << "\n";
+    std::cout << "sys" << i << " optimizer@ " << &fileslamsystems[i]->optimizer() << "\n";
   }
   
   for(int i=0;i<6000;i++){
