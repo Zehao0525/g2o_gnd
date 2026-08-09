@@ -1,0 +1,28 @@
+{
+    "view_config_path": "unit_tests/multirobot/utisa/config/view_config.json",
+    "slam_config_path": "unit_tests/multirobot/utisa/config/slam_system_config.json",
+    "sim_config_path": "experiments/multirobot/multidrone/simulator/config/sim_config.json",
+    "input_path": "test_data/utisa/MRCLAM7/MRCLAM_Dataset7",
+    "output_path": "test_results/unit_tests/utisa/unit_experiment",
+    "topology_path": "unit_tests/multirobot/utisa/config/topology.json",
+    "debug_outputs": true,
+    "verbose": false,
+    "communication": {
+        "enabled": false,
+        "frequency": 0.00000002,
+        "end_rounds": 0
+    },
+    "robot_query": false,
+    "lm_query": false,
+    "odom_covariance": [
+        [0.0707, 0.0, 0.0],
+        [0.0, 0.001, 0.0],
+        [0.0, 0.0, 0.548]
+    ],
+    "range_bearing_covariance": [
+        [0.5, 0.0],
+        [0.0, 0.0524]
+    ],
+    "Duration": 40.0,
+    "RobotIds": ["Robot1"]
+}

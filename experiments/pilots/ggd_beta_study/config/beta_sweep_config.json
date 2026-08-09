@@ -1,0 +1,33 @@
+{
+  "simulation": {
+    "num_nodes": 1000,
+    "seed": 37,
+    "num_tests": 30,
+    "sensor_offset": [0.2, 0.1, -0.1],
+    "transition_prob": 0.95,
+    "gps_std": 2.5,
+    "gps_period": 2,
+    "increment_gps_period": false
+  },
+
+  "optimization": {
+    "ggd_warmup_iterations": 10,
+    "max_iterations": 200,
+    "chi2_rel_tol": 1e-5,
+    "verbose": false
+  },
+
+  "include_gaussian_reference": true,
+
+  "kernels": {
+    "ggd_bound": 2.0,
+    "ggd_lnc": 0.001,
+    "ggd_tail_std": 2.0
+  },
+
+  "beta_values": [2, 4, 6, 8, 10, 20, 100, 1000],
+
+  "output": {
+    "base_dir": "test_results/ggd_beta_study/correlated_gps_tight"
+  }
+}

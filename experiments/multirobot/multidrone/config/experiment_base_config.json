@@ -1,0 +1,17 @@
+{
+    "slam_config_path" : "experiments/multirobot/multidrone/config/slam_system_config.json",
+    "sim_config_path" : "experiments/multirobot/multidrone/simulator/config/sim_config.json",
+    "input_path" : "test_data/multidrone2/unit_test/1_20lm_2midpoint/0",
+    "output_path" : "test_results/multidrone/lm_comms_test/lm_only_fc",
+    "debug_outputs" : true,
+    "no_observaions" : false,
+    "verbose" : true,
+
+    "communication":{
+        "enabled": true,
+        "frequency": 0.0000000002,
+        "end_rounds": 3
+      },
+    "lm_query": true,
+    "robot_query": true
+}

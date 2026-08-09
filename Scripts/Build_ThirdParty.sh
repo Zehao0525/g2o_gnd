@@ -24,9 +24,9 @@ esac
 
 echo Build type ${build_type} using ${num_jobs} parallel jobs
 root_dir=`pwd`
-mkdir -p Build/${build_type}/Source/ThirdParty
-pushd Build/${build_type}/Source/ThirdParty > /dev/null
-cmake "${root_dir}/Source/ThirdParty" -DCMAKE_BUILD_TYPE=${build_type}
+mkdir -p Build/${build_type}/thirdparty
+pushd Build/${build_type}/thirdparty > /dev/null
+cmake "${root_dir}/thirdparty" -DCMAKE_BUILD_TYPE=${build_type}
+# ExternalProject targets install into Develop/ during their build/install steps.
 make -j${num_jobs}
-make install
 popd

@@ -81,5 +81,8 @@
         "*.bak2": "cpp",
         "*.hide": "cpp"
     },
-    "cmake.sourceDirectory": "/home/zwang/UCL/Final_project/g2o_example/Source"
+    "cmake.sourceDirectory": "/home/zwang/UCL/Final_project/g2o_example",
+    "python-envs.defaultEnvManager": "ms-python.python:conda",
+    "python-envs.defaultPackageManager": "ms-python.python:conda",
+    "python-envs.pythonProjects": []
 }

@@ -15,11 +15,11 @@ fi
 
 # Check if the vocabulary file exists. If not, uncompress it
 
-if [ ! -f "Source/Vocabulary/ORBvoc.txt" ]
+if [ ! -f "Vocabulary/ORBvoc.txt" ]
 then
     echo "Uncompressing vocabulary file."
-    unzip Source/Vocabulary/ORBvoc.txt.zip
-    mv ORBvoc.txt Source/Vocabulary
+    unzip Vocabulary/ORBvoc.txt.zip
+    mv ORBvoc.txt Vocabulary
 fi
 
 # Heuristic to suggest how many CPUs to use - take
@@ -33,9 +33,9 @@ esac
 
 echo Build type ${build_type} using ${num_jobs} parallel jobs
 root_dir=`pwd`
-mkdir -p Build/${build_type}/Source
-pushd Build/${build_type}/Source > /dev/null
-cmake "${root_dir}/Source" -DCMAKE_BUILD_TYPE=${build_type} -DCMAKE_INSTALL_PREFIX=${BUILD_INSTALL_PREFIX}
+mkdir -p Build/${build_type}
+pushd Build/${build_type} > /dev/null
+cmake "${root_dir}" -DCMAKE_BUILD_TYPE=${build_type} -DCMAKE_INSTALL_PREFIX=${BUILD_INSTALL_PREFIX}
 make -j${num_jobs}
 make -j$(nproc) VERBOSE=0
 make install

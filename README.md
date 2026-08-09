@@ -1,13 +1,13 @@
-# GND(Or just none gaussian in general) G2O experiment
+# GGD(Or just none gaussian in general) G2O experiment
 
 This a hand coded simulator based on the refactored ORB_SLAM2 repository. All the third party library are the same as : https://github.com/UCL/COMP0249_24-25_ORB_SLAM2.git. The refactored OrbSLAM also have better documentation, so if you have any probelm building this project, consider consulting the documentation of that repository. 
 
 ## User-visible changes from the original ORB-SLAM2:
-1.  All executables are installed under `Build/Debug/Source/Examples/...`. `incsim_test` (COMP0250-style incremental 2D) lives in `comp0250_reimplement`. `tutorial_slam2d` is a refactor of the g2o tutorial to smoke-test the CMake wiring.
+1.  All executables are installed under `Build/Debug/experiments/...`. `incsim_test` (COMP0250-style incremental 2D) lives in `comp0250_reimplement`. `tutorial_slam2d` is a refactor of the g2o tutorial to smoke-test the CMake wiring.
 
-2. To run it, use `Build/Debug/Source/Examples/comp0250_reimplement/incsim_test` from THIS directory level. Config paths are relative to the repo root.
+2. To run it, use `Build/Debug/experiments/comp0250_reimplement/incsim_test` from THIS directory level. Config paths are relative to the repo root.
 
-3. You can modify the setup of `incsim_test` via the JSON files under `Source/Examples/comp0250_reimplement/config/`.
+3. You can modify the setup of `incsim_test` via the JSON files under `experiments/comp0250_reimplement/config/`.
 
 4. The outputs from the simulator and the slam_system are stored in `trajectory_before.g2o`, `trajectory_after.g2o`, `trajectory_gt.g2o`. The `trajectory_after.g2o` and `trajectory_before.g2o` files can be read back into the optimizer to set itself up (not exercised here). See `python/evaluators/comp0250_reimplement/visualizer.py` for visualization.
 
@@ -16,7 +16,7 @@ This a hand coded simulator based on the refactored ORB_SLAM2 repository. All th
 
 ### Prerequisites
 
-You can clone this repository using https://github.com/Zehao0525/g2o_gnd.git
+You can clone this repository using https://github.com/Zehao0525/g2o_ggd.git
 
 It depends on a few widely-available libraries:
 
@@ -107,10 +107,10 @@ A chaotic first subdirectory filled with coding patterns of a person who had cle
   *This is pure test work, not very interesting.* Functionally identical to `tutorial_slam2d.cpp` from the g2o base package; this was mainly something I wrote to familiarise myself with cross-subdirectory linking.
 
 * **cauchy_edge_validity_test(2/3).cpp**
-  *This is pure test work, not very interesting.* Tests the validity of the Cauchy edges using David Rosen’s formulation, as well as the convergence behaviour of the GND kernels. It probably should have been placed in a unit test folder instead.
+  *This is pure test work, not very interesting.* Tests the validity of the Cauchy edges using David Rosen’s formulation, as well as the convergence behaviour of the GGD kernels. It probably should have been placed in a unit test folder instead.
 
 * **tutorial_w_bearing.cpp**
-  Code used for the correlated absolute position test from the paper. Worth checking out. The design logic is that bearing and GPS information are absolute measurements with correlated noise. Previous tests showed that GND priors optimise poorly, so this explores using absolute data first. Everything is hard-coded, and the bearing poses are currently turned off.
+  Code used for the correlated absolute position test from the paper. Worth checking out. The design logic is that bearing and GPS information are absolute measurements with correlated noise. Previous tests showed that GGD priors optimise poorly, so this explores using absolute data first. Everything is hard-coded, and the bearing poses are currently turned off.
 
 * **incsim_test.cpp**
   A C++ spinoff of the MATLAB code from [COMP0249 Coursework 1](https://github.com/UCL/COMP0249_24-25). Configurable using `simulator_config.json`, `slam_system_config.json`, and `view_config.json`. Everything works pretty much the same as the MATLAB code, except that the C++ version has prettier visualisation and faster execution. When in doubt, consult the COMP0249 material first; it is very well documented.
@@ -161,26 +161,30 @@ Also note that the covariance values of the UTISA test came from the following p
 
 "Y. Huang, C. Xue, F. Zhu, W. Wang, Y. Zhang and J. A. Chambers, "Adaptive Recursive Decentralized Cooperative Localization for Multirobot Systems With Time-Varying Measurement Accuracy," in IEEE Transactions on Instrumentation and Measurement, vol. 70, pp. 1-25, 2021, Art no. 8501525, doi: 10.1109/TIM.2021.3054005. keywords: {Robots;Covariance matrices;Noise measurement;Multi-robot systems;Location awareness;Estimation;Adaptive systems;Adaptive filter;decentralized cooperative localization;extended Kalman filter;multirobot systems;variational Bayesian},"
 
-### Libraries layout (`Source/Libraries`)
+### Repo layout
 
 | Folder | Role |
 |--------|------|
-| `types/tutorial_slam2d/` | Tutorial SE2 verts/edges/params (CMake target `G2O_Graph`) |
-| `core/` | GND kernels + `GNDEdges/` (CMake target `GND_Core`) |
-| `runtime/` | Simulators + SLAM frontends (`Oneshot_Simulator`, `Incremental_Simulator` incl. `slam_system_base`, `Multidrone_Simulator`, `UTISA_Simulator`) |
-| `viz/` | Pangolin views (CMake target `Incremental_Visualizer`) |
+| `src/types/tutorial_slam2d/` | Tutorial SE2 verts/edges/params (CMake target `G2O_Graph`) |
+| `src/fght/` | GGD kernels + `GGDEdges/` (CMake target `GGD_Core`) |
+| `tools/event_based/runtime/` | Event-driven simulators + SLAM frontends (`reimplement_comp0250`, `glenn_multirobot`, `multidrone_simulator`, `utisa_simulator`, `slam_system_base`) |
+| `tools/event_based/viz/` | Pangolin views (CMake target `Incremental_Visualizer`) |
+| `tools/offline/oneshot_simulator/` | Build-then-optimize simulator (CMake target `Oneshot_Simulator`) |
+| `experiments/` | Runnable demos (`comp0250_reimplement`, `multirobot/`, `pilots/`) |
+| `unit_tests/` | Parallel test drivers mirroring `experiments/` |
+| `thirdparty/` | g2o, Pangolin, DBoW2, DLib (built via `Build_ThirdParty.sh`) |
 
-### Oneshot_Simulator (`runtime/`)
+### Oneshot_Simulator (`tools/offline/oneshot_simulator/`)
 Simulator recreation for g2o_tutorial2d and its permutations.
 
-### Incremental_Simulator (`runtime/`)
+### Event-based runtime (`tools/event_based/runtime/`)
 Code supporting recreation of [COMP0249 Coursework 1](https://github.com/UCL/COMP0249_24-25), as well as simulation and SLAM system for data from *Glenn Shimoda*. `slam_system`, `system_model`, `platform_controller`, `incremental_simulator` are for COMP0249, in this case the simulator simulates data real time. `slam_system_base`. Anything with prefix "File" supports *Glenn Shimoda*'s data, in which case simulator reads in data line by line and parse them into events. `ordered_event_queue`, `events.h` are general purposed based class used across both experiments, as well as other subdirectories.
 
-### Multidrone_Simulator (`runtime/`)
+### Multidrone simulator (`tools/event_based/runtime/multidrone_simulator/`)
 Code simulating SLAM system and communication from using data generated by `python/simulators/multidrone`. each agent contains *simulator* and *slam_system*. Data is read in by the simulator and parsed into `md_events`. agents communicate via `messages` and are managed by `agent_manager`. `stamp_map` help slam systems keep track of their factorgraph nodes.
 
-### UTISA_Simulator (`runtime/`)
-Very similar implementation to `Multidrone_Simulator`.
+### UTISA simulator (`tools/event_based/runtime/utisa_simulator/`)
+Very similar implementation to `multidrone_simulator`.
 
 ### python/
 
@@ -218,7 +222,7 @@ Offline tools for UTIAS MR.CLAM (UTISA). See **`python/evaluators/utisa/README.m
 
 ### python/diagram_plotters
 
-Paper figures (e.g. GND vs robust kernels): `plot_gnd_robust_comparison.py`.
+Paper figures (e.g. GGD vs robust kernels): `plot_ggd_robust_comparison.py`.
 
 ## Other various evaluators
 

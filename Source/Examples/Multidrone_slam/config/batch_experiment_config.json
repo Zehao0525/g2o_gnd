@@ -1,7 +1,0 @@
-{
-    "input_path" : "test_data/multidrone2/RAL_mod/100_0lm_0midpoint_f1_test",
-    "output_path" : "test_results/multidrone2/RAL_mod/100_0lm_0midpoint_f1_test_gnd",
-    "experiment_base_config" : "Source/Examples/Multidrone_slam/config/experiment_base_config.json",
-    "verbose" : false,
-    "enable_visualization" : false
-}

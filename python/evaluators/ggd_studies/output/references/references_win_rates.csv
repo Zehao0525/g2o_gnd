@@ -1,5 +1,0 @@
-kernel,baseline,wins,losses,ties,win_rate
-geman_mcclure,gaussian,13,17,0,0.43333333333333335
-gnd,gaussian,27,3,0,0.9
-huber,gaussian,8,18,4,0.26666666666666666
-tukey,gaussian,10,20,0,0.3333333333333333

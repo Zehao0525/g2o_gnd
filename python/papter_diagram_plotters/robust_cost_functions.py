@@ -1,13 +1,13 @@
 """
-Robust cost functions ρ(e²) used in g2o, plus GND (kernel and edge forms).
+Robust cost functions ρ(e²) used in g2o, plus GGD (kernel and edge forms).
 
 All functions take squared Mahalanobis distance e² = rᵀ Ω r. For scalar plots we use
 unit information (Ω = 1), so e² = r² and r is the 1D residual in σ-units after scaling.
 
-GND kernel (matches Source/Libraries/core/GNDEdges/gnd_kernel.cpp):
+GGD kernel (matches src/fght/GGDEdges/ggd_kernel.cpp):
     ρ(e²) = ℓ + (e² / σ²)^(β/2)
 
-GND edge (matches edge_none_gaussian_unary computeError with gndSetInformation):
+GGD edge (matches edge_none_gaussian_unary computeError with ggdSetInformation):
     ρ_edge(e²) = ℓ + (e² / 4)^β   with Ω stored as Ω/4 internally
     Equivalently on unit-Ω edge: ℓ + (e²/4)^β; bound σ is absorbed into the /4 hack.
 """
@@ -22,21 +22,21 @@ def gaussian(e2: np.ndarray) -> np.ndarray:
     return np.asarray(e2, dtype=float)
 
 
-def gnd_kernel(e2: np.ndarray, sigma: float, beta: float, lnc: float = 1e-3) -> np.ndarray:
-    """GND robust kernel as implemented in g2o GNDKernel::robustify (rho[0])."""
+def ggd_kernel(e2: np.ndarray, sigma: float, beta: float, lnc: float = 1e-3) -> np.ndarray:
+    """GGD robust kernel as implemented in g2o GGDKernel::robustify (rho[0])."""
     e2 = np.asarray(e2, dtype=float)
     scaled = e2 / (sigma * sigma)
     return lnc + np.power(np.maximum(scaled, 0.0), beta / 2.0)
 
 
-def gnd_edge(e2: np.ndarray, beta: float, lnc: float = 1e-3) -> np.ndarray:
-    """GND dedicated edge: ℓ + (e²/4)^β (gndSetInformation divides Ω by 4)."""
+def ggd_edge(e2: np.ndarray, beta: float, lnc: float = 1e-3) -> np.ndarray:
+    """GGD dedicated edge: ℓ + (e²/4)^β (ggdSetInformation divides Ω by 4)."""
     e2 = np.asarray(e2, dtype=float)
     scaled = e2 / 4.0
     return lnc + np.power(np.maximum(scaled, 0.0), beta)
 
 
-def gnd_kernel_deriv(e2: np.ndarray, sigma: float, beta: float) -> np.ndarray:
+def ggd_kernel_deriv(e2: np.ndarray, sigma: float, beta: float) -> np.ndarray:
     """ρ'(e²) — IRLS weight multiplier on the quadratic part (g2o rho[1])."""
     e2 = np.asarray(e2, dtype=float)
     scaled = np.maximum(e2 / (sigma * sigma), 1e-30)
@@ -141,7 +141,7 @@ def dcs(e2: np.ndarray, phi: float) -> np.ndarray:
 def set_indicator_cost(r: np.ndarray, sigma: float, outside: float = 1.0) -> np.ndarray:
     """
     Idealised set-membership penalty: 0 inside |r|≤σ, constant outside.
-    Not a g2o kernel; useful as the limit GND approaches at large β.
+    Not a g2o kernel; useful as the limit GGD approaches at large β.
     """
     r = np.asarray(r, dtype=float)
     return np.where(np.abs(r) <= sigma, 0.0, outside)

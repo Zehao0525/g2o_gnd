@@ -5,7 +5,7 @@
             "name": "Debug incsim_test",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/Build/Debug/Source/Examples/comp0250_reimplement/incsim_test",
+            "program": "${workspaceFolder}/Build/Debug/experiments/comp0250_reimplement/incsim_test",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

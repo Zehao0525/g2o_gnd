@@ -1,0 +1,11 @@
+{
+    "input_path" : "test_data/utisa/MRCLAM7/MRCLAM_Dataset7",
+    "output_path" : "test_results/unit_tests/utisa/utisa_mrclam7_batch",
+    "experiment_base_config" : "unit_tests/multirobot/utisa/config/experiment_base_config.json",
+    "single_dataset" : true,
+    "verbose" : false,
+    "enable_visualization" : false,
+    "show_progress" : true,
+    "view_config_path" : "unit_tests/multirobot/utisa/config/view_config.json",
+    "view_config_dir" : "unit_tests/multirobot/utisa/config"
+}
